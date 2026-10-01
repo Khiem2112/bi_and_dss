@@ -1,8 +1,10 @@
-import { useMemo } from 'react'
-import type { AirportHotspot } from '../../domain/types'
+import { useMemo, useState } from 'react'
+import type { AirportHotspot, EvidenceRecord } from '../../domain/types'
 
 interface AirportMapProps {
   airports: AirportHotspot[]
+  routes?: EvidenceRecord[]
+  networkBaselineRate?: number
   selectedId?: string
   selectedCodes?: string[]
   onSelect?: (airport: AirportHotspot) => void
@@ -36,6 +38,8 @@ function formatDuration(minutes: number): string {
 
 export function AirportMap({
   airports,
+  routes,
+  networkBaselineRate = 18.4,
   selectedId,
   selectedCodes = [],
   onSelect,
@@ -43,6 +47,7 @@ export function AirportMap({
   onClearPair,
   enableMeasurement = true,
 }: AirportMapProps) {
+  const [hoveredAirport, setHoveredAirport] = useState<AirportHotspot | null>(null)
   const airportMap = useMemo(() => new Map(airports.map((a) => [a.code, a])), [airports])
 
   const selectedAirports = useMemo(() => {
@@ -93,6 +98,61 @@ export function AirportMap({
     }
   }, [selectedAirports])
 
+  const routeStats = useMemo(() => {
+    if (!routeMeasurement) return null
+    const { ap1, ap2 } = routeMeasurement
+
+    const matchingRoutes = (routes ?? []).filter(
+      (r) =>
+        (r.origin === ap1.code && r.destination === ap2.code) ||
+        (r.origin === ap2.code && r.destination === ap1.code)
+    )
+
+    if (matchingRoutes.length === 0) {
+      return {
+        hasFlights: false,
+        rate: 0,
+        delayedCount: 0,
+        eligibleCount: 0,
+        averageDelay: 0,
+        gap: null,
+        distanceMiles: routeMeasurement.distanceMiles,
+        distanceKm: routeMeasurement.distanceKm,
+        flightMinutes: routeMeasurement.flightMinutes,
+        durationText: routeMeasurement.durationText,
+      }
+    }
+
+    const totalEligible = matchingRoutes.reduce((sum, r) => sum + (r.eligibleCount ?? r.n ?? 0), 0)
+    const totalDelayed = matchingRoutes.reduce((sum, r) => sum + (r.delayedCount ?? 0), 0)
+    const rate = totalEligible > 0 ? Number(((totalDelayed / totalEligible) * 100).toFixed(1)) : 0
+
+    const totalDelayWeightedMinutes = matchingRoutes.reduce(
+      (sum, r) => sum + r.averageDelay * (r.eligibleCount ?? r.n ?? 0),
+      0
+    )
+    const averageDelay = totalEligible > 0 ? Number((totalDelayWeightedMinutes / totalEligible).toFixed(1)) : 0
+
+    const gap = totalEligible > 0 ? Number((rate - networkBaselineRate).toFixed(1)) : null
+    const distanceMiles = matchingRoutes[0]?.distance ?? routeMeasurement.distanceMiles
+    const distanceKm = Math.round(distanceMiles * 1.60934)
+    const flightMinutes = matchingRoutes[0]?.estimatedTime ?? routeMeasurement.flightMinutes
+    const durationText = formatDuration(flightMinutes)
+
+    return {
+      hasFlights: totalEligible > 0,
+      rate,
+      delayedCount: totalDelayed,
+      eligibleCount: totalEligible,
+      averageDelay,
+      gap,
+      distanceMiles,
+      distanceKm,
+      flightMinutes,
+      durationText,
+    }
+  }, [routeMeasurement, routes, networkBaselineRate])
+
   const handleAirportClick = (airport: AirportHotspot) => {
     if (onSelectPair) {
       if (selectedCodes.length === 0) {
@@ -110,8 +170,17 @@ export function AirportMap({
     onSelect?.(airport)
   }
 
+  const hoveredAirportCoords = useMemo(() => {
+    if (!hoveredAirport) return null
+    const x = 40 + hoveredAirport.x * 8.4
+    const y = 25 + hoveredAirport.y * 4.1
+    const pctLeft = (x / 920) * 100
+    const pctTop = (y / 500) * 100
+    return { x, y, pctLeft, pctTop }
+  }, [hoveredAirport])
+
   return (
-    <div className="airport-map" role="img" aria-label="Bản đồ sân bay và đo khoảng cách">
+    <div className="airport-map" role="img" aria-label="Bản đồ điểm nóng sân bay và tính toán tuyến">
       <svg viewBox="0 0 920 500">
         <path
           className="map-land"
@@ -155,8 +224,12 @@ export function AirportMap({
           const selectionNumber = selectedIdx !== -1 ? selectedIdx + 1 : null
           const roleLabel = airport.role === 'Origin' ? 'Sân bay đi' : 'Sân bay đến'
           const delayedText = airport.delayedCount !== undefined ? airport.delayedCount.toLocaleString('vi-VN') : '0'
-          const eligibleText = airport.eligibleCount !== undefined ? airport.eligibleCount.toLocaleString('vi-VN') : airport.n.toLocaleString('vi-VN')
-          const avgDelayText = airport.averageDelay !== undefined ? airport.averageDelay.toFixed(1).replace('.', ',') : '0,0'
+          const eligibleText =
+            airport.eligibleCount !== undefined
+              ? airport.eligibleCount.toLocaleString('vi-VN')
+              : airport.n.toLocaleString('vi-VN')
+          const avgDelayText =
+            airport.averageDelay !== undefined ? airport.averageDelay.toFixed(1).replace('.', ',') : '0,0'
 
           return (
             <g
@@ -166,6 +239,10 @@ export function AirportMap({
               role="button"
               aria-label={`${airport.entity} (${roleLabel}): Tỷ lệ trễ ${airport.rate.toFixed(1).replace('.', ',')}%, Số chuyến trễ ${delayedText}/${eligibleText} chuyến, Độ trễ TB ${avgDelayText} phút, Chênh lệch ${gap > 0 ? '+' : ''}${gap.toFixed(1).replace('.', ',')}%`}
               onClick={() => handleAirportClick(airport)}
+              onMouseEnter={() => setHoveredAirport(airport)}
+              onMouseLeave={() => setHoveredAirport(null)}
+              onFocus={() => setHoveredAirport(airport)}
+              onBlur={() => setHoveredAirport(null)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
@@ -210,52 +287,137 @@ export function AirportMap({
                   </text>
                 </g>
               )}
-
-              <title>
-                {`${airport.entity} (${roleLabel})\n• Tỷ lệ chuyến đến trễ: ${airport.rate.toFixed(1).replace('.', ',')}%\n• Số chuyến đến trễ: ${delayedText} / ${eligibleText} chuyến\n• Độ trễ đến trung bình: ${avgDelayText} phút\n• Mức chuẩn mạng lưới: ${airport.baseline?.toFixed(1).replace('.', ',') ?? '0,0'}%\n• Chênh lệch: ${gap > 0 ? '+' : ''}${gap.toFixed(1).replace('.', ',')}%`}
-              </title>
             </g>
           )
         })}
       </svg>
 
-      <span className="map-watermark">Vị trí / khu vực sân bay minh họa</span>
+      {hoveredAirport && hoveredAirportCoords && (
+        <div
+          className="airport-hover-tooltip"
+          style={{
+            left: `${hoveredAirportCoords.pctLeft}%`,
+            top: `${hoveredAirportCoords.pctTop}%`,
+            transform: `translate(${hoveredAirportCoords.pctLeft > 70 ? '-90%' : hoveredAirportCoords.pctLeft < 30 ? '-10%' : '-50%'}, ${hoveredAirportCoords.pctTop < 35 ? '18px' : '-115%'})`,
+          }}
+          role="tooltip"
+        >
+          <div className="tooltip-airport-header">
+            <span className="tooltip-airport-code">{hoveredAirport.code}</span>
+            <div className="tooltip-airport-titles">
+              <strong>{hoveredAirport.city}</strong>
+              <small>{hoveredAirport.name ?? hoveredAirport.entity}</small>
+            </div>
+            <span className="tooltip-role-pill">
+              {hoveredAirport.role === 'Origin' ? 'Sân bay đi' : 'Sân bay đến'}
+            </span>
+          </div>
 
-      {enableMeasurement && routeMeasurement && (
+          <div className="tooltip-airport-divider" />
+
+          <div className="tooltip-metrics-list">
+            <div className="tooltip-metric-row">
+              <span className="metric-row-label">Tỷ lệ chuyến đến trễ:</span>
+              <strong className="metric-row-value">{hoveredAirport.rate.toFixed(1).replace('.', ',')}%</strong>
+            </div>
+
+            <div className="tooltip-metric-row">
+              <span className="metric-row-label">Số chuyến đến trễ:</span>
+              <strong className="metric-row-value">
+                {hoveredAirport.delayedCount !== undefined ? hoveredAirport.delayedCount.toLocaleString('vi-VN') : '0'} /{' '}
+                {hoveredAirport.eligibleCount !== undefined
+                  ? hoveredAirport.eligibleCount.toLocaleString('vi-VN')
+                  : hoveredAirport.n.toLocaleString('vi-VN')}{' '}
+                chuyến
+              </strong>
+            </div>
+
+            <div className="tooltip-metric-row">
+              <span className="metric-row-label">Độ trễ đến trung bình:</span>
+              <strong className="metric-row-value">
+                {hoveredAirport.averageDelay !== undefined && hoveredAirport.averageDelay > 0 ? '+' : ''}
+                {hoveredAirport.averageDelay !== undefined
+                  ? hoveredAirport.averageDelay.toFixed(1).replace('.', ',')
+                  : '0,0'}{' '}
+                phút
+              </strong>
+            </div>
+
+            <div className="tooltip-metric-row">
+              <span className="metric-row-label">Chênh lệch so với chuẩn:</span>
+              <strong
+                className={`metric-row-value ${(hoveredAirport.gap ?? 0) > 0 ? 'diff-higher' : 'diff-lower'}`}
+              >
+                {(hoveredAirport.gap ?? 0) > 0 ? '+' : ''}
+                {hoveredAirport.gap !== null && hoveredAirport.gap !== undefined
+                  ? hoveredAirport.gap.toFixed(1).replace('.', ',')
+                  : '0,0'}
+                %
+              </strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <span className="map-watermark">Vị trí sân bay minh họa</span>
+
+      {enableMeasurement && routeMeasurement && routeStats && (
         <div className="map-measurement-card">
           <div className="measurement-info">
             <div className="measurement-route-title">
               <span className="badge-point point-1">1</span>
-              <strong>{routeMeasurement.ap1.code} ({routeMeasurement.ap1.city})</strong>
+              <strong>
+                {routeMeasurement.ap1.code} ({routeMeasurement.ap1.city})
+              </strong>
               <span className="route-arrow">↔</span>
               <span className="badge-point point-2">2</span>
-              <strong>{routeMeasurement.ap2.code} ({routeMeasurement.ap2.city})</strong>
+              <strong>
+                {routeMeasurement.ap2.code} ({routeMeasurement.ap2.city})
+              </strong>
             </div>
+
             <div className="measurement-stats">
               <span className="stat-item">
                 <span className="stat-label">Quãng đường bay:</span>
                 <span className="stat-value">
-                  {routeMeasurement.distanceMiles.toLocaleString('vi-VN')} dặm (~{routeMeasurement.distanceKm.toLocaleString('vi-VN')} km)
+                  {routeStats.distanceMiles.toLocaleString('vi-VN')} dặm (~{routeStats.distanceKm.toLocaleString('vi-VN')} km)
                 </span>
               </span>
               <span className="stat-separator">·</span>
               <span className="stat-item">
                 <span className="stat-label">Ước tính thời gian bay:</span>
                 <span className="stat-value">
-                  {routeMeasurement.durationText} (~{routeMeasurement.flightMinutes} phút)
+                  {routeStats.durationText} (~{routeStats.flightMinutes} phút)
                 </span>
               </span>
             </div>
-            <div className="measurement-bundle-strip">
-              <span className="bundle-strip-item">
-                <strong>{routeMeasurement.ap1.code}:</strong> Trễ {routeMeasurement.ap1.rate.toFixed(1).replace('.', ',')}% · {routeMeasurement.ap1.delayedCount?.toLocaleString('vi-VN') ?? 0}/{routeMeasurement.ap1.n.toLocaleString('vi-VN')} chuyến · TB {routeMeasurement.ap1.averageDelay?.toFixed(1).replace('.', ',') ?? '0,0'} phút
-              </span>
-              <span className="stat-separator">|</span>
-              <span className="bundle-strip-item">
-                <strong>{routeMeasurement.ap2.code}:</strong> Trễ {routeMeasurement.ap2.rate.toFixed(1).replace('.', ',')}% · {routeMeasurement.ap2.delayedCount?.toLocaleString('vi-VN') ?? 0}/{routeMeasurement.ap2.n.toLocaleString('vi-VN')} chuyến · TB {routeMeasurement.ap2.averageDelay?.toFixed(1).replace('.', ',') ?? '0,0'} phút
-              </span>
-            </div>
+
+            {routeStats.hasFlights ? (
+              <div className="measurement-bundle-strip">
+                <span className="bundle-strip-item">
+                  <strong>Tỷ lệ trễ tuyến:</strong> {routeStats.rate.toFixed(1).replace('.', ',')}%
+                  {routeStats.gap !== null && (
+                    <span className={routeStats.gap > 0 ? 'diff-higher' : 'diff-lower'}>
+                      {' '}({routeStats.gap > 0 ? '+' : ''}{routeStats.gap.toFixed(1).replace('.', ',')}% so với chuẩn)
+                    </span>
+                  )}
+                </span>
+                <span className="stat-separator">|</span>
+                <span className="bundle-strip-item">
+                  <strong>Số chuyến trễ:</strong> {routeStats.delayedCount.toLocaleString('vi-VN')} / {routeStats.eligibleCount.toLocaleString('vi-VN')} chuyến
+                </span>
+                <span className="stat-separator">|</span>
+                <span className="bundle-strip-item">
+                  <strong>Độ trễ TB tuyến:</strong> {routeStats.averageDelay > 0 ? '+' : ''}{routeStats.averageDelay.toFixed(1).replace('.', ',')} phút/chuyến
+                </span>
+              </div>
+            ) : (
+              <div className="measurement-no-data-strip">
+                <span>Chưa ghi nhận dữ liệu chuyến bay cho tuyến này theo bộ lọc hiện tại.</span>
+              </div>
+            )}
           </div>
+
           {onClearPair && (
             <button
               type="button"
@@ -272,7 +434,7 @@ export function AirportMap({
       {enableMeasurement && selectedCodes.length === 1 && !routeMeasurement && (
         <div className="map-instruction-bar">
           <span>
-            Đã chọn điểm thứ nhất: <strong>{selectedCodes[0]}</strong>. Nhấp vào sân bay thứ hai trên bản đồ để đo khoảng cách và ước tính thời gian bay.
+            Đã chọn điểm thứ nhất: <strong>{selectedCodes[0]}</strong>. Nhấp vào sân bay thứ hai trên bản đồ để đo tuyến.
           </span>
           {onClearPair && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClearPair}>

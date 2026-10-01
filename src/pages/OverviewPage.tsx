@@ -160,7 +160,7 @@ export function OverviewPage({
         <Card
           id="P1-C06"
           title="Xu hướng trễ chuyến mạng lưới & Dự báo mô hình"
-          subtitle="Đối chiếu tỷ lệ trễ thực tế các hãng bay (WN, DL, AA) và ước tính dự báo tương lai"
+          subtitle="Tích hợp xu hướng tỷ lệ trễ đa hãng (đường) cùng độ trễ đến trung bình mỗi chuyến (cột) và mô hình dự báo tương lai"
           action={<IllustrativeLabel compact />}
         >
           <UnifiedTrendChart
@@ -176,19 +176,21 @@ export function OverviewPage({
       <div className="grid split-7-5">
         <Card
           id="P1-C08"
-          title="Bản đồ điểm nóng sân bay & Đo khoảng cách hành trình"
-          subtitle="Nhấn chọn 2 sân bay để tính quãng đường và thời gian bay · Màu sắc = Chênh lệch BL-AR"
+          title="Bản đồ điểm nóng sân bay & Thống kê tuyến bay"
+          subtitle="Rà chuột lên sân bay để xem tooltip chỉ số · Chọn 2 sân bay để xem thống kê tuyến theo bộ lọc hiện tại"
           action={<IllustrativeLabel compact />}
         >
           <AirportMap
             airports={overview.destinations}
+            routes={overview.routes ?? overview.candidates}
+            networkBaselineRate={overview.unifiedTrends?.baseline}
             selectedCodes={selectedAirportCodes}
             onSelectPair={(pair) => {
               setSelectedAirportCodes(pair)
               if (pair.length === 1) {
-                onToast(`Đã chọn sân bay thứ nhất: ${pair[0]}. Nhấp thêm một sân bay nữa để đo tuyến.`)
+                onToast(`Đã chọn sân bay thứ nhất: ${pair[0]}. Nhấp thêm một sân bay nữa để xem thống kê tuyến.`)
               } else if (pair.length === 2) {
-                onToast(`Đã chọn cặp tuyến ${pair[0]} ↔ ${pair[1]}. Xem khoảng cách và thời gian bay bên dưới.`)
+                onToast(`Đã chọn cặp tuyến ${pair[0]} ↔ ${pair[1]}. Thống kê tuyến hiển thị bên dưới.`)
               }
             }}
             onClearPair={() => {

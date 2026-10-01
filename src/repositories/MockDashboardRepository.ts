@@ -530,6 +530,7 @@ export class MockDashboardRepository implements DashboardRepository {
       unifiedTrends,
       destinations,
       candidates,
+      routes: routeCandidates,
     }
   }
 

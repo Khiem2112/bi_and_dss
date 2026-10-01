@@ -120,6 +120,7 @@ export interface OverviewData {
   unifiedTrends?: GranularTrendsData
   destinations: AirportHotspot[]
   candidates: EvidenceRecord[]
+  routes?: EvidenceRecord[]
 }
 
 export interface AirportHotspotsData {
