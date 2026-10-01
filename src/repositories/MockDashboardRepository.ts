@@ -22,10 +22,12 @@ import type {
   PredictionFilters,
   RiskAggregate,
   RiskAggregatesData,
+  RoleMetrics,
   RouteCandidate,
   RouteCandidatesData,
   SeasonSummary,
   SegmentEvidenceData,
+  EntityTrendFilters,
   SpatialState,
   TemporalContext,
   TemporalPatternsData,
@@ -545,44 +547,93 @@ export class MockDashboardRepository implements DashboardRepository {
       ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
       : 0
 
-    const role = localState.grain === 'origin' ? 'Origin' : 'Destination'
-    const airportFlightsMap = new Map<string, FlightRecord[]>()
+    const originFlightsMap = new Map<string, FlightRecord[]>()
+    const destFlightsMap = new Map<string, FlightRecord[]>()
 
     for (const f of eligible) {
-      const code = role === 'Origin' ? f.ORIGIN : f.DEST
-      const list = airportFlightsMap.get(code) ?? []
-      list.push(f)
-      airportFlightsMap.set(code, list)
+      const oList = originFlightsMap.get(f.ORIGIN) ?? []
+      oList.push(f)
+      originFlightsMap.set(f.ORIGIN, oList)
+
+      const dList = destFlightsMap.get(f.DEST) ?? []
+      dList.push(f)
+      destFlightsMap.set(f.DEST, dList)
     }
 
+    const allAirportCodes = new Set<string>([...originFlightsMap.keys(), ...destFlightsMap.keys()])
     const hotspotAirports: AirportHotspot[] = []
 
-    for (const [code, aFlights] of airportFlightsMap.entries()) {
-      if (role === 'Origin' && filters.origin.length > 0 && !filters.origin.includes(code)) continue
-      if (role === 'Destination' && filters.destination.length > 0 && !filters.destination.includes(code)) continue
-
+    for (const code of allAirportCodes) {
       const airport = airportMap.get(code)
       if (!airport) continue
 
-      const aDelayed = aFlights.filter(isDelayed)
-      const rate = Number(((aDelayed.length / aFlights.length) * 100).toFixed(1))
-      const gap = Number((rate - networkRate).toFixed(1))
-      const avg = Number((aFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / aFlights.length).toFixed(1))
+      const oFlights = originFlightsMap.get(code) ?? []
+      const oDelayed = oFlights.filter(isDelayed)
+      const oRate = oFlights.length > 0 ? Number(((oDelayed.length / oFlights.length) * 100).toFixed(1)) : 0
+      const oGap = oFlights.length > 0 ? Number((oRate - networkRate).toFixed(1)) : null
+      const oAvg = oFlights.length > 0 ? Number((oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / oFlights.length).toFixed(1)) : 0
+
+      const originMetrics: RoleMetrics = {
+        role: 'Origin',
+        rate: oRate,
+        delayedCount: scaleCount(oDelayed.length),
+        eligibleCount: scaleCount(oFlights.length),
+        averageDelay: oAvg,
+        gap: oGap,
+        baseline: networkRate,
+        n: scaleCount(oFlights.length),
+        flag: 'Uncalibrated',
+      }
+
+      const dFlights = destFlightsMap.get(code) ?? []
+      const dDelayed = dFlights.filter(isDelayed)
+      const dRate = dFlights.length > 0 ? Number(((dDelayed.length / dFlights.length) * 100).toFixed(1)) : 0
+      const dGap = dFlights.length > 0 ? Number((dRate - networkRate).toFixed(1)) : null
+      const dAvg = dFlights.length > 0 ? Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1)) : 0
+
+      const destMetrics: RoleMetrics = {
+        role: 'Destination',
+        rate: dRate,
+        delayedCount: scaleCount(dDelayed.length),
+        eligibleCount: scaleCount(dFlights.length),
+        averageDelay: dAvg,
+        gap: dGap,
+        baseline: networkRate,
+        n: scaleCount(dFlights.length),
+        flag: 'Uncalibrated',
+      }
+
+      if (oFlights.length === 0 && dFlights.length === 0) continue
+
+      const totalFlights = oFlights.length + dFlights.length
+      const totalDelayed = oDelayed.length + dDelayed.length
+      const combinedRate = totalFlights > 0 ? Number(((totalDelayed / totalFlights) * 100).toFixed(1)) : 0
+      const combinedGap = totalFlights > 0 ? Number((combinedRate - networkRate).toFixed(1)) : null
+      const totalDelayMins = oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) + dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0)
+      const combinedAvg = totalFlights > 0 ? Number((totalDelayMins / totalFlights).toFixed(1)) : 0
 
       hotspotAirports.push({
-        id: `${code}-${role === 'Origin' ? 'o' : 'd'}`,
+        id: `${code}-hotspot`,
         entity: `${airport.name} (${code})`,
         entityType: 'Airport',
         code,
-        role,
+        role: 'Destination',
         x: airport.x,
         y: airport.y,
-        rate,
+        lat: airport.lat,
+        lng: airport.lng,
+        name: airport.name,
+        city: airport.city ?? airport.name,
+        rate: combinedRate,
         baseline: networkRate,
-        gap,
-        averageDelay: avg,
-        n: scaleCount(aFlights.length),
+        gap: combinedGap,
+        averageDelay: combinedAvg,
+        n: scaleCount(totalFlights),
+        delayedCount: scaleCount(totalDelayed),
+        eligibleCount: scaleCount(totalFlights),
         flag: 'Uncalibrated',
+        originMetrics,
+        destMetrics,
       })
     }
 
@@ -592,9 +643,51 @@ export class MockDashboardRepository implements DashboardRepository {
       hotspotAirports.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
     }
 
+    const routesByAirport: Record<string, EvidenceRecord[]> = {}
+    for (const airport of hotspotAirports) {
+      const code = airport.code
+      const routeMap = new Map<string, FlightRecord[]>()
+      for (const f of eligible) {
+        if (f.ORIGIN !== code && f.DEST !== code) continue
+        const route = `${f.ORIGIN} \u2192 ${f.DEST}`
+        const list = routeMap.get(route) ?? []
+        list.push(f)
+        routeMap.set(route, list)
+      }
+      const routeRecords: EvidenceRecord[] = []
+      for (const [route, rFlights] of routeMap.entries()) {
+        const rDelayed = rFlights.filter(isDelayed)
+        const rRate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+        const rGap = Number((rRate - networkRate).toFixed(1))
+        const rAvg = Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1))
+        const parts = route.split(' \u2192 ')
+        const origin = parts[0]
+        const destination = parts[1]
+        routeRecords.push({
+          id: route.replace(' \u2192 ', '-'),
+          entity: route,
+          entityType: 'Route',
+          origin,
+          destination,
+          rate: rRate,
+          baseline: networkRate,
+          gap: rGap,
+          averageDelay: rAvg,
+          n: scaleCount(rFlights.length),
+          delayedCount: scaleCount(rDelayed.length),
+          eligibleCount: scaleCount(rFlights.length),
+          flag: 'Uncalibrated',
+        })
+      }
+      routeRecords.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+      routesByAirport[code] = routeRecords
+    }
+
     return {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA VỊ TRÍ / KHU VỰC SÂN BAY', eligible.length),
       airports: hotspotAirports,
+      routesByAirport,
+      networkBaselineRate: networkRate,
     }
   }
 
@@ -686,6 +779,159 @@ export class MockDashboardRepository implements DashboardRepository {
       routes,
       selectedHistory,
     }
+  }
+
+  async getEntityTrend(entityFilters: EntityTrendFilters, globalFilters: GlobalFilters): Promise<GranularTrendsData> {
+    this.activeFilters = globalFilters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, globalFilters, 'WN')
+    const allEligible = baseFlights.filter(isEligible)
+
+    let contextFlights: FlightRecord[]
+    if (entityFilters.entityType === 'Route') {
+      contextFlights = allEligible.filter((f) => `${f.ORIGIN} \u2192 ${f.DEST}` === entityFilters.entityCode)
+    } else {
+      contextFlights = allEligible.filter((f) =>
+        entityFilters.grain === 'origin' ? f.ORIGIN === entityFilters.entityCode : f.DEST === entityFilters.entityCode,
+      )
+    }
+    if (contextFlights.length === 0) contextFlights = allEligible
+
+    const contextDelayed = contextFlights.filter(isDelayed)
+    const delayRate = contextFlights.length > 0
+      ? Number(((contextDelayed.length / contextFlights.length) * 100).toFixed(1))
+      : 0
+    const avgDelay = contextFlights.length > 0
+      ? Number((contextFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / contextFlights.length).toFixed(1))
+      : 0
+
+    const monthMap = new Map<string, FlightRecord[]>()
+    for (const f of contextFlights) {
+      const m = f.FL_DATE.slice(0, 7)
+      const list = monthMap.get(m) ?? []
+      list.push(f)
+      monthMap.set(m, list)
+    }
+    const sortedMonths = Array.from(monthMap.keys()).sort()
+
+    const month: GranularTrendSeries[] = sortedMonths.map((period, idx) => {
+      const mFlights = monthMap.get(period) ?? []
+      const mDelayed = mFlights.filter(isDelayed)
+      const wn = mFlights.length > 0 ? Number(((mDelayed.length / mFlights.length) * 100).toFixed(1)) : 0
+      const dl = Math.max(8, Number((wn * 0.86 + Math.sin((idx + 1) * 1.4) * 1.3).toFixed(1)))
+      const aa = Math.max(10, Number((wn * 0.94 + Math.cos((idx + 1) * 0.9) * 1.5).toFixed(1)))
+      const wnForecast = Number((wn * 0.98 + (wn > 25 ? -0.7 : 0.7)).toFixed(1))
+      const monthNum = parseInt(period.slice(5, 7), 10)
+      const mAvgDelay = mFlights.length > 0
+        ? Number((mFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / mFlights.length).toFixed(1))
+        : 0
+      return {
+        period,
+        label: `Th\u00e1ng ${monthNum}/2018`,
+        wn,
+        dl,
+        aa,
+        wnForecast,
+        wnN: scaleCount(mFlights.length),
+        delayedCount: scaleCount(mDelayed.length),
+        eligibleCount: scaleCount(mFlights.length),
+        averageDelay: mAvgDelay,
+        baseline: delayRate,
+        baselineAvgDelay: avgDelay,
+        isFuture: false,
+      }
+    })
+
+    if (month.length > 0) {
+      const lastWn = month[month.length - 1].wn ?? delayRate
+      const futureForecastRate = Number((delayRate * 1.15 + (lastWn > 20 ? 1.2 : -0.5)).toFixed(1))
+      month.push({
+        period: '2019-01',
+        label: 'Th\u00e1ng 1/2019 (D\u1ef1 b\u00e1o)',
+        wn: null,
+        dl: null,
+        aa: null,
+        wnForecast: futureForecastRate,
+        wnN: scaleCount(260),
+        delayedCount: scaleCount(Math.round(260 * futureForecastRate / 100)),
+        eligibleCount: scaleCount(260),
+        averageDelay: Number((avgDelay * 1.18).toFixed(1)),
+        baseline: delayRate,
+        baselineAvgDelay: avgDelay,
+        isFuture: true,
+      })
+    }
+
+    const weekMap = new Map<string, FlightRecord[]>()
+    for (const f of contextFlights) {
+      const d = new Date(f.FL_DATE)
+      d.setHours(0, 0, 0, 0)
+      d.setDate(d.getDate() + 4 - (d.getDay() || 7))
+      const yearStart = new Date(d.getFullYear(), 0, 1)
+      const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+      const weekKey = `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`
+      const list = weekMap.get(weekKey) ?? []
+      list.push(f)
+      weekMap.set(weekKey, list)
+    }
+    const sortedWeeks = Array.from(weekMap.keys()).sort()
+    const week: GranularTrendSeries[] = sortedWeeks.map((period, idx) => {
+      const wFlights = weekMap.get(period) ?? []
+      const wDelayed = wFlights.filter(isDelayed)
+      const wn = wFlights.length > 0 ? Number(((wDelayed.length / wFlights.length) * 100).toFixed(1)) : 0
+      const wnForecast = Number((wn * 0.97 + (idx % 3 === 0 ? 0.5 : -0.3)).toFixed(1))
+      const wAvgDelay = wFlights.length > 0
+        ? Number((wFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / wFlights.length).toFixed(1))
+        : 0
+      return {
+        period,
+        label: period.replace('-W', ' Tu\u1ea7n '),
+        wn,
+        dl: Math.max(8, Number((wn * 0.87 + Math.sin(idx * 0.8) * 2).toFixed(1))),
+        aa: Math.max(10, Number((wn * 0.93 + Math.cos(idx * 0.7) * 2).toFixed(1))),
+        wnForecast,
+        wnN: scaleCount(wFlights.length),
+        delayedCount: scaleCount(wDelayed.length),
+        eligibleCount: scaleCount(wFlights.length),
+        averageDelay: wAvgDelay,
+        baseline: delayRate,
+        baselineAvgDelay: avgDelay,
+        isFuture: false,
+      }
+    })
+
+    const dayMap = new Map<string, FlightRecord[]>()
+    for (const f of contextFlights) {
+      const list = dayMap.get(f.FL_DATE) ?? []
+      list.push(f)
+      dayMap.set(f.FL_DATE, list)
+    }
+    const sortedDays = Array.from(dayMap.keys()).sort()
+    const day: GranularTrendSeries[] = sortedDays.map((period, idx) => {
+      const dFlights = dayMap.get(period) ?? []
+      const dDelayed = dFlights.filter(isDelayed)
+      const wn = dFlights.length > 0 ? Number(((dDelayed.length / dFlights.length) * 100).toFixed(1)) : 0
+      const dAvgDelay = dFlights.length > 0
+        ? Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1))
+        : 0
+      return {
+        period,
+        label: period,
+        wn,
+        dl: Math.max(5, Number((wn * 0.87 + Math.sin(idx * 1.2) * 3).toFixed(1))),
+        aa: Math.max(7, Number((wn * 0.93 + Math.cos(idx * 1.1) * 3).toFixed(1))),
+        wnForecast: null,
+        wnN: scaleCount(dFlights.length),
+        delayedCount: scaleCount(dDelayed.length),
+        eligibleCount: scaleCount(dFlights.length),
+        averageDelay: dAvgDelay,
+        baseline: delayRate,
+        baselineAvgDelay: avgDelay,
+        isFuture: false,
+      }
+    })
+
+    return { month, week, day, baseline: delayRate, baselineAvgDelay: avgDelay }
   }
 
   async getTemporalPatterns(filters: GlobalFilters, context: TemporalContext): Promise<TemporalPatternsData> {

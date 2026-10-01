@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import type { PageId } from '../../domain/types'
+import { GlobalPortalTooltip } from '../ui/GlobalPortalTooltip'
 
 interface AppShellProps {
   onOpenMethodology: () => void
@@ -67,6 +68,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
         </header>
         <div className="content">{children}</div>
       </main>
+      <GlobalPortalTooltip />
     </div>
   )
 }

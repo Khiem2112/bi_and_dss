@@ -1,5 +1,6 @@
 import type {
   ComparisonContext,
+  EntityTrendFilters,
   GlobalFilters,
   PredictionFilters,
   SpatialState,
@@ -67,3 +68,11 @@ export const useCauseContext = (entity: string, enabled = true, filters?: Global
     [entity, enabled, JSON.stringify(filters)],
   )
 
+export const useEntityTrend = (entityFilters: EntityTrendFilters | null, globalFilters: GlobalFilters) =>
+  useRepositoryQuery(
+    () =>
+      entityFilters
+        ? dashboardRepository.getEntityTrend(entityFilters, globalFilters)
+        : Promise.reject(new Error('Chưa chọn sân bay hoặc tuyến bay')),
+    [JSON.stringify(entityFilters), JSON.stringify(globalFilters)],
+  )

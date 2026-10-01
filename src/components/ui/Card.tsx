@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { formatSampleFlag } from '../../domain/formatters'
+import { ComponentHelpButton } from './ComponentHelpButton'
 
 interface CardProps {
   id: string
@@ -15,7 +16,10 @@ export function Card({ id, title, subtitle, action, className = '', children }: 
     <article className={`card ${className}`.trim()} data-component-id={id}>
       <div className="card-header">
         <div>
-          <h2>{title}</h2>
+          <div className="card-title-group">
+            <h2>{title}</h2>
+            <ComponentHelpButton componentId={id} title={title} />
+          </div>
           {subtitle && <p className="card-subtitle">{subtitle}</p>}
         </div>
         <div className="card-tools">

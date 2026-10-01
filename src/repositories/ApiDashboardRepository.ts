@@ -8,6 +8,7 @@ export class ApiDashboardRepository implements DashboardRepository {
   getOverview: DashboardRepository['getOverview'] = async () => this.unavailable()
   getAirportHotspots: DashboardRepository['getAirportHotspots'] = async () => this.unavailable()
   getRouteCandidates: DashboardRepository['getRouteCandidates'] = async () => this.unavailable()
+  getEntityTrend: DashboardRepository['getEntityTrend'] = async () => this.unavailable()
   getTemporalPatterns: DashboardRepository['getTemporalPatterns'] = async () => this.unavailable()
   getCarrierComparison: DashboardRepository['getCarrierComparison'] = async () => this.unavailable()
   getFutureFlights: DashboardRepository['getFutureFlights'] = async () => this.unavailable()

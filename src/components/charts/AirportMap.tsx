@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { AirportHotspot, EvidenceRecord } from '../../domain/types'
+import type { AirportHotspot, EvidenceRecord, RoleMetrics } from '../../domain/types'
 
 interface AirportMapProps {
   airports: AirportHotspot[]
@@ -11,6 +11,7 @@ interface AirportMapProps {
   onSelectPair?: (pair: string[]) => void
   onClearPair?: () => void
   enableMeasurement?: boolean
+  onAirportContextMenu?: (e: React.MouseEvent, airport: AirportHotspot) => void
 }
 
 function calculateDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -36,6 +37,29 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h} giờ` : `${h} giờ ${m} phút`
 }
 
+function getDelayFill(metrics?: RoleMetrics, fallbackGap: number = 0): string {
+  if (!metrics || metrics.n === 0) return '#64748b'
+  const gap = metrics.gap ?? fallbackGap
+  if (gap >= 5) return '#e11d48'
+  if (gap >= 3) return '#f59e0b'
+  return '#2563eb'
+}
+
+function getTooltipRateColor(metrics?: RoleMetrics, fallbackGap: number = 0): string {
+  if (!metrics || metrics.n === 0) return '#cbd5e1'
+  const gap = metrics.gap ?? fallbackGap
+  if (gap >= 5) return '#fb7185'
+  if (gap >= 3) return '#fbbf24'
+  return '#60a5fa'
+}
+
+function getTooltipGapColor(gap: number | null | undefined): string {
+  if (gap === null || gap === undefined) return '#cbd5e1'
+  if (gap > 0) return '#f87171'
+  if (gap < 0) return '#4ade80'
+  return '#cbd5e1'
+}
+
 export function AirportMap({
   airports,
   routes,
@@ -46,6 +70,7 @@ export function AirportMap({
   onSelectPair,
   onClearPair,
   enableMeasurement = true,
+  onAirportContextMenu,
 }: AirportMapProps) {
   const [hoveredAirport, setHoveredAirport] = useState<AirportHotspot | null>(null)
   const airportMap = useMemo(() => new Map(airports.map((a) => [a.code, a])), [airports])
@@ -216,20 +241,13 @@ export function AirportMap({
           const x = 40 + airport.x * 8.4
           const y = 25 + airport.y * 4.1
           const radius = 9 + Math.sqrt(airport.n) / 10
-          const gap = airport.gap ?? 0
-          const fill = gap >= 5 ? '#e11d48' : gap >= 3 ? '#f59e0b' : '#2563eb'
+
+          const originFill = getDelayFill(airport.originMetrics, airport.role === 'Origin' ? (airport.gap ?? 0) : 0)
+          const destFill = getDelayFill(airport.destMetrics, airport.role === 'Destination' ? (airport.gap ?? 0) : 0)
 
           const selectedIdx = selectedCodes.indexOf(airport.code)
           const isSelected = selectedIdx !== -1 || selectedId === airport.id
           const selectionNumber = selectedIdx !== -1 ? selectedIdx + 1 : null
-          const roleLabel = airport.role === 'Origin' ? 'Sân bay đi' : 'Sân bay đến'
-          const delayedText = airport.delayedCount !== undefined ? airport.delayedCount.toLocaleString('vi-VN') : '0'
-          const eligibleText =
-            airport.eligibleCount !== undefined
-              ? airport.eligibleCount.toLocaleString('vi-VN')
-              : airport.n.toLocaleString('vi-VN')
-          const avgDelayText =
-            airport.averageDelay !== undefined ? airport.averageDelay.toFixed(1).replace('.', ',') : '0,0'
 
           return (
             <g
@@ -237,8 +255,13 @@ export function AirportMap({
               className={`map-point ${isSelected ? 'is-selected' : ''}`}
               tabIndex={0}
               role="button"
-              aria-label={`${airport.entity} (${roleLabel}): Tỷ lệ trễ ${airport.rate.toFixed(1).replace('.', ',')}%, Số chuyến trễ ${delayedText}/${eligibleText} chuyến, Độ trễ TB ${avgDelayText} phút, Chênh lệch ${gap > 0 ? '+' : ''}${gap.toFixed(1).replace('.', ',')}%`}
+              aria-label={`${airport.entity}: Khởi hành trễ ${airport.originMetrics?.rate.toFixed(1) ?? '--'}%, Hạ cánh trễ ${airport.destMetrics?.rate.toFixed(1) ?? '--'}%`}
               onClick={() => handleAirportClick(airport)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onAirportContextMenu?.(e, airport)
+              }}
               onMouseEnter={() => setHoveredAirport(airport)}
               onMouseLeave={() => setHoveredAirport(null)}
               onFocus={() => setHoveredAirport(airport)}
@@ -260,8 +283,22 @@ export function AirportMap({
                   strokeWidth="3"
                 />
               )}
-              <circle cx={x} cy={y} r={radius} fill={fill} opacity="0.88" />
-              <text x={x} y={y + 4} textAnchor="middle" className="map-code">
+              {/* Nửa bên trái: Sân bay đi (Origin) */}
+              <path
+                d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 0 ${x} ${y + radius} Z`}
+                fill={originFill}
+                opacity="0.9"
+              />
+              {/* Nửa bên phải: Sân bay đến (Destination) */}
+              <path
+                d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 1 ${x} ${y + radius} Z`}
+                fill={destFill}
+                opacity="0.9"
+              />
+              {/* Đường phân cách 2 nửa và viền ngoài */}
+              <line x1={x} y1={y - radius} x2={x} y2={y + radius} stroke="#ffffff" strokeWidth="1" opacity="0.75" />
+              <circle cx={x} cy={y} r={radius} fill="none" stroke="#ffffff" strokeWidth="1" opacity="0.35" />
+              <text x={x} y={y + 4} textAnchor="middle" className="map-code" style={{ pointerEvents: 'none', userSelect: 'none' }}>
                 {airport.code}
               </text>
 
@@ -299,61 +336,108 @@ export function AirportMap({
             left: `${hoveredAirportCoords.pctLeft}%`,
             top: `${hoveredAirportCoords.pctTop}%`,
             transform: `translate(${hoveredAirportCoords.pctLeft > 70 ? '-90%' : hoveredAirportCoords.pctLeft < 30 ? '-10%' : '-50%'}, ${hoveredAirportCoords.pctTop < 35 ? '18px' : '-115%'})`,
+            minWidth: '310px',
           }}
           role="tooltip"
         >
           <div className="tooltip-airport-header">
             <span className="tooltip-airport-code">{hoveredAirport.code}</span>
             <div className="tooltip-airport-titles">
-              <strong>{hoveredAirport.city}</strong>
+              <strong>{hoveredAirport.city ?? hoveredAirport.code}</strong>
               <small>{hoveredAirport.name ?? hoveredAirport.entity}</small>
             </div>
             <span className="tooltip-role-pill">
-              {hoveredAirport.role === 'Origin' ? 'Sân bay đi' : 'Sân bay đến'}
+              Đi &amp; Đến
             </span>
           </div>
 
           <div className="tooltip-airport-divider" />
 
-          <div className="tooltip-metrics-list">
-            <div className="tooltip-metric-row">
-              <span className="metric-row-label">Tỷ lệ chuyến đến trễ:</span>
-              <strong className="metric-row-value">{hoveredAirport.rate.toFixed(1).replace('.', ',')}%</strong>
+          <div className="tooltip-metrics-rows">
+            <div className="tooltip-metric-row tooltip-metric-header">
+              <span className="metric-label">Chỉ số</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin role-header-text">Điểm đi</span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest role-header-text">Điểm đến</span>
+              </div>
             </div>
 
             <div className="tooltip-metric-row">
-              <span className="metric-row-label">Số chuyến đến trễ:</span>
-              <strong className="metric-row-value">
-                {hoveredAirport.delayedCount !== undefined ? hoveredAirport.delayedCount.toLocaleString('vi-VN') : '0'} /{' '}
-                {hoveredAirport.eligibleCount !== undefined
-                  ? hoveredAirport.eligibleCount.toLocaleString('vi-VN')
-                  : hoveredAirport.n.toLocaleString('vi-VN')}{' '}
-                chuyến
-              </strong>
+              <span className="metric-label">Tỷ lệ trễ</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin" style={{ color: getTooltipRateColor(hoveredAirport.originMetrics, 0), fontWeight: 700 }}>
+                  {hoveredAirport.originMetrics ? `${hoveredAirport.originMetrics.rate.toFixed(1).replace('.', ',')}%` : '--'}
+                </span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest" style={{ color: getTooltipRateColor(hoveredAirport.destMetrics, 0), fontWeight: 700 }}>
+                  {hoveredAirport.destMetrics ? `${hoveredAirport.destMetrics.rate.toFixed(1).replace('.', ',')}%` : '--'}
+                </span>
+              </div>
             </div>
 
             <div className="tooltip-metric-row">
-              <span className="metric-row-label">Độ trễ đến trung bình:</span>
-              <strong className="metric-row-value">
-                {hoveredAirport.averageDelay !== undefined && hoveredAirport.averageDelay > 0 ? '+' : ''}
-                {hoveredAirport.averageDelay !== undefined
-                  ? hoveredAirport.averageDelay.toFixed(1).replace('.', ',')
-                  : '0,0'}{' '}
-                phút
-              </strong>
+              <span className="metric-label">Chênh lệch</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin" style={{ color: getTooltipGapColor(hoveredAirport.originMetrics?.gap), fontWeight: 600 }}>
+                  {hoveredAirport.originMetrics?.gap !== null && hoveredAirport.originMetrics?.gap !== undefined
+                    ? `${(hoveredAirport.originMetrics.gap ?? 0) > 0 ? '+' : ''}${hoveredAirport.originMetrics.gap.toFixed(1).replace('.', ',')}%`
+                    : '--'}
+                </span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest" style={{ color: getTooltipGapColor(hoveredAirport.destMetrics?.gap), fontWeight: 600 }}>
+                  {hoveredAirport.destMetrics?.gap !== null && hoveredAirport.destMetrics?.gap !== undefined
+                    ? `${(hoveredAirport.destMetrics.gap ?? 0) > 0 ? '+' : ''}${hoveredAirport.destMetrics.gap.toFixed(1).replace('.', ',')}%`
+                    : '--'}
+                </span>
+              </div>
             </div>
 
             <div className="tooltip-metric-row">
-              <span className="metric-row-label">Chênh lệch so với chuẩn:</span>
-              <strong
-                className={`metric-row-value ${(hoveredAirport.gap ?? 0) > 0 ? 'diff-higher' : 'diff-lower'}`}
-              >
-                {(hoveredAirport.gap ?? 0) > 0 ? '+' : ''}
-                {hoveredAirport.gap !== null && hoveredAirport.gap !== undefined
-                  ? hoveredAirport.gap.toFixed(1).replace('.', ',')
-                  : '0,0'}
-                %
-              </strong>
+              <span className="metric-label">Số chuyến trễ</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin">
+                  {hoveredAirport.originMetrics
+                    ? `${hoveredAirport.originMetrics.delayedCount.toLocaleString('vi-VN')} / ${hoveredAirport.originMetrics.n.toLocaleString('vi-VN')}`
+                    : '--'}
+                </span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest">
+                  {hoveredAirport.destMetrics
+                    ? `${hoveredAirport.destMetrics.delayedCount.toLocaleString('vi-VN')} / ${hoveredAirport.destMetrics.n.toLocaleString('vi-VN')}`
+                    : '--'}
+                </span>
+              </div>
+            </div>
+
+            <div className="tooltip-metric-row">
+              <span className="metric-label">Trễ trung bình</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin">
+                  {hoveredAirport.originMetrics
+                    ? `${hoveredAirport.originMetrics.averageDelay.toFixed(1).replace('.', ',')} ph`
+                    : '--'}
+                </span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest">
+                  {hoveredAirport.destMetrics
+                    ? `${hoveredAirport.destMetrics.averageDelay.toFixed(1).replace('.', ',')} ph`
+                    : '--'}
+                </span>
+              </div>
+            </div>
+
+            <div className="tooltip-metric-row">
+              <span className="metric-label">Cỡ mẫu n</span>
+              <div className="metric-dual-values">
+                <span className="metric-val-origin" style={{ color: '#cbd5e1' }}>
+                  {hoveredAirport.originMetrics ? hoveredAirport.originMetrics.n.toLocaleString('vi-VN') : '--'}
+                </span>
+                <span className="metric-v-sep">|</span>
+                <span className="metric-val-dest" style={{ color: '#cbd5e1' }}>
+                  {hoveredAirport.destMetrics ? hoveredAirport.destMetrics.n.toLocaleString('vi-VN') : '--'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -446,7 +530,7 @@ export function AirportMap({
 
       <div className="legend">
         <span className="legend-item">
-          <span className="legend-dot" />
+          <span className="legend-dot" style={{ background: '#e11d48' }} />
           Chênh lệch ≥ 5%
         </span>
         <span className="legend-item">
@@ -457,7 +541,7 @@ export function AirportMap({
           <span className="legend-dot blue" />
           Chênh lệch &lt; 3%
         </span>
-        <span className="legend-item">Kích thước vòng tròn = cỡ mẫu n</span>
+        <span className="legend-item">Kích thước = cỡ mẫu</span>
       </div>
     </div>
   )

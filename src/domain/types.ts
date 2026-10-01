@@ -72,6 +72,18 @@ export interface EvidenceRecord {
   eligibleCount?: number
 }
 
+export interface RoleMetrics {
+  role: 'Origin' | 'Destination'
+  rate: number
+  delayedCount: number
+  eligibleCount: number
+  averageDelay: number
+  gap: number | null
+  baseline: number | null
+  n: number
+  flag: SampleFlag
+}
+
 export interface AirportHotspot extends EvidenceRecord {
   code: string
   role: 'Destination' | 'Origin'
@@ -81,6 +93,8 @@ export interface AirportHotspot extends EvidenceRecord {
   lng?: number
   name?: string
   city?: string
+  originMetrics?: RoleMetrics
+  destMetrics?: RoleMetrics
 }
 
 export interface RouteCandidate extends EvidenceRecord {
@@ -126,6 +140,8 @@ export interface OverviewData {
 export interface AirportHotspotsData {
   metadata: DashboardMetadata
   airports: AirportHotspot[]
+  routesByAirport: Record<string, EvidenceRecord[]>
+  networkBaselineRate: number
 }
 
 export interface RouteCandidatesData {
@@ -283,9 +299,15 @@ export interface QueryState<T> {
 }
 
 export interface SpatialState {
-  grain: 'destination' | 'origin' | 'route'
+  grain: 'destination' | 'origin'
   metric: 'rate' | 'gap'
   selectedId?: string
+}
+
+export interface EntityTrendFilters {
+  entityCode: string
+  entityType: 'Airport' | 'Route'
+  grain: 'destination' | 'origin'
 }
 
 export interface TemporalContext {
