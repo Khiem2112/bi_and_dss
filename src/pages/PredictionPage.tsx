@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ComparisonContext, PredictionFilters } from '../domain/types'
+import type { ComparisonContext, GlobalFilters, PredictionFilters } from '../domain/types'
 import { formatDecision, formatEntityType, formatRiskLabel, formatTimeBlock } from '../domain/formatters'
 import { useFutureFlights, useRiskAggregates } from '../hooks/dashboardHooks'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
@@ -12,6 +12,7 @@ const formatScheduledLocal = (value: string) => {
 
 interface PredictionPageProps {
   selectedEntity: string
+  globalFilters?: GlobalFilters
   onOpenComparison: (context: ComparisonContext) => void
   onOpenEvidence: (entity: string) => void
   onOpenExplanation: (id: string) => void
@@ -20,13 +21,14 @@ interface PredictionPageProps {
   onToast: (message: string) => void
 }
 
-export function PredictionPage({ selectedEntity, onOpenComparison, onOpenEvidence, onOpenExplanation, onSelectEntity, onOpenMethodology, onToast }: PredictionPageProps) {
+export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison, onOpenEvidence, onOpenExplanation, onSelectEntity, onOpenMethodology, onToast }: PredictionPageProps) {
   const [filters, setFilters] = useState<PredictionFilters>({ window: '2019-01-01 → 2019-01-07' })
   const [selectedFlight, setSelectedFlight] = useState('WN1842-20190102')
   const [selectedAggregate, setSelectedAggregate] = useState(selectedEntity.includes('→') ? selectedEntity : 'DAL → ATL')
   const [decision, setDecision] = useState<string>()
-  const flightsQuery = useFutureFlights(filters)
-  const risksQuery = useRiskAggregates(filters)
+  const flightsQuery = useFutureFlights(filters, globalFilters)
+  const risksQuery = useRiskAggregates(filters, globalFilters)
+
 
   const selectedFlightRecord = useMemo(() => flightsQuery.data?.flights.find((flight) => flight.id === selectedFlight), [flightsQuery.data, selectedFlight])
   const selectedRisk = useMemo(() => risksQuery.data?.aggregates.find((item) => item.entity === selectedAggregate) ?? risksQuery.data?.aggregates[0], [risksQuery.data, selectedAggregate])

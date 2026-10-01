@@ -1,10 +1,12 @@
+import type { GlobalFilters } from '../domain/types'
 import { formatCauseLabel } from '../domain/formatters'
 import { useCauseContext } from '../hooks/dashboardHooks'
 import { ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
 import { OverlayFrame } from './OverlayFrame'
 
-export function CauseContextDrawer({ entity, onClose }: { entity: string; onClose: () => void }) {
-  const query = useCauseContext(entity)
+export function CauseContextDrawer({ entity, filters, onClose }: { entity: string; filters?: GlobalFilters; onClose: () => void }) {
+  const query = useCauseContext(entity, true, filters)
+
   return (
     <OverlayFrame mode="drawer" componentId="CD" title="Bối cảnh nguyên nhân trễ chuyến được ghi nhận" subtitle={`${entity} · chỉ gồm dữ liệu sau sự kiện`} onClose={onClose}>
       {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải bối cảnh nguyên nhân'} onRetry={query.refetch} /> : query.isLoading || !query.data ? <LoadingState rows={7} /> : (

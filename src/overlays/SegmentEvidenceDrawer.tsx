@@ -1,17 +1,20 @@
+import type { GlobalFilters } from '../domain/types'
 import { useSegmentEvidence } from '../hooks/dashboardHooks'
 import { ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
 import { OverlayFrame } from './OverlayFrame'
 
 interface SegmentEvidenceDrawerProps {
   entity: string
+  filters?: GlobalFilters
   onClose: () => void
   onOpenComparison: () => void
   onOpenCause: () => void
   onToast: (message: string) => void
 }
 
-export function SegmentEvidenceDrawer({ entity, onClose, onOpenComparison, onOpenCause, onToast }: SegmentEvidenceDrawerProps) {
-  const query = useSegmentEvidence(entity)
+export function SegmentEvidenceDrawer({ entity, filters, onClose, onOpenComparison, onOpenCause, onToast }: SegmentEvidenceDrawerProps) {
+  const query = useSegmentEvidence(entity, true, filters)
+
   return (
     <OverlayFrame
       mode="drawer"

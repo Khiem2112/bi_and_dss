@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "DU LIEU DINH VI SAN BAY PHUC VU HIEN THI BAN DO"
+  },
+  "airports": [
+    {
+      "code": "DAL",
+      "name": "Dallas Love Field",
+      "city": "Dallas",
+      "state": "TX",
+      "x": 51,
+      "y": 67,
+      "lat": 32.8471,
+      "lng": -96.8518
+    },
+    {
+      "code": "ATL",
+      "name": "Atlanta Hartsfield-Jackson",
+      "city": "Atlanta",
+      "state": "GA",
+      "x": 70,
+      "y": 66,
+      "lat": 33.6407,
+      "lng": -84.4277
+    },
+    {
+      "code": "MCO",
+      "name": "Orlando International",
+      "city": "Orlando",
+      "state": "FL",
+      "x": 78,
+      "y": 73,
+      "lat": 28.4312,
+      "lng": -81.3081
+    },
+    {
+      "code": "DEN",
+      "name": "Denver International",
+      "city": "Denver",
+      "state": "CO",
+      "x": 48,
+      "y": 42,
+      "lat": 39.8561,
+      "lng": -104.6737
+    },
+    {
+      "code": "LAS",
+      "name": "Las Vegas Harry Reid",
+      "city": "Las Vegas",
+      "state": "NV",
+      "x": 27,
+      "y": 57,
+      "lat": 36.084,
+      "lng": -115.1537
+    },
+    {
+      "code": "BWI",
+      "name": "Baltimore/Washington",
+      "city": "Baltimore",
+      "state": "MD",
+      "x": 83,
+      "y": 40,
+      "lat": 39.1754,
+      "lng": -76.6684
+    },
+    {
+      "code": "MDW",
+      "name": "Chicago Midway",
+      "city": "Chicago",
+      "state": "IL",
+      "x": 67,
+      "y": 36,
+      "lat": 41.7868,
+      "lng": -87.7522
+    },
+    {
+      "code": "HOU",
+      "name": "Houston Hobby",
+      "city": "Houston",
+      "state": "TX",
+      "x": 51,
+      "y": 76,
+      "lat": 29.6454,
+      "lng": -95.2789
+    },
+    {
+      "code": "PHX",
+      "name": "Phoenix Sky Harbor",
+      "city": "Phoenix",
+      "state": "AZ",
+      "x": 31,
+      "y": 65,
+      "lat": 33.4373,
+      "lng": -112.0078
+    }
+  ]
+}

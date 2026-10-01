@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ComparisonContext } from '../domain/types'
+import type { ComparisonContext, GlobalFilters } from '../domain/types'
 import { formatTemporalCell } from '../domain/formatters'
 import { useCarrierComparison } from '../hooks/dashboardHooks'
 import { MiniSparkline } from '../components/charts/MiniSparkline'
@@ -8,15 +8,17 @@ import { OverlayFrame } from './OverlayFrame'
 
 interface CarrierComparisonModalProps {
   context: ComparisonContext
+  filters?: GlobalFilters
   onClose: () => void
   onOpenEvidence: (entity: string) => void
   onToast: (message: string) => void
 }
 
-export function CarrierComparisonModal({ context, onClose, onOpenEvidence, onToast }: CarrierComparisonModalProps) {
+export function CarrierComparisonModal({ context, filters, onClose, onOpenEvidence, onToast }: CarrierComparisonModalProps) {
   const [peer1, setPeer1] = useState('DL')
   const [peer2, setPeer2] = useState('AA')
-  const query = useCarrierComparison(context, [peer1, peer2].filter(Boolean))
+  const query = useCarrierComparison(context, [peer1, peer2].filter(Boolean), true, filters)
+
 
   return (
     <OverlayFrame

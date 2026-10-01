@@ -59,7 +59,7 @@ export default function App() {
           <Route path="/overview" element={<OverviewPage filters={filters} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenEvidence={openEvidence} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
           <Route path="/spatial" element={<SpatialPage filters={filters} initialEntity={selectedEntity} onNavigate={navigate} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenCause={openCause} onSelectEntity={setSelectedEntity} onToast={showToast} />} />
           <Route path="/temporal" element={<TemporalPage filters={filters} selectedEntity={selectedEntity} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenCause={openCause} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
-          <Route path="/prediction" element={<PredictionPage selectedEntity={selectedEntity} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenExplanation={(id) => setOverlay({ kind: 'explanation', id })} onSelectEntity={setSelectedEntity} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
+          <Route path="/prediction" element={<PredictionPage selectedEntity={selectedEntity} globalFilters={filters} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenExplanation={(id) => setOverlay({ kind: 'explanation', id })} onSelectEntity={setSelectedEntity} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
         </Routes>
       </AppShell>
@@ -67,6 +67,7 @@ export default function App() {
       {overlay?.kind === 'comparison' && (
         <CarrierComparisonModal
           context={overlay.context}
+          filters={filters}
           onClose={() => setOverlay(null)}
           onOpenEvidence={(entity) => setOverlay({ kind: 'evidence', entity })}
           onToast={showToast}
@@ -75,14 +76,16 @@ export default function App() {
       {overlay?.kind === 'evidence' && (
         <SegmentEvidenceDrawer
           entity={overlay.entity}
+          filters={filters}
           onClose={() => setOverlay(null)}
           onOpenComparison={() => setOverlay({ kind: 'comparison', context: { entity: overlay.entity, variant: 'CM-R' } })}
           onOpenCause={() => setOverlay({ kind: 'cause', entity: overlay.entity })}
           onToast={showToast}
         />
       )}
-      {overlay?.kind === 'cause' && <CauseContextDrawer entity={overlay.entity} onClose={() => setOverlay(null)} />}
+      {overlay?.kind === 'cause' && <CauseContextDrawer entity={overlay.entity} filters={filters} onClose={() => setOverlay(null)} />}
       {overlay?.kind === 'explanation' && <PredictionExplanationDrawer id={overlay.id} onClose={() => setOverlay(null)} onOpenEvidence={(entity) => setOverlay({ kind: 'evidence', entity })} />}
+
       {overlay?.kind === 'methodology' && <MethodologyModal onClose={() => setOverlay(null)} />}
 
       <div className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>

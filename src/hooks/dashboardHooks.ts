@@ -29,19 +29,19 @@ export const useTemporalPatterns = (filters: GlobalFilters, context: TemporalCon
     [JSON.stringify(filters), JSON.stringify(context)],
   )
 
-export const useCarrierComparison = (context: ComparisonContext, peers: string[], enabled = true) =>
+export const useCarrierComparison = (context: ComparisonContext, peers: string[], enabled = true, filters?: GlobalFilters) =>
   useRepositoryQuery(
     () => enabled
-      ? dashboardRepository.getCarrierComparison(context, peers)
+      ? dashboardRepository.getCarrierComparison(context, peers, filters)
       : Promise.reject(new Error('Ngữ cảnh so sánh chưa sẵn sàng')),
-    [JSON.stringify(context), peers.join(','), enabled],
+    [JSON.stringify(context), peers.join(','), enabled, JSON.stringify(filters)],
   )
 
-export const useFutureFlights = (filters: PredictionFilters) =>
-  useRepositoryQuery(() => dashboardRepository.getFutureFlights(filters), [JSON.stringify(filters)])
+export const useFutureFlights = (filters: PredictionFilters, globalFilters?: GlobalFilters) =>
+  useRepositoryQuery(() => dashboardRepository.getFutureFlights(filters, globalFilters), [JSON.stringify(filters), JSON.stringify(globalFilters)])
 
-export const useRiskAggregates = (filters: PredictionFilters) =>
-  useRepositoryQuery(() => dashboardRepository.getRiskAggregates(filters), [JSON.stringify(filters)])
+export const useRiskAggregates = (filters: PredictionFilters, globalFilters?: GlobalFilters) =>
+  useRepositoryQuery(() => dashboardRepository.getRiskAggregates(filters, globalFilters), [JSON.stringify(filters), JSON.stringify(globalFilters)])
 
 export const usePredictionExplanation = (id: string, enabled = true) =>
   useRepositoryQuery(
@@ -51,18 +51,19 @@ export const usePredictionExplanation = (id: string, enabled = true) =>
     [id, enabled],
   )
 
-export const useSegmentEvidence = (entity: string, enabled = true) =>
+export const useSegmentEvidence = (entity: string, enabled = true, filters?: GlobalFilters) =>
   useRepositoryQuery(
     () => enabled
-      ? dashboardRepository.getSegmentEvidence(entity)
+      ? dashboardRepository.getSegmentEvidence(entity, filters)
       : Promise.reject(new Error('Chưa chọn phân đoạn')),
-    [entity, enabled],
+    [entity, enabled, JSON.stringify(filters)],
   )
 
-export const useCauseContext = (entity: string, enabled = true) =>
+export const useCauseContext = (entity: string, enabled = true, filters?: GlobalFilters) =>
   useRepositoryQuery(
     () => enabled
-      ? dashboardRepository.getCauseContext(entity)
+      ? dashboardRepository.getCauseContext(entity, filters)
       : Promise.reject(new Error('Chưa chọn phân đoạn lịch sử')),
-    [entity, enabled],
+    [entity, enabled, JSON.stringify(filters)],
   )
+

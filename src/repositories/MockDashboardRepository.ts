@@ -1,97 +1,1022 @@
 import type {
+  AirportHotspot,
   AirportHotspotsData,
+  AirportLocation,
+  CarrierBreakdown,
   CarrierComparisonData,
+  CarrierMetric,
   CauseContextData,
   ComparisonContext,
+  DashboardMetadata,
+  EvidenceRecord,
+  FlightRecord,
+  FutureFlight,
   FutureFlightsData,
   GlobalFilters,
+  HeatCell,
+  KpiValue,
   OverviewData,
   PredictionExplanationData,
   PredictionFilters,
+  RiskAggregate,
   RiskAggregatesData,
+  RouteCandidate,
   RouteCandidatesData,
+  SeasonSummary,
   SegmentEvidenceData,
   SpatialState,
+  TemporalContext,
   TemporalPatternsData,
+  TrendPoint,
 } from '../domain/types'
+import { defaultFilters } from '../domain/types'
 import type { DashboardRepository } from './DashboardRepository'
 
-const wait = (duration = 240) => new Promise((resolve) => window.setTimeout(resolve, duration))
+const MOCK_SAMPLE_MULTIPLIER = 25
 
-async function loadJson<T>(file: string): Promise<T> {
-  await wait()
-  const response = await fetch(`/mock-data/${file}`)
-  if (!response.ok) throw new Error(`Không thể tải mock-data/${file}`)
-  return response.json() as Promise<T>
+const scaleCount = (n: number): number => Math.round(n * MOCK_SAMPLE_MULTIPLIER)
+
+const isEligible = (f: FlightRecord): boolean =>
+  f.CANCELLED === 0 &&
+  f.DIVERTED === 0 &&
+  f.ARR_DELAY !== null &&
+  f.ARR_DELAY !== undefined &&
+  !Number.isNaN(f.ARR_DELAY)
+
+const isDelayed = (f: FlightRecord): boolean => (f.ARR_DELAY ?? 0) >= 15
+
+const getSeason = (dateStr: string): string => {
+  const month = parseInt(dateStr.slice(5, 7), 10)
+  if (month <= 3) return 'Winter'
+  if (month <= 6) return 'Spring'
+  if (month <= 9) return 'Summer'
+  return 'Autumn'
 }
 
+const getDistanceGroup = (distance: number): string => {
+  if (distance < 250) return 'G01'
+  if (distance < 500) return 'G02'
+  if (distance < 750) return 'G03'
+  if (distance < 1000) return 'G04'
+  return 'G05+'
+}
+
+const getTimeBlock = (crsDepTime: number): string => {
+  if (crsDepTime < 600) return 'Early Morning'
+  if (crsDepTime < 1200) return 'Morning'
+  if (crsDepTime < 1800) return 'Afternoon'
+  return 'Evening'
+}
+
+const getDayOfWeek = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const dateObj = new Date(Date.UTC(year, month - 1, day))
+  const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  return days[dateObj.getUTCDay()]
+}
+
+const CARRIER_NAMES: Record<string, string> = {
+  WN: 'Southwest Airlines',
+  DL: 'Delta Air Lines',
+  AA: 'American Airlines',
+}
+
+const wait = (duration = 180) => new Promise((resolve) => window.setTimeout(resolve, duration))
+
 export class MockDashboardRepository implements DashboardRepository {
-  async getOverview() {
-    return loadJson<OverviewData>('overview.json')
+  private flightsCache: FlightRecord[] | null = null
+  private airportsCache: AirportLocation[] | null = null
+  private activeFilters: GlobalFilters = defaultFilters
+
+  private async loadFlights(): Promise<FlightRecord[]> {
+    if (this.flightsCache) return this.flightsCache
+    await wait(100)
+    const response = await fetch('/mock-data/flights.json')
+    if (!response.ok) throw new Error('Không thể tải mock-data/flights.json')
+    const data = (await response.json()) as FlightRecord[]
+    this.flightsCache = data
+    return data
   }
 
-  async getAirportHotspots(filters: GlobalFilters, localState: SpatialState) {
-    const payload = await loadJson<AirportHotspotsData>('airport-hotspots.json')
-    const role = localState.grain === 'origin' ? 'Origin' : 'Destination'
-    let airports = payload.airports.filter((airport) => airport.role === role)
-    if (role === 'Origin' && filters.origin.length > 0) {
-      airports = airports.filter((airport) => filters.origin.includes(airport.code))
-    } else if (role === 'Destination' && filters.destination.length > 0) {
-      airports = airports.filter((airport) => filters.destination.includes(airport.code))
+  private async loadAirports(): Promise<AirportLocation[]> {
+    if (this.airportsCache) return this.airportsCache
+    const response = await fetch('/mock-data/airports.json')
+    if (!response.ok) throw new Error('Không thể tải mock-data/airports.json')
+    const raw = await response.json()
+    const airports: AirportLocation[] = Array.isArray(raw) ? raw : raw.airports
+    this.airportsCache = airports
+    return airports
+  }
+
+  private createMetadata(dataLabel: string, baseCount: number): DashboardMetadata {
+    return {
+      illustrative: true,
+      schemaVersion: '2.0.0-demo',
+      generatedAt: '2026-10-01T08:00:00+07:00',
+      asOfDate: '2018-12-31',
+      dataLabel,
+      baselineRuleVersion: 'BL-DEMO-v0',
+      sampleRuleVersion: 'UNCALIBRATED',
+      modelVersion: 'DEMO-RISK-v0',
+      priorityRuleVersion: 'UNCALIBRATED',
+      predictionHorizon: '7 ngày minh họa',
+      scoringCutoff: '2018-12-31T23:59:59-06:00',
+      sampleMultiplier: MOCK_SAMPLE_MULTIPLIER,
+      scalingRuleVersion: 'SCALED-WEIGHT-v1',
+      baseRecordCount: baseCount,
+      weightedSampleSize: scaleCount(baseCount),
     }
-    return { ...payload, airports }
   }
 
-  async getRouteCandidates(filters: GlobalFilters) {
-    const payload = await loadJson<RouteCandidatesData>('route-candidates.json')
-    const routes = payload.routes.filter((route) => {
-      const [origin, destination] = route.route.split(' → ')
-      const originMatch = filters.origin.length === 0 || filters.origin.includes(origin)
-      const destinationMatch = filters.destination.length === 0 || filters.destination.includes(destination)
-      return originMatch && destinationMatch
+
+  private filterFlights(flights: FlightRecord[], filters: GlobalFilters, carrier?: string): FlightRecord[] {
+    return flights.filter((flight) => {
+      if (carrier && flight.OP_CARRIER !== carrier) return false
+      if (filters.fromDate && flight.FL_DATE < filters.fromDate) return false
+      if (filters.toDate && flight.FL_DATE > filters.toDate) return false
+      if (filters.origin && filters.origin.length > 0 && !filters.origin.includes(flight.ORIGIN)) return false
+      if (filters.destination && filters.destination.length > 0 && !filters.destination.includes(flight.DEST)) return false
+      if (filters.season && filters.season.length > 0 && !filters.season.includes(getSeason(flight.FL_DATE))) return false
+      if (filters.distanceGroup && filters.distanceGroup.length > 0 && !filters.distanceGroup.includes(getDistanceGroup(flight.DISTANCE))) return false
+      return true
     })
-    return { ...payload, routes }
   }
 
-  async getTemporalPatterns() {
-    return loadJson<TemporalPatternsData>('temporal-patterns.json')
-  }
+  async getOverview(filters: GlobalFilters): Promise<OverviewData> {
+    this.activeFilters = filters
+    const [allFlights, airports] = await Promise.all([this.loadFlights(), this.loadAirports()])
+    const airportMap = new Map(airports.map((a) => [a.code, a]))
 
-  async getCarrierComparison(context: ComparisonContext, peers: string[]) {
-    const payload = await loadJson<CarrierComparisonData>('carrier-comparisons.json')
-    const allowed = new Set(['WN', ...peers])
+    const baseFlights = this.filterFlights(allFlights, filters, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+    const delayed = eligible.filter(isDelayed)
+
+    const eligibleCount = scaleCount(eligible.length)
+    const delayedCount = scaleCount(delayed.length)
+    const delayRate = eligible.length > 0 ? Number(((delayed.length / eligible.length) * 100).toFixed(1)) : 0
+    const avgDelay = eligible.length > 0
+      ? Number((eligible.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / eligible.length).toFixed(1))
+      : 0
+
+    const kpis: KpiValue[] = [
+      {
+        id: 'P1-C02',
+        label: 'Chuyến bay đủ điều kiện',
+        value: eligibleCount.toLocaleString('vi-VN'),
+        context: 'CANCELLED = 0 · DIVERTED = 0 · ARR_DELAY có giá trị',
+      },
+      {
+        id: 'P1-C03',
+        label: 'Chuyến bay đến trễ',
+        value: delayedCount.toLocaleString('vi-VN'),
+        context: 'ARR_DELAY ≥ 15 phút · cùng điều kiện tính',
+      },
+      {
+        id: 'P1-C04',
+        label: 'Tỷ lệ đến trễ thực tế',
+        value: `${delayRate.toFixed(1).replace('.', ',')}%`,
+        context: `${delayedCount.toLocaleString('vi-VN')} / ${eligibleCount.toLocaleString('vi-VN')} · dữ liệu lịch sử BI`,
+      },
+      {
+        id: 'P1-C05',
+        label: 'Độ trễ đến trung bình',
+        value: `${avgDelay.toFixed(1).replace('.', ',')} phút`,
+        context: 'AVG(ARR_DELAY) trên tập hợp chuyến bay đủ điều kiện',
+      },
+    ]
+
+    const monthMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const month = f.FL_DATE.slice(0, 7)
+      const list = monthMap.get(month) ?? []
+      list.push(f)
+      monthMap.set(month, list)
+    }
+
+    const sortedMonths = Array.from(monthMap.keys()).sort()
+    const actualTrend: TrendPoint[] = sortedMonths.map((period) => {
+      const mFlights = monthMap.get(period) ?? []
+      const mDelayed = mFlights.filter(isDelayed)
+      const rate = mFlights.length > 0 ? Number(((mDelayed.length / mFlights.length) * 100).toFixed(1)) : 0
+      return {
+        period,
+        value: rate,
+        n: scaleCount(mFlights.length),
+        baseline: delayRate,
+      }
+    })
+
+    const predictedTrend: TrendPoint[] = actualTrend.map((pt) => {
+      const simulatedRate = Number((pt.value * 0.98 + (pt.value > 25 ? -0.7 : 0.7)).toFixed(1))
+      return {
+        period: pt.period,
+        value: simulatedRate,
+        n: pt.n,
+        baseline: delayRate,
+      }
+    })
+
+    const destGroupMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const list = destGroupMap.get(f.DEST) ?? []
+      list.push(f)
+      destGroupMap.set(f.DEST, list)
+    }
+
+    const destinations: AirportHotspot[] = []
+    for (const [destCode, dFlights] of destGroupMap.entries()) {
+      const airport = airportMap.get(destCode)
+      if (!airport) continue
+      const dDelayed = dFlights.filter(isDelayed)
+      const rate = Number(((dDelayed.length / dFlights.length) * 100).toFixed(1))
+      const gap = Number((rate - delayRate).toFixed(1))
+      const dAvg = Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1))
+
+      destinations.push({
+        id: `${destCode}-d`,
+        entity: `${airport.city} (${destCode})`,
+        entityType: 'Airport',
+        code: destCode,
+        role: 'Destination',
+        x: airport.x,
+        y: airport.y,
+        rate,
+        baseline: delayRate,
+        gap,
+        averageDelay: dAvg,
+        n: scaleCount(dFlights.length),
+        flag: 'Uncalibrated',
+      })
+    }
+    destinations.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+
+    const routeGroupMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const route = `${f.ORIGIN} → ${f.DEST}`
+      const list = routeGroupMap.get(route) ?? []
+      list.push(f)
+      routeGroupMap.set(route, list)
+    }
+
+    const routeCandidates: EvidenceRecord[] = []
+    for (const [route, rFlights] of routeGroupMap.entries()) {
+      const rDelayed = rFlights.filter(isDelayed)
+      const rate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+      const gap = Number((rate - delayRate).toFixed(1))
+      const rAvg = Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1))
+      routeCandidates.push({
+        id: route.replace(' → ', '-'),
+        entity: route,
+        entityType: 'Route',
+        rate,
+        baseline: delayRate,
+        gap,
+        averageDelay: rAvg,
+        n: scaleCount(rFlights.length),
+        flag: 'Uncalibrated',
+      })
+    }
+    routeCandidates.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+
+    const candidates: EvidenceRecord[] = []
+    if (routeCandidates.length > 0) candidates.push(routeCandidates[0])
+    if (routeCandidates.length > 1) candidates.push(routeCandidates[1])
+    if (destinations.length > 0) {
+      candidates.push({
+        id: destinations[0].id,
+        entity: `${destinations[0].code} · Sân bay đến`,
+        entityType: 'Airport',
+        rate: destinations[0].rate,
+        baseline: destinations[0].baseline,
+        gap: destinations[0].gap,
+        averageDelay: destinations[0].averageDelay,
+        n: destinations[0].n,
+        flag: 'Uncalibrated',
+      })
+    }
+
+    const timeBlockMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const key = `${getDayOfWeek(f.FL_DATE)} · ${getTimeBlock(f.CRS_DEP_TIME)}`
+      const list = timeBlockMap.get(key) ?? []
+      list.push(f)
+      timeBlockMap.set(key, list)
+    }
+
+    let topTimeKey = 'Thứ Sáu · Evening'
+    let topTimeGap = -999
+    let topTimeRate = 0
+    let topTimeN = 0
+    let topTimeAvg = 0
+
+    for (const [key, tFlights] of timeBlockMap.entries()) {
+      if (tFlights.length < 5) continue
+      const tDelayed = tFlights.filter(isDelayed)
+      const tRate = (tDelayed.length / tFlights.length) * 100
+      const tGap = tRate - delayRate
+      if (tGap > topTimeGap) {
+        topTimeGap = tGap
+        topTimeKey = key
+        topTimeRate = tRate
+        topTimeN = scaleCount(tFlights.length)
+        topTimeAvg = tFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / tFlights.length
+      }
+    }
+
+    if (topTimeN > 0) {
+      const localizedTime = topTimeKey
+        .replace('Early Morning', 'Sáng sớm')
+        .replace('Morning', 'Buổi sáng')
+        .replace('Afternoon', 'Buổi chiều')
+        .replace('Evening', 'Buổi tối')
+
+      candidates.push({
+        id: 'TIME-HOTSPOT',
+        entity: localizedTime,
+        entityType: 'Time',
+        rate: Number(topTimeRate.toFixed(1)),
+        baseline: delayRate,
+        gap: Number(topTimeGap.toFixed(1)),
+        averageDelay: Number(topTimeAvg.toFixed(1)),
+        n: topTimeN,
+        flag: 'Uncalibrated',
+      })
+    }
+
     return {
-      ...payload,
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG', eligible.length),
+      kpis,
+      actualTrend,
+      predictedTrend,
+      destinations: destinations.slice(0, 5),
+      candidates,
+    }
+  }
+
+  async getAirportHotspots(filters: GlobalFilters, localState: SpatialState): Promise<AirportHotspotsData> {
+    this.activeFilters = filters
+    const [allFlights, airports] = await Promise.all([this.loadFlights(), this.loadAirports()])
+    const airportMap = new Map(airports.map((a) => [a.code, a]))
+
+    const baseFlights = this.filterFlights(allFlights, filters, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+    const networkRate = eligible.length > 0
+      ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
+      : 0
+
+    const role = localState.grain === 'origin' ? 'Origin' : 'Destination'
+    const airportFlightsMap = new Map<string, FlightRecord[]>()
+
+    for (const f of eligible) {
+      const code = role === 'Origin' ? f.ORIGIN : f.DEST
+      const list = airportFlightsMap.get(code) ?? []
+      list.push(f)
+      airportFlightsMap.set(code, list)
+    }
+
+    const hotspotAirports: AirportHotspot[] = []
+
+    for (const [code, aFlights] of airportFlightsMap.entries()) {
+      if (role === 'Origin' && filters.origin.length > 0 && !filters.origin.includes(code)) continue
+      if (role === 'Destination' && filters.destination.length > 0 && !filters.destination.includes(code)) continue
+
+      const airport = airportMap.get(code)
+      if (!airport) continue
+
+      const aDelayed = aFlights.filter(isDelayed)
+      const rate = Number(((aDelayed.length / aFlights.length) * 100).toFixed(1))
+      const gap = Number((rate - networkRate).toFixed(1))
+      const avg = Number((aFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / aFlights.length).toFixed(1))
+
+      hotspotAirports.push({
+        id: `${code}-${role === 'Origin' ? 'o' : 'd'}`,
+        entity: `${airport.name} (${code})`,
+        entityType: 'Airport',
+        code,
+        role,
+        x: airport.x,
+        y: airport.y,
+        rate,
+        baseline: networkRate,
+        gap,
+        averageDelay: avg,
+        n: scaleCount(aFlights.length),
+        flag: 'Uncalibrated',
+      })
+    }
+
+    if (localState.metric === 'rate') {
+      hotspotAirports.sort((a, b) => b.rate - a.rate)
+    } else {
+      hotspotAirports.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+    }
+
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA VỊ TRÍ / KHU VỰC SÂN BAY', eligible.length),
+      airports: hotspotAirports,
+    }
+  }
+
+  async getRouteCandidates(filters: GlobalFilters, localState: SpatialState): Promise<RouteCandidatesData> {
+    this.activeFilters = filters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, filters, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+    const networkRate = eligible.length > 0
+      ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
+      : 0
+
+    const routeMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      if (filters.origin.length > 0 && !filters.origin.includes(f.ORIGIN)) continue
+      if (filters.destination.length > 0 && !filters.destination.includes(f.DEST)) continue
+      const route = `${f.ORIGIN} → ${f.DEST}`
+      const list = routeMap.get(route) ?? []
+      list.push(f)
+      routeMap.set(route, list)
+    }
+
+    const routes: RouteCandidate[] = []
+    for (const [route, rFlights] of routeMap.entries()) {
+      const rDelayed = rFlights.filter(isDelayed)
+      const rate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+      const gap = Number((rate - networkRate).toFixed(1))
+      const avg = Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1))
+
+      const rMonthMap = new Map<string, FlightRecord[]>()
+      for (const f of rFlights) {
+        const m = f.FL_DATE.slice(0, 7)
+        const list = rMonthMap.get(m) ?? []
+        list.push(f)
+        rMonthMap.set(m, list)
+      }
+      const sortedMonths = Array.from(rMonthMap.keys()).sort().slice(-6)
+      const sparkline = sortedMonths.map((m) => {
+        const mList = rMonthMap.get(m) ?? []
+        const mDel = mList.filter(isDelayed)
+        return mList.length > 0 ? Number(((mDel.length / mList.length) * 100).toFixed(1)) : rate
+      })
+
+      routes.push({
+        id: route.replace(' → ', '-'),
+        entity: route,
+        entityType: 'Route',
+        route,
+        rate,
+        baseline: networkRate,
+        gap,
+        averageDelay: avg,
+        n: scaleCount(rFlights.length),
+        flag: 'Uncalibrated',
+        sparkline: sparkline.length > 0 ? sparkline : [rate, rate, rate, rate, rate, rate],
+      })
+    }
+
+    if (localState.metric === 'rate') {
+      routes.sort((a, b) => b.rate - a.rate)
+    } else {
+      routes.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+    }
+
+    const topRoute = routes[0]?.route ?? 'DAL → ATL'
+    const topRouteFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === topRoute)
+    const monthGroupMap = new Map<string, FlightRecord[]>()
+    for (const f of topRouteFlights) {
+      const m = f.FL_DATE.slice(0, 7)
+      const list = monthGroupMap.get(m) ?? []
+      list.push(f)
+      monthGroupMap.set(m, list)
+    }
+
+    const selectedHistory: TrendPoint[] = Array.from(monthGroupMap.keys()).sort().map((period) => {
+      const mFlights = monthGroupMap.get(period) ?? []
+      const mDel = mFlights.filter(isDelayed)
+      const r = mFlights.length > 0 ? Number(((mDel.length / mFlights.length) * 100).toFixed(1)) : 0
+      return {
+        period,
+        value: r,
+        baseline: networkRate,
+        n: scaleCount(mFlights.length),
+      }
+    })
+
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA TUYẾN BAY CẦN ĐIỀU TRA', eligible.length),
+      routes,
+      selectedHistory,
+    }
+  }
+
+  async getTemporalPatterns(filters: GlobalFilters, context: TemporalContext): Promise<TemporalPatternsData> {
+    this.activeFilters = filters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, filters, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+
+    let contextFlights = eligible
+    if (context.route) {
+      const rFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.route)
+      if (rFlights.length > 0) contextFlights = rFlights
+    }
+
+    const networkRate = contextFlights.length > 0
+      ? Number(((contextFlights.filter(isDelayed).length / contextFlights.length) * 100).toFixed(1))
+      : 0
+
+    const days = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
+    const blocks = ['Early Morning', 'Morning', 'Afternoon', 'Evening']
+
+    const heatmap: HeatCell[] = []
+    for (const day of days) {
+      for (const block of blocks) {
+        const cellFlights = contextFlights.filter(
+          (f) => getDayOfWeek(f.FL_DATE) === day && getTimeBlock(f.CRS_DEP_TIME) === block,
+        )
+        const cellDelayed = cellFlights.filter(isDelayed)
+        const rate = cellFlights.length > 0 ? Number(((cellDelayed.length / cellFlights.length) * 100).toFixed(1)) : 0
+        const gap = cellFlights.length > 0 ? Number((rate - networkRate).toFixed(1)) : null
+        heatmap.push({
+          day,
+          block,
+          rate,
+          gap,
+          n: scaleCount(cellFlights.length),
+          flag: 'Uncalibrated',
+        })
+      }
+    }
+
+    const seasonsConfig = [
+      { name: 'Winter', months: ['01', '02', '03'], labels: ['Jan', 'Feb', 'Mar'] },
+      { name: 'Spring', months: ['04', '05', '06'], labels: ['Apr', 'May', 'Jun'] },
+      { name: 'Summer', months: ['07', '08', '09'], labels: ['Jul', 'Aug', 'Sep'] },
+      { name: 'Autumn', months: ['10', '11', '12'], labels: ['Oct', 'Nov', 'Dec'] },
+    ]
+
+    const seasons: SeasonSummary[] = seasonsConfig.map((sc) => {
+      const sFlights = contextFlights.filter((f) => sc.months.includes(f.FL_DATE.slice(5, 7)))
+      const sDelayed = sFlights.filter(isDelayed)
+      const sRate = sFlights.length > 0 ? Number(((sDelayed.length / sFlights.length) * 100).toFixed(1)) : 0
+
+      const months = sc.months.map((mStr, idx) => {
+        const mFlights = sFlights.filter((f) => f.FL_DATE.slice(5, 7) === mStr)
+        const mDelayed = mFlights.filter(isDelayed)
+        const mRate = mFlights.length > 0 ? Number(((mDelayed.length / mFlights.length) * 100).toFixed(1)) : sRate
+        return {
+          month: sc.labels[idx],
+          rate: mRate,
+          gap: Number((mRate - sRate).toFixed(1)),
+          n: scaleCount(mFlights.length),
+        }
+      })
+
+      return {
+        season: sc.name,
+        rate: sRate,
+        months,
+      }
+    })
+
+    const monthMap = new Map<string, FlightRecord[]>()
+    for (const f of contextFlights) {
+      const m = f.FL_DATE.slice(0, 7)
+      const list = monthMap.get(m) ?? []
+      list.push(f)
+      monthMap.set(m, list)
+    }
+
+    const monthlyTrend: TrendPoint[] = Array.from(monthMap.keys()).sort().map((period) => {
+      const mFlights = monthMap.get(period) ?? []
+      const mDel = mFlights.filter(isDelayed)
+      const r = mFlights.length > 0 ? Number(((mDel.length / mFlights.length) * 100).toFixed(1)) : 0
+      return {
+        period,
+        value: r,
+        baseline: networkRate,
+        n: scaleCount(mFlights.length),
+      }
+    })
+
+    const routeMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const r = `${f.ORIGIN} → ${f.DEST}`
+      const list = routeMap.get(r) ?? []
+      list.push(f)
+      routeMap.set(r, list)
+    }
+
+    const routes: RouteCandidate[] = Array.from(routeMap.entries()).map(([route, rFlights]) => {
+      const rDelayed = rFlights.filter(isDelayed)
+      const rRate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+      return {
+        id: route.replace(' → ', '-'),
+        entity: route,
+        entityType: 'Route',
+        route,
+        rate: rRate,
+        baseline: networkRate,
+        gap: Number((rRate - networkRate).toFixed(1)),
+        averageDelay: Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1)),
+        n: scaleCount(rFlights.length),
+        flag: 'Uncalibrated',
+        sparkline: [rRate, rRate, rRate, rRate, rRate, rRate],
+      }
+    })
+
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG', contextFlights.length),
+      heatmap,
+      seasons,
+      monthlyTrend,
+      routes,
+    }
+  }
+
+  async getCarrierComparison(context: ComparisonContext, peers: string[], filters?: GlobalFilters): Promise<CarrierComparisonData> {
+    const activeF = filters ?? this.activeFilters
+    const allFlights = await this.loadFlights()
+    const targetFlights = this.filterFlights(allFlights, activeF)
+    const eligibleAll = targetFlights.filter(isEligible)
+
+    let entityFlights = eligibleAll
+    if (context.entity.includes('→')) {
+      const match = eligibleAll.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.entity)
+      if (match.length > 0) entityFlights = match
+    } else if (context.entity.length === 3) {
+      const match = eligibleAll.filter((f) => f.ORIGIN === context.entity || f.DEST === context.entity)
+      if (match.length > 0) entityFlights = match
+    }
+
+    const targetCarriers = ['WN', ...peers.filter(Boolean)]
+    const carrierMetrics: CarrierMetric[] = []
+    let wnRate = 0
+
+    const wnFlights = entityFlights.filter((f) => f.OP_CARRIER === 'WN')
+    const wnDelayed = wnFlights.filter(isDelayed)
+    if (wnFlights.length > 0) {
+      wnRate = Number(((wnDelayed.length / wnFlights.length) * 100).toFixed(1))
+    }
+
+    for (const c of targetCarriers) {
+      const cFlights = entityFlights.filter((f) => f.OP_CARRIER === c)
+      const cDelayed = cFlights.filter(isDelayed)
+      const rate = cFlights.length > 0 ? Number(((cDelayed.length / cFlights.length) * 100).toFixed(1)) : 0
+      const avg = cFlights.length > 0
+        ? Number((cFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / cFlights.length).toFixed(1))
+        : 0
+      const gapVsWn = c === 'WN' ? null : Number((rate - wnRate).toFixed(1))
+
+      carrierMetrics.push({
+        carrier: c,
+        name: CARRIER_NAMES[c] ?? c,
+        eligible: scaleCount(cFlights.length),
+        delayed: scaleCount(cDelayed.length),
+        rate,
+        averageDelay: avg,
+        gapVsWn,
+        flag: 'Uncalibrated',
+      })
+    }
+
+    const trend: Record<string, TrendPoint[]> = {}
+    for (const c of targetCarriers) {
+      const cFlights = entityFlights.filter((f) => f.OP_CARRIER === c)
+      const cMonthMap = new Map<string, FlightRecord[]>()
+      for (const f of cFlights) {
+        const m = f.FL_DATE.slice(0, 7)
+        const list = cMonthMap.get(m) ?? []
+        list.push(f)
+        cMonthMap.set(m, list)
+      }
+      trend[c] = Array.from(cMonthMap.keys()).sort().map((period) => {
+        const mList = cMonthMap.get(period) ?? []
+        const mDel = mList.filter(isDelayed)
+        const r = mList.length > 0 ? Number(((mDel.length / mList.length) * 100).toFixed(1)) : 0
+        return { period, value: r, n: scaleCount(mList.length) }
+      })
+    }
+
+    const primaryPeer = peers[0] || 'DL'
+    const breakdown: CarrierBreakdown[] = [
+      {
+        cell: `${context.entity} · Thứ Sáu · Buổi tối`,
+        wnRate: Number((wnRate * 1.15).toFixed(1)),
+        peerRate: Number((wnRate * 0.92).toFixed(1)),
+        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.15))),
+        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.15))),
+      },
+      {
+        cell: `${context.entity} · Chủ Nhật · Buổi tối`,
+        wnRate: Number((wnRate * 1.08).toFixed(1)),
+        peerRate: Number((wnRate * 0.88).toFixed(1)),
+        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.13))),
+        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.13))),
+      },
+      {
+        cell: `${context.entity} · Thứ Hai · Buổi sáng`,
+        wnRate: Number((wnRate * 0.85).toFixed(1)),
+        peerRate: Number((wnRate * 0.82).toFixed(1)),
+        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.14))),
+        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.14))),
+      },
+    ]
+
+    const totalEligible = scaleCount(entityFlights.length)
+    const included = Math.round(totalEligible * 0.88)
+    const excluded = totalEligible - included
+
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — SO SÁNH CHỈ TRONG CÁC Ô ĐỐI SÁNH CHUNG', entityFlights.length),
+      contextId: `cmp-${context.entity.replace(/[^A-Za-z0-9]/g, '-')}-2018`,
       entity: context.entity,
-      carriers: payload.carriers.filter((carrier) => allowed.has(carrier.carrier)),
+      baselineId: 'BL-C',
+      sharedCells: 18,
+      includedFlights: included,
+      excludedFlights: excluded,
+      coverage: 88.5,
+      carriers: carrierMetrics,
+      trend,
+      breakdown,
     }
   }
 
-  async getFutureFlights(filters: PredictionFilters) {
-    const payload = await loadJson<FutureFlightsData>('future-flights.json')
+  async getFutureFlights(filters: PredictionFilters, globalFilters?: GlobalFilters): Promise<FutureFlightsData> {
+    const activeF = globalFilters ?? this.activeFilters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+
+    const routeDelayMap = new Map<string, { total: number; delayed: number }>()
+    for (const f of eligible) {
+      const r = `${f.ORIGIN} → ${f.DEST}`
+      const entry = routeDelayMap.get(r) ?? { total: 0, delayed: 0 }
+      entry.total += 1
+      if (isDelayed(f)) entry.delayed += 1
+      routeDelayMap.set(r, entry)
+    }
+
+    const defaultRoutes = ['DAL → ATL', 'BWI → MCO', 'MDW → DEN', 'HOU → DEN', 'PHX → LAS', 'DEN → MDW']
+    const availableRoutes = Array.from(routeDelayMap.keys())
+    const candidateRoutes = availableRoutes.length > 0 ? availableRoutes.slice(0, 6) : defaultRoutes
+
+    const flights: FutureFlight[] = candidateRoutes.map((route, idx) => {
+      const stats = routeDelayMap.get(route)
+      const historicalRate = stats && stats.total > 0 ? stats.delayed / stats.total : 0.28
+      const probability = Number(Math.min(0.85, Math.max(0.12, historicalRate * 1.25 + (idx % 3 === 0 ? 0.05 : -0.03))).toFixed(2))
+      const riskLabel: FutureFlight['riskLabel'] = probability >= 0.38 ? 'High' : probability >= 0.28 ? 'Elevated' : 'Monitor'
+      const flightNum = 1000 + idx * 215
+
+      return {
+        id: `WN${flightNum}-2019010${idx + 2}`,
+        flightNumber: `WN ${flightNum}`,
+        departureAt: `2019-01-0${idx + 2}T1${6 + (idx % 4)}:30:00-06:00`,
+        route,
+        probability,
+        riskLabel,
+        modelVersion: 'DEMO-RISK-v0',
+      }
+    })
+
+    const filteredFlights = filters.route ? flights.filter((f) => f.route === filters.route) : flights
+
     return {
-      ...payload,
-      flights: filters.route ? payload.flights.filter((flight) => flight.route === filters.route) : payload.flights,
+      metadata: this.createMetadata('XÁC SUẤT MINH HỌA — MODEL CHƯA HIỆU CHỈNH / CHƯA PHÊ DUYỆT', filteredFlights.length),
+      flights: filteredFlights,
     }
   }
 
-  async getRiskAggregates() {
-    return loadJson<RiskAggregatesData>('predictions.json')
+  async getRiskAggregates(filters: PredictionFilters, globalFilters?: GlobalFilters): Promise<RiskAggregatesData> {
+    const activeF = globalFilters ?? this.activeFilters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+    const networkRate = eligible.length > 0
+      ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
+      : 25.0
+
+    const routeMap = new Map<string, FlightRecord[]>()
+    for (const f of eligible) {
+      const r = `${f.ORIGIN} → ${f.DEST}`
+      const list = routeMap.get(r) ?? []
+      list.push(f)
+      routeMap.set(r, list)
+    }
+
+    const sortedRoutes = Array.from(routeMap.entries())
+      .map(([route, list]) => {
+        const del = list.filter(isDelayed)
+        const rate = (del.length / list.length) * 100
+        return { route, count: list.length, rate }
+      })
+      .sort((a, b) => b.rate - a.rate)
+
+    const candidateRoutes = filters.route
+      ? sortedRoutes.filter((item) => item.route === filters.route)
+      : sortedRoutes
+
+    const aggregates: RiskAggregate[] = candidateRoutes.slice(0, 4).map((item) => {
+
+      const histRate = Number(item.rate.toFixed(1))
+      const histGap = Number((histRate - networkRate).toFixed(1))
+      const expRate = Number((histRate * 1.18).toFixed(1))
+      const highRisk = Number((histRate * 1.25).toFixed(1))
+
+      return {
+        id: item.route.replace(' → ', '-'),
+        entity: item.route,
+        type: 'Route',
+        expectedRate: expRate,
+        highRiskShare: Math.min(100, highRisk),
+        historicalRate: histRate,
+        historicalGap: histGap,
+        scoredN: Math.round(item.count * 0.15) + 30,
+        historicalN: scaleCount(item.count),
+        sampleFlag: 'Uncalibrated',
+        priority: 'Uncalibrated',
+        rationale: 'Rủi ro minh họa cao, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt.',
+      }
+    })
+
+    if (aggregates.length === 0) {
+      aggregates.push({
+        id: 'DAL-ATL',
+        entity: 'DAL → ATL',
+        type: 'Route',
+        expectedRate: 38.7,
+        highRiskShare: 41.2,
+        historicalRate: 31.8,
+        historicalGap: 6.2,
+        scoredN: 84,
+        historicalN: 2184,
+        sampleFlag: 'Uncalibrated',
+        priority: 'Uncalibrated',
+        rationale: 'Rủi ro minh họa cao, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt.',
+      })
+    }
+
+    const byTime = [
+      { label: 'Sáng sớm', expectedRate: 19.4, n: 130 },
+      { label: 'Buổi sáng', expectedRate: 24.8, n: 198 },
+      { label: 'Buổi chiều', expectedRate: 30.7, n: 224 },
+      { label: 'Buổi tối', expectedRate: 36.1, n: 180 },
+    ]
+
+    return {
+      metadata: this.createMetadata('RỦI RO VÀ MỨC ƯU TIÊN MINH HỌA — KHÔNG PHẢI KHUYẾN NGHỊ VẬN HÀNH', eligible.length),
+      aggregates,
+      byTime,
+    }
   }
 
-  async getPredictionExplanation(id: string) {
-    const payload = await loadJson<{ metadata: PredictionExplanationData['metadata']; explanations: PredictionExplanationData[] }>('explanations.json')
-    const explanation = payload.explanations.find((item) => item.id === id) ?? payload.explanations[0]
-    return { ...explanation, metadata: payload.metadata }
+  async getPredictionExplanation(id: string): Promise<PredictionExplanationData> {
+    const isFlight = id.startsWith('WN')
+    const entity = isFlight ? `${id.slice(0, 6)} · Tuyến bay kế hoạch` : `${id.replace('-', ' → ')} · Tuyến bay tổng hợp`
+
+    return {
+      metadata: this.createMetadata('ĐÓNG GÓP ĐẶC TRƯNG MINH HỌA — TƯƠNG QUAN, KHÔNG PHẢI NGUYÊN NHÂN NHÂN QUẢ', 1),
+      id,
+      entity,
+      probability: 0.43,
+      contributors: [
+        {
+          label: 'Lịch bay Thứ Sáu / buổi tối',
+          direction: 'up',
+          strength: 82,
+          description: 'Mô hình lịch bay/thời gian theo kế hoạch liên quan tới mức rủi ro cao hơn trong dữ liệu huấn luyện minh họa.',
+        },
+        {
+          label: 'Hồ sơ lịch sử đường bay',
+          direction: 'up',
+          strength: 68,
+          description: 'Đặc trưng lịch sử đường bay bảo đảm an toàn thời gian; không phải chẩn đoán nguyên nhân nhân quả.',
+        },
+        {
+          label: 'Nhóm khoảng cách G03',
+          direction: 'down',
+          strength: 28,
+          description: 'Khoảng cách được dẫn xuất từ DISTANCE theo DG-BTS-250-v1.',
+        },
+      ],
+      missingFeatures: ['Nguồn dữ liệu dự báo thời tiết đã kiểm định'],
+      limitation: 'Xác suất chỉ phục vụ diễn tập giao diện; chưa có hiệu chỉnh, kiểm định hoặc phê duyệt cho quyết định vận hành thực tế.',
+    }
   }
 
-  async getSegmentEvidence(entity: string) {
-    const payload = await loadJson<SegmentEvidenceData>('segment-evidence.json')
-    return { ...payload, entity }
+  async getSegmentEvidence(entity: string, filters?: GlobalFilters): Promise<SegmentEvidenceData> {
+    const activeF = filters ?? this.activeFilters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+    const networkRate = eligible.length > 0
+      ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
+      : 25.0
+
+    let segmentFlights = eligible
+    if (entity.includes('→')) {
+      const match = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
+      if (match.length > 0) segmentFlights = match
+    } else if (entity.length === 3) {
+      const match = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
+      if (match.length > 0) segmentFlights = match
+    }
+
+    const sDelayed = segmentFlights.filter(isDelayed)
+    const historicalRate = segmentFlights.length > 0
+      ? Number(((sDelayed.length / segmentFlights.length) * 100).toFixed(1))
+      : networkRate
+    const gap = Number((historicalRate - networkRate).toFixed(1))
+    const avg = segmentFlights.length > 0
+      ? Number((segmentFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / segmentFlights.length).toFixed(1))
+      : 0
+
+    return {
+      metadata: this.createMetadata('BẰNG CHỨNG MINH HỌA — BẮT BUỘC ĐÁNH GIÁ THỦ CÔNG (HUMAN REVIEW)', segmentFlights.length),
+      entity,
+      historicalRate,
+      baselineRate: networkRate,
+      gap,
+      eligible: scaleCount(segmentFlights.length),
+      delayed: scaleCount(sDelayed.length),
+      averageDelay: avg,
+      sampleFlag: 'Uncalibrated',
+      predictedRisk: Number((historicalRate * 1.18).toFixed(1)),
+      checks: [
+        { label: 'Tỷ lệ trễ lịch sử và mức tham chiếu BL-AR có sẵn', status: 'available' },
+        { label: 'Phiên bản ngưỡng cỡ mẫu được phê duyệt', status: 'pending' },
+        { label: 'Kết quả mô hình được công bố / hiệu chỉnh', status: 'pending' },
+        { label: 'Quy tắc ưu tiên và xử lý đồng hạng', status: 'pending' },
+      ],
+    }
   }
 
-  async getCauseContext(entity: string) {
-    const payload = await loadJson<CauseContextData>('cause-context.json')
-    return { ...payload, entity }
+  async getCauseContext(entity: string, filters?: GlobalFilters): Promise<CauseContextData> {
+    const activeF = filters ?? this.activeFilters
+    const allFlights = await this.loadFlights()
+    const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
+    const eligible = baseFlights.filter(isEligible)
+
+    let segmentFlights = eligible
+    if (entity.includes('→')) {
+      const match = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
+      if (match.length > 0) segmentFlights = match
+    } else if (entity.length === 3) {
+      const match = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
+      if (match.length > 0) segmentFlights = match
+    }
+
+    const delayedFlights = segmentFlights.filter(isDelayed)
+    const recordedFlights = delayedFlights.filter(
+      (f) =>
+        (f.LATE_AIRCRAFT_DELAY || 0) > 0 ||
+        (f.CARRIER_DELAY || 0) > 0 ||
+        (f.NAS_DELAY || 0) > 0 ||
+        (f.WEATHER_DELAY || 0) > 0 ||
+        (f.SECURITY_DELAY || 0) > 0,
+    )
+
+    const lateAircraftCount = delayedFlights.filter((f) => (f.LATE_AIRCRAFT_DELAY || 0) > 0).length
+    const carrierCount = delayedFlights.filter((f) => (f.CARRIER_DELAY || 0) > 0).length
+    const nasCount = delayedFlights.filter((f) => (f.NAS_DELAY || 0) > 0).length
+    const weatherCount = delayedFlights.filter((f) => (f.WEATHER_DELAY || 0) > 0).length
+    const securityCount = delayedFlights.filter((f) => (f.SECURITY_DELAY || 0) > 0).length
+
+    const recLen = Math.max(1, recordedFlights.length)
+
+    return {
+      metadata: this.createMetadata(
+        'BỐI CẢNH SAU SỰ KIỆN — KHÔNG LOẠI TRỪ LẪN NHAU — KHÔNG PHẢI NGUYÊN NHÂN NHÂN QUẢ — KHÔNG DÙNG ĐỂ DỰ BÁO',
+        delayedFlights.length,
+      ),
+      entity,
+      delayedN: scaleCount(delayedFlights.length),
+      recordedN: scaleCount(recordedFlights.length),
+      causes: [
+        {
+          label: 'Máy bay đến trễ',
+          share: Math.round((lateAircraftCount / recLen) * 100),
+          flights: scaleCount(lateAircraftCount),
+        },
+        {
+          label: 'Hãng bay',
+          share: Math.round((carrierCount / recLen) * 100),
+          flights: scaleCount(carrierCount),
+        },
+        {
+          label: 'Hệ thống vùng trời quốc gia (NAS)',
+          share: Math.round((nasCount / recLen) * 100),
+          flights: scaleCount(nasCount),
+        },
+        {
+          label: 'Thời tiết',
+          share: Math.round((weatherCount / recLen) * 100),
+          flights: scaleCount(weatherCount),
+        },
+        {
+          label: 'An ninh',
+          share: Math.round((securityCount / recLen) * 100),
+          flights: scaleCount(securityCount),
+        },
+      ],
+    }
   }
 }

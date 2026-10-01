@@ -21,10 +21,11 @@ export interface DashboardRepository {
   getAirportHotspots(filters: GlobalFilters, localState: SpatialState): Promise<AirportHotspotsData>
   getRouteCandidates(filters: GlobalFilters, localState: SpatialState): Promise<RouteCandidatesData>
   getTemporalPatterns(filters: GlobalFilters, context: TemporalContext): Promise<TemporalPatternsData>
-  getCarrierComparison(context: ComparisonContext, peers: string[]): Promise<CarrierComparisonData>
-  getFutureFlights(filters: PredictionFilters): Promise<FutureFlightsData>
-  getRiskAggregates(filters: PredictionFilters): Promise<RiskAggregatesData>
+  getCarrierComparison(context: ComparisonContext, peers: string[], filters?: GlobalFilters): Promise<CarrierComparisonData>
+  getFutureFlights(filters: PredictionFilters, globalFilters?: GlobalFilters): Promise<FutureFlightsData>
+  getRiskAggregates(filters: PredictionFilters, globalFilters?: GlobalFilters): Promise<RiskAggregatesData>
   getPredictionExplanation(id: string): Promise<PredictionExplanationData>
-  getSegmentEvidence(entity: string): Promise<SegmentEvidenceData>
-  getCauseContext(entity: string): Promise<CauseContextData>
+  getSegmentEvidence(entity: string, filters?: GlobalFilters): Promise<SegmentEvidenceData>
+  getCauseContext(entity: string, filters?: GlobalFilters): Promise<CauseContextData>
 }
+

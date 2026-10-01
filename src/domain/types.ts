@@ -14,7 +14,12 @@ export interface DashboardMetadata {
   priorityRuleVersion?: string
   predictionHorizon?: string
   scoringCutoff?: string
+  sampleMultiplier?: number
+  scalingRuleVersion?: string
+  baseRecordCount?: number
+  weightedSampleSize?: number
 }
+
 
 export interface GlobalFilters {
   fromDate: string
@@ -262,3 +267,45 @@ export interface ComparisonContext {
   entity: string
   variant: 'CM-R' | 'CM-A' | 'CM-T' | 'CM-F'
 }
+
+export interface FlightRecord {
+  FL_DATE: string
+  OP_CARRIER: string
+  OP_CARRIER_FL_NUM: number | string
+  ORIGIN: string
+  DEST: string
+  CRS_DEP_TIME: number
+  DEP_TIME: number | null
+  DEP_DELAY: number | null
+  TAXI_OUT: number | null
+  WHEELS_OFF: number | null
+  WHEELS_ON: number | null
+  TAXI_IN: number | null
+  CRS_ARR_TIME: number
+  ARR_TIME: number | null
+  ARR_DELAY: number | null
+  CANCELLED: number
+  CANCELLATION_CODE: string | null
+  DIVERTED: number
+  CRS_ELAPSED_TIME: number | null
+  ACTUAL_ELAPSED_TIME: number | null
+  AIR_TIME: number | null
+  DISTANCE: number
+  CARRIER_DELAY: number | null
+  WEATHER_DELAY: number | null
+  NAS_DELAY: number | null
+  SECURITY_DELAY: number | null
+  LATE_AIRCRAFT_DELAY: number | null
+}
+
+export interface AirportLocation {
+  code: string
+  name: string
+  city: string
+  state: string
+  x: number
+  y: number
+  lat?: number
+  lng?: number
+}
+
