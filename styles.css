@@ -1731,6 +1731,634 @@ button:disabled {
   font-weight: 700;
 }
 
+/* UI Atoms: DatePicker, Combobox, Badge, Tooltip */
+@keyframes uiFadeInZoom {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* UI DatePicker Styles */
+.ui-datepicker-container {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-datepicker-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.ui-datepicker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  text-align: left;
+}
+
+.ui-datepicker-trigger:hover {
+  border-color: var(--line-dark);
+  background: var(--surface);
+}
+
+.ui-datepicker-trigger:focus-visible,
+.ui-datepicker-trigger-active {
+  border-color: var(--coral);
+  box-shadow: 0 0 0 3px var(--coral-glow);
+}
+
+.ui-datepicker-trigger-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-datepicker-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ui-datepicker-icon-muted {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.ui-datepicker-value-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.ui-datepicker-placeholder-text {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ui-datepicker-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s ease, color 0.15s ease;
+  margin-left: 4px;
+}
+
+.ui-datepicker-chevron-open {
+  transform: rotate(180deg);
+  color: var(--ink);
+}
+
+.ui-datepicker-popup {
+  background: var(--surface);
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  width: 260px;
+  color: var(--ink);
+  animation: uiFadeInZoom 0.12s ease-out;
+  box-sizing: border-box;
+}
+
+.ui-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ui-datepicker-nav-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ui-datepicker-nav-btn:hover {
+  background: var(--coral-light);
+  border-color: var(--coral-border);
+  color: var(--coral-dark);
+}
+
+.ui-datepicker-icon-sm {
+  width: 13px;
+  height: 13px;
+}
+
+.ui-datepicker-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  text-transform: capitalize;
+}
+
+.ui-datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.ui-datepicker-weekday {
+  padding: 3px 0;
+}
+
+.ui-datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.ui-datepicker-cell {
+  width: 100%;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--ink);
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.ui-datepicker-cell-other {
+  color: var(--muted-light);
+  opacity: 0.5;
+}
+
+.ui-datepicker-cell:hover:not(.ui-datepicker-cell-disabled):not(.ui-datepicker-cell-selected) {
+  background: var(--coral-light);
+  color: var(--coral-dark);
+}
+
+.ui-datepicker-cell-today {
+  border: 1px solid var(--coral-border);
+  font-weight: 700;
+  color: var(--coral);
+}
+
+.ui-datepicker-cell-selected {
+  background: var(--coral) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: var(--shadow-xs);
+}
+
+.ui-datepicker-cell-disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
+.ui-datepicker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.ui-datepicker-action-btn {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--coral);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.ui-datepicker-action-btn:hover {
+  text-decoration: underline;
+  background: var(--coral-light);
+}
+
+.ui-datepicker-clear-btn {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.ui-datepicker-clear-btn:hover {
+  color: var(--ink);
+}
+
+/* UI Combobox Styles */
+.ui-combobox-root,
+.ui-combobox-container {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-combobox-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.ui-combobox-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  text-align: left;
+}
+
+.ui-combobox-trigger:hover {
+  border-color: var(--line-dark);
+  background: var(--surface);
+}
+
+.ui-combobox-trigger:focus-visible,
+.ui-combobox-trigger-active {
+  border-color: var(--coral);
+  box-shadow: 0 0 0 3px var(--coral-glow);
+}
+
+.ui-combobox-trigger-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-combobox-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ui-combobox-icon-filter {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.ui-combobox-trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.ui-combobox-placeholder-text {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ui-combobox-trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.ui-combobox-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ui-combobox-clear-btn:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.ui-combobox-clear-icon {
+  width: 10px;
+  height: 10px;
+}
+
+.ui-combobox-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.ui-combobox-chevron-open {
+  transform: rotate(180deg);
+  color: var(--ink);
+}
+
+.ui-combobox-menu {
+  background: var(--surface);
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  color: var(--ink);
+  animation: uiFadeInZoom 0.12s ease-out;
+  min-width: 180px;
+  max-width: 320px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ui-combobox-search-box {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-sunken);
+}
+
+.ui-combobox-search-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.ui-combobox-search-input:focus {
+  border-color: var(--coral);
+  box-shadow: 0 0 0 2px var(--coral-glow);
+}
+
+.ui-combobox-options-list {
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 4px;
+  margin: 0;
+  list-style: none;
+}
+
+.ui-combobox-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s ease, color 0.1s ease;
+  color: var(--ink);
+}
+
+.ui-combobox-option:hover:not(.ui-combobox-option-disabled) {
+  background: var(--coral-light);
+  color: var(--coral-dark);
+}
+
+.ui-combobox-option-selected {
+  background: rgba(225, 29, 72, 0.08);
+  font-weight: 600;
+  color: var(--coral-dark);
+}
+
+.ui-combobox-option-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-combobox-option-content {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ui-combobox-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--line-dark);
+  border-radius: 3px;
+  background: var(--surface);
+  flex-shrink: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ui-combobox-checkbox-checked {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: #ffffff;
+}
+
+.ui-combobox-check-icon {
+  width: 10px;
+  height: 10px;
+}
+
+.ui-combobox-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ui-combobox-item-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.ui-combobox-item-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-combobox-item-sublabel {
+  font-size: 10.5px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.ui-combobox-empty-message {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* UI Badge Styles */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.ui-badge-rounded {
+  border-radius: var(--radius-full);
+}
+
+.ui-badge-square {
+  border-radius: var(--radius-sm);
+}
+
+.ui-badge-coral {
+  background: var(--coral-light);
+  color: var(--coral-dark);
+  border-color: var(--coral-border);
+}
+
+.ui-badge-primary {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.ui-badge-secondary {
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  border-color: var(--line);
+}
+
+.ui-badge-outline {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-dark);
+}
+
+.ui-badge-success {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  border-color: var(--green-border);
+}
+
+.ui-badge-warning {
+  background: var(--amber-soft);
+  color: var(--amber-dark);
+  border-color: var(--amber-border);
+}
+
+.ui-badge-error {
+  background: var(--coral-light);
+  color: var(--coral-dark);
+  border-color: var(--coral-border);
+}
+
+.ui-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ui-badge-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: currentColor;
+  opacity: 0.7;
+  transition: opacity 0.12s ease;
+}
+
+.ui-badge-remove-btn:hover {
+  opacity: 1;
+}
+
+.ui-badge-remove-icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* UI Tooltip Styles */
+.ui-tooltip-wrapper {
+  position: relative;
+  display: contents;
+}
+
+.ui-tooltip-bubble {
+  position: absolute;
+  z-index: 1100;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: uiFadeInZoom 0.1s ease-out;
+}
+
 /* Data source and state labels */
 .illustrative-label {
   display: inline-flex;

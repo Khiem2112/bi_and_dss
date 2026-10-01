@@ -4,7 +4,7 @@
     "schemaVersion": "2.0.0-demo",
     "generatedAt": "2026-10-01T08:00:00+07:00",
     "asOfDate": "2018-12-31",
-    "dataLabel": "DỮ LIỆU MINH HỌA — SO SÁNH CHỈ TRONG SHARED CELLS",
+    "dataLabel": "DỮ LIỆU MINH HỌA — SO SÁNH CHỈ TRONG CÁC Ô ĐỐI SÁNH CHUNG (SHARED CELLS)",
     "baselineRuleVersion": "BL-C-DEMO-v0",
     "sampleRuleVersion": "UNCALIBRATED"
   },
@@ -26,9 +26,9 @@
     "AA": [{ "period": "2018-01", "value": 24.4, "n": 110 }, { "period": "2018-02", "value": 25.1, "n": 106 }, { "period": "2018-03", "value": 26.2, "n": 113 }, { "period": "2018-04", "value": 27.0, "n": 116 }, { "period": "2018-05", "value": 28.1, "n": 120 }, { "period": "2018-06", "value": 27.4, "n": 115 }]
   },
   "breakdown": [
-    { "cell": "DAL → ATL · Friday · Evening", "wnRate": 39.1, "peerRate": 30.8, "wnN": 312, "peerN": 388 },
-    { "cell": "DAL → ATL · Sunday · Evening", "wnRate": 35.6, "peerRate": 28.2, "wnN": 286, "peerN": 352 },
-    { "cell": "DAL → ATL · Friday · Afternoon", "wnRate": 33.8, "peerRate": 27.4, "wnN": 324, "peerN": 401 },
-    { "cell": "DAL → ATL · Monday · Morning", "wnRate": 24.2, "peerRate": 22.8, "wnN": 298, "peerN": 371 }
+    { "cell": "DAL → ATL · Thứ Sáu · Buổi tối", "wnRate": 39.1, "peerRate": 30.8, "wnN": 312, "peerN": 388 },
+    { "cell": "DAL → ATL · Chủ Nhật · Buổi tối", "wnRate": 35.6, "peerRate": 28.2, "wnN": 286, "peerN": 352 },
+    { "cell": "DAL → ATL · Thứ Sáu · Buổi chiều", "wnRate": 33.8, "peerRate": 27.4, "wnN": 324, "peerN": 401 },
+    { "cell": "DAL → ATL · Thứ Hai · Buổi sáng", "wnRate": 24.2, "peerRate": 22.8, "wnN": 298, "peerN": 371 }
   ]
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { formatSampleFlag } from '../../domain/formatters'
 
 interface CardProps {
   id: string
@@ -29,7 +30,7 @@ export function Card({ id, title, subtitle, action, className = '', children }: 
 
 export function SampleBadge({ flag }: { flag: string }) {
   const className = flag === 'Sufficient' ? 'sufficient' : flag === 'Low sample' ? 'low' : 'uncalibrated'
-  return <span className={`pill ${className}`}>{flag}</span>
+  return <span className={`pill ${className}`}>{formatSampleFlag(flag)}</span>
 }
 
 export function EmptyState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {

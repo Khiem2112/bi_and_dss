@@ -5,7 +5,7 @@
     "schemaVersion": "2.0.0-demo",
     "generatedAt": "2026-10-01T08:00:00+07:00",
     "asOfDate": "2018-12-31",
-    "dataLabel": "ILLUSTRATIVE AIRPORT LOCATIONS / REGIONS"
+    "dataLabel": "DỮ LIỆU MINH HỌA VỊ TRÍ / KHU VỰC SÂN BAY"
   },
   "features": [
     { "type": "Feature", "properties": { "airport_code": "DAL", "airport_name": "Dallas Love Field", "city": "Dallas", "state": "TX", "region": "South", "timezone": "America/Chicago", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-96.8518, 32.8471] } },

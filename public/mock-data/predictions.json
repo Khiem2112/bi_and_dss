@@ -4,7 +4,7 @@
     "schemaVersion": "2.0.0-demo",
     "generatedAt": "2026-10-01T08:00:00+07:00",
     "asOfDate": "2018-12-31",
-    "dataLabel": "RISK & PRIORITY MINH HỌA — KHÔNG PHẢI KHUYẾN NGHỊ VẬN HÀNH",
+    "dataLabel": "RỦI RO VÀ MỨC ƯU TIÊN MINH HỌA — KHÔNG PHẢI KHUYẾN NGHỊ VẬN HÀNH",
     "modelVersion": "DEMO-RISK-v0",
     "sampleRuleVersion": "UNCALIBRATED",
     "priorityRuleVersion": "UNCALIBRATED",
@@ -12,16 +12,16 @@
     "scoringCutoff": "2018-12-31T23:59:59-06:00"
   },
   "aggregates": [
-    { "id": "DAL-ATL", "entity": "DAL → ATL", "type": "Route", "expectedRate": 38.7, "highRiskShare": 41.2, "historicalRate": 31.8, "historicalGap": 6.2, "scoredN": 84, "historicalN": 2184, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Risk minh họa cao, history cao hơn BL-AR; sample/priority rule chưa duyệt." },
-    { "id": "BWI-MCO", "entity": "BWI → MCO", "type": "Route", "expectedRate": 35.9, "highRiskShare": 37.6, "historicalRate": 29.4, "historicalGap": 5.4, "scoredN": 93, "historicalN": 2702, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Risk và historical gap cùng chiều; chỉ dùng để diễn tập investigation flow." },
-    { "id": "MCO-d", "entity": "MCO · Destination", "type": "Airport", "expectedRate": 33.8, "highRiskShare": 34.1, "historicalRate": 29.4, "historicalGap": 5.4, "scoredN": 246, "historicalN": 8402, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Destination signal minh họa; geography chưa được xác minh." },
-    { "id": "FRI-EVE", "entity": "Friday · Evening", "type": "Time", "expectedRate": 36.1, "highRiskShare": 39.7, "historicalRate": 34.2, "historicalGap": 7.5, "scoredN": 180, "historicalN": 3410, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Scheduled Time Block từ CRS_DEP_TIME; không sử dụng actual fields." },
-    { "id": "MDW-DEN", "entity": "MDW → DEN", "type": "Route", "expectedRate": 31.4, "highRiskShare": 28.3, "historicalRate": 28.2, "historicalGap": 5.1, "scoredN": 71, "historicalN": 1960, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Có historical materiality, nhưng sample threshold chưa hiệu chỉnh." }
+    { "id": "DAL-ATL", "entity": "DAL → ATL", "type": "Route", "expectedRate": 38.7, "highRiskShare": 41.2, "historicalRate": 31.8, "historicalGap": 6.2, "scoredN": 84, "historicalN": 2184, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Rủi ro minh họa cao, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt." },
+    { "id": "BWI-MCO", "entity": "BWI → MCO", "type": "Route", "expectedRate": 35.9, "highRiskShare": 37.6, "historicalRate": 29.4, "historicalGap": 5.4, "scoredN": 93, "historicalN": 2702, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Rủi ro và khoảng chênh lệch lịch sử cùng chiều; chỉ dùng để diễn tập quy trình tra cứu." },
+    { "id": "MCO-d", "entity": "MCO · Sân bay đến", "type": "Airport", "expectedRate": 33.8, "highRiskShare": 34.1, "historicalRate": 29.4, "historicalGap": 5.4, "scoredN": 246, "historicalN": 8402, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Tín hiệu sân bay đến minh họa; yếu tố địa lý chưa được xác minh." },
+    { "id": "FRI-EVE", "entity": "Thứ Sáu · Buổi tối", "type": "Time", "expectedRate": 36.1, "highRiskShare": 39.7, "historicalRate": 34.2, "historicalGap": 7.5, "scoredN": 180, "historicalN": 3410, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Khung giờ bay theo kế hoạch từ CRS_DEP_TIME; không sử dụng các trường dữ liệu thực tế." },
+    { "id": "MDW-DEN", "entity": "MDW → DEN", "type": "Route", "expectedRate": 31.4, "highRiskShare": 28.3, "historicalRate": 28.2, "historicalGap": 5.1, "scoredN": 71, "historicalN": 1960, "sampleFlag": "Uncalibrated", "priority": "Uncalibrated", "rationale": "Có ý nghĩa thực tế trong lịch sử, nhưng ngưỡng cỡ mẫu chưa hiệu chỉnh." }
   ],
   "byTime": [
-    { "label": "Early Morning", "expectedRate": 19.4, "n": 130 },
-    { "label": "Morning", "expectedRate": 24.8, "n": 198 },
-    { "label": "Afternoon", "expectedRate": 30.7, "n": 224 },
-    { "label": "Evening", "expectedRate": 36.1, "n": 180 }
+    { "label": "Sáng sớm", "expectedRate": 19.4, "n": 130 },
+    { "label": "Buổi sáng", "expectedRate": 24.8, "n": 198 },
+    { "label": "Buổi chiều", "expectedRate": 30.7, "n": 224 },
+    { "label": "Buổi tối", "expectedRate": 36.1, "n": 180 }
   ]
 }

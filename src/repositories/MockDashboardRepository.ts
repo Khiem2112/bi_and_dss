@@ -31,18 +31,24 @@ export class MockDashboardRepository implements DashboardRepository {
   }
 
   async getAirportHotspots(filters: GlobalFilters, localState: SpatialState) {
-    void filters
     const payload = await loadJson<AirportHotspotsData>('airport-hotspots.json')
     const role = localState.grain === 'origin' ? 'Origin' : 'Destination'
-    return { ...payload, airports: payload.airports.filter((airport) => airport.role === role) }
+    let airports = payload.airports.filter((airport) => airport.role === role)
+    if (role === 'Origin' && filters.origin.length > 0) {
+      airports = airports.filter((airport) => filters.origin.includes(airport.code))
+    } else if (role === 'Destination' && filters.destination.length > 0) {
+      airports = airports.filter((airport) => filters.destination.includes(airport.code))
+    }
+    return { ...payload, airports }
   }
 
   async getRouteCandidates(filters: GlobalFilters) {
     const payload = await loadJson<RouteCandidatesData>('route-candidates.json')
     const routes = payload.routes.filter((route) => {
       const [origin, destination] = route.route.split(' → ')
-      return (filters.origin === 'all' || filters.origin === origin) &&
-        (filters.destination === 'all' || filters.destination === destination)
+      const originMatch = filters.origin.length === 0 || filters.origin.includes(origin)
+      const destinationMatch = filters.destination.length === 0 || filters.destination.includes(destination)
+      return originMatch && destinationMatch
     })
     return { ...payload, routes }
   }

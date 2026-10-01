@@ -12,7 +12,7 @@ const width = 760
 const height = 240
 const padding = { top: 22, right: 22, bottom: 42, left: 48 }
 
-export function LineChart({ data, secondary = false, valueLabel = 'Delay Rate', onSelect }: LineChartProps) {
+export function LineChart({ data, secondary = false, valueLabel = 'Tỷ lệ đến trễ', onSelect }: LineChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const geometry = useMemo(() => {
     const values = data.flatMap((point) => point.baseline === undefined ? [point.value] : [point.value, point.baseline])

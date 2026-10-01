@@ -10,10 +10,10 @@
     "modelVersion": "DEMO-RISK-v0"
   },
   "kpis": [
-    { "id": "P1-C02", "label": "Eligible Flights", "value": "126.480", "context": "CANCELLED = 0 · DIVERTED = 0 · ARR_DELAY có giá trị" },
-    { "id": "P1-C03", "label": "Delayed Flights", "value": "31.925", "context": "ARR_DELAY ≥ 15 phút · cùng eligible context" },
-    { "id": "P1-C04", "label": "Actual Delay Rate", "value": "25,2%", "context": "31.925 / 126.480 · historical BI" },
-    { "id": "P1-C05", "label": "Average Arrival Delay", "value": "8,7 phút", "context": "AVG(ARR_DELAY) trên eligible population" }
+    { "id": "P1-C02", "label": "Chuyến bay đủ điều kiện", "value": "126.480", "context": "CANCELLED = 0 · DIVERTED = 0 · ARR_DELAY có giá trị" },
+    { "id": "P1-C03", "label": "Chuyến bay đến trễ", "value": "31.925", "context": "ARR_DELAY ≥ 15 phút · cùng điều kiện tính" },
+    { "id": "P1-C04", "label": "Tỷ lệ đến trễ thực tế", "value": "25,2%", "context": "31.925 / 126.480 · dữ liệu lịch sử BI" },
+    { "id": "P1-C05", "label": "Độ trễ đến trung bình", "value": "8,7 phút", "context": "AVG(ARR_DELAY) trên tập hợp chuyến bay đủ điều kiện" }
   ],
   "actualTrend": [
     { "period": "2018-01", "value": 22.8, "n": 10180 },
@@ -53,7 +53,7 @@
   "candidates": [
     { "id": "DAL-ATL", "entity": "DAL → ATL", "entityType": "Route", "rate": 31.8, "baseline": 25.6, "gap": 6.2, "averageDelay": 14.1, "n": 2184, "flag": "Uncalibrated" },
     { "id": "BWI-MCO", "entity": "BWI → MCO", "entityType": "Route", "rate": 29.4, "baseline": 24.0, "gap": 5.4, "averageDelay": 12.8, "n": 2702, "flag": "Uncalibrated" },
-    { "id": "MCO", "entity": "MCO · Destination", "entityType": "Airport", "rate": 29.4, "baseline": 24.0, "gap": 5.4, "averageDelay": 12.8, "n": 8402, "flag": "Uncalibrated" },
-    { "id": "FRI-EVE", "entity": "Friday · Evening", "entityType": "Time", "rate": 34.2, "baseline": 26.7, "gap": 7.5, "averageDelay": 15.2, "n": 3410, "flag": "Uncalibrated" }
+    { "id": "MCO", "entity": "MCO · Sân bay đến", "entityType": "Airport", "rate": 29.4, "baseline": 24.0, "gap": 5.4, "averageDelay": 12.8, "n": 8402, "flag": "Uncalibrated" },
+    { "id": "FRI-EVE", "entity": "Thứ Sáu · Buổi tối", "entityType": "Time", "rate": 34.2, "baseline": 26.7, "gap": 7.5, "averageDelay": 15.2, "n": 3410, "flag": "Uncalibrated" }
   ]
 }

@@ -4,7 +4,7 @@
     "schemaVersion": "2.0.0-demo",
     "generatedAt": "2026-10-01T08:00:00+07:00",
     "asOfDate": "2018-12-31",
-    "dataLabel": "EVIDENCE MINH HỌA — HUMAN REVIEW BẮT BUỘC",
+    "dataLabel": "BẰNG CHỨNG MINH HỌA — BẮT BUỘC ĐÁNH GIÁ THỦ CÔNG (HUMAN REVIEW)",
     "baselineRuleVersion": "BL-DEMO-v0",
     "sampleRuleVersion": "UNCALIBRATED",
     "modelVersion": "DEMO-RISK-v0",
@@ -20,9 +20,9 @@
   "sampleFlag": "Uncalibrated",
   "predictedRisk": 38.7,
   "checks": [
-    { "label": "Historical rate và BL-AR có sẵn", "status": "available" },
-    { "label": "Sample threshold version được duyệt", "status": "pending" },
-    { "label": "Published/calibrated model output", "status": "pending" },
-    { "label": "Priority rule và tie handling", "status": "pending" }
+    { "label": "Tỷ lệ trễ lịch sử và mức tham chiếu BL-AR có sẵn", "status": "available" },
+    { "label": "Phiên bản ngưỡng cỡ mẫu được phê duyệt", "status": "pending" },
+    { "label": "Kết quả mô hình được công bố / hiệu chỉnh", "status": "pending" },
+    { "label": "Quy tắc ưu tiên và xử lý đồng hạng", "status": "pending" }
   ]
 }

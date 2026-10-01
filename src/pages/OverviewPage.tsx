@@ -1,4 +1,5 @@
 import type { GlobalFilters, PageId } from '../domain/types'
+import { formatEntityType } from '../domain/formatters'
 import { useOverview } from '../hooks/dashboardHooks'
 import { AirportMap } from '../components/charts/AirportMap'
 import { LineChart } from '../components/charts/LineChart'
@@ -22,9 +23,9 @@ export function OverviewPage({ filters, onNavigate, onSelectEntity, onOpenEviden
     <section className="view active" aria-labelledby="overview-title">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">P1 · Network overview</div>
+          <div className="eyebrow">P1 · Tổng quan mạng lưới</div>
           <h1 id="overview-title">Từ tín hiệu mạng lưới đến nhánh cần điều tra</h1>
-          <p className="page-subtitle">Theo dõi KPI lịch sử, đối chiếu xu hướng model minh họa và chọn airport/route/time segment để kiểm chứng sâu hơn.</p>
+          <p className="page-subtitle">Theo dõi chỉ số KPI lịch sử, đối chiếu xu hướng mô hình minh họa và chọn phân đoạn sân bay, đường bay hoặc thời gian để kiểm chứng sâu hơn.</p>
         </div>
         <div className="page-actions">
           <IllustrativeLabel />
@@ -47,30 +48,30 @@ export function OverviewPage({ filters, onNavigate, onSelectEntity, onOpenEviden
           </div>
 
           <div className="grid cols-2 synchronized-charts">
-            <Card id="P1-C06" title="Actual Delay Trend" subtitle="Historical BI · Month → Week → Date">
-              <LineChart data={query.data.actualTrend} onSelect={(point) => onToast(`Đã chọn ${point.period}; context sẵn sàng truyền sang P2/P3.`)} />
-              <div className="legend"><span className="legend-item"><span className="legend-dot" />Actual Delay Rate</span><span className="legend-item">Tooltip gồm n từng tháng</span></div>
+            <Card id="P1-C06" title="Xu hướng trễ chuyến thực tế" subtitle="Dữ liệu lịch sử BI · Tháng → Tuần → Ngày">
+              <LineChart data={query.data.actualTrend} onSelect={(point) => onToast(`Đã chọn ${point.period}; ngữ cảnh sẵn sàng chuyển tiếp sang P2/P3.`)} />
+              <div className="legend"><span className="legend-item"><span className="legend-dot" />Tỷ lệ trễ chuyến thực tế</span><span className="legend-item">Chú giải bao gồm cỡ mẫu n từng tháng</span></div>
             </Card>
-            <Card id="P1-C07" title="Model-estimated Trend" subtitle="Predicted Expected Delay Rate · validation/scoring demo">
-              <LineChart data={query.data.predictedTrend} secondary onSelect={(point) => onToast(`Model-estimated ${point.period}: ${point.value.toFixed(1)}% · minh họa.`)} />
-              <div className="legend"><span className="legend-item"><span className="legend-dot blue" />Mean probability</span><span className="legend-item"><SampleBadge flag="Uncalibrated" /></span></div>
+            <Card id="P1-C07" title="Xu hướng ước tính từ mô hình" subtitle="Tỷ lệ trễ dự kiến từ mô hình · Diễn tập kiểm định và chấm điểm">
+              <LineChart data={query.data.predictedTrend} secondary onSelect={(point) => onToast(`Ước tính mô hình ${point.period}: ${point.value.toFixed(1)}% · minh họa.`)} />
+              <div className="legend"><span className="legend-item"><span className="legend-dot blue" />Xác suất trung bình</span><span className="legend-item"><SampleBadge flag="Uncalibrated" /></span></div>
             </Card>
           </div>
 
           <div className="grid split-7-5">
-            <Card id="P1-C08" title="Destination Hotspot Map" subtitle="Color = BL-AR Gap · size = n" action={<IllustrativeLabel compact />}>
+            <Card id="P1-C08" title="Bản đồ điểm nóng sân bay đến" subtitle="Màu sắc = Chênh lệch BL-AR · Kích thước = cỡ mẫu n" action={<IllustrativeLabel compact />}>
               <AirportMap
                 airports={query.data.destinations}
                 onSelect={(airport) => {
                   onSelectEntity(airport.entity)
-                  onToast(`Đã chọn ${airport.entity}; mở P2 để xem exact ranking.`)
+                  onToast(`Đã chọn ${airport.entity}; chuyển sang P2 để xem xếp hạng chi tiết.`)
                   onNavigate('spatial')
                 }}
               />
             </Card>
-            <Card id="P1-C09" title="Investigation Candidates" subtitle="Không gắn nhãn Confirmed Hotspot khi sample rule chưa hiệu chỉnh">
+            <Card id="P1-C09" title="Đối tượng cần điều tra" subtitle="Không gắn nhãn Điểm nóng xác nhận khi quy tắc cỡ mẫu chưa hiệu chỉnh">
               {query.data.candidates.length === 0 ? (
-                <EmptyState title="Không có candidate" detail="Hãy đặt lại bộ lọc để mở rộng context." />
+                <EmptyState title="Không có đối tượng phù hợp" detail="Hãy đặt lại bộ lọc để mở rộng phạm vi dữ liệu." />
               ) : (
                 <div className="candidate-list">
                   {query.data.candidates.map((candidate, index) => (
@@ -84,13 +85,13 @@ export function OverviewPage({ filters, onNavigate, onSelectEntity, onOpenEviden
                       }}
                     >
                       <span className="candidate-rank">{String(index + 1).padStart(2, '0')}</span>
-                      <span className="candidate-name"><strong>{candidate.entity}</strong><small>{candidate.entityType} · n={candidate.n.toLocaleString('vi-VN')}</small></span>
-                      <span className="candidate-metric"><strong>{candidate.rate.toFixed(1)}%</strong><small>{candidate.gap === null ? 'Gap N/A' : `${candidate.gap > 0 ? '+' : ''}${candidate.gap.toFixed(1)} pp`}</small></span>
+                      <span className="candidate-name"><strong>{candidate.entity}</strong><small>{formatEntityType(candidate.entityType)} · n={candidate.n.toLocaleString('vi-VN')}</small></span>
+                      <span className="candidate-metric"><strong>{candidate.rate.toFixed(1)}%</strong><small>{candidate.gap === null ? 'Chênh lệch N/A' : `${candidate.gap > 0 ? '+' : ''}${candidate.gap.toFixed(1)} điểm %`}</small></span>
                     </button>
                   ))}
                 </div>
               )}
-              <button className="btn btn-secondary full-width" type="button" onClick={() => onOpenEvidence(query.data?.candidates[0]?.entity ?? 'DAL → ATL')}>Mở Segment Evidence</button>
+              <button className="btn btn-secondary full-width" type="button" onClick={() => onOpenEvidence(query.data?.candidates[0]?.entity ?? 'DAL → ATL')}>Mở bằng chứng phân đoạn</button>
             </Card>
           </div>
         </>

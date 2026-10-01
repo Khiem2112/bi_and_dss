@@ -33,7 +33,7 @@ export const useCarrierComparison = (context: ComparisonContext, peers: string[]
   useRepositoryQuery(
     () => enabled
       ? dashboardRepository.getCarrierComparison(context, peers)
-      : Promise.reject(new Error('Comparison context chưa sẵn sàng')),
+      : Promise.reject(new Error('Ngữ cảnh so sánh chưa sẵn sàng')),
     [JSON.stringify(context), peers.join(','), enabled],
   )
 
@@ -47,7 +47,7 @@ export const usePredictionExplanation = (id: string, enabled = true) =>
   useRepositoryQuery(
     () => enabled
       ? dashboardRepository.getPredictionExplanation(id)
-      : Promise.reject(new Error('Chưa chọn chuyến hoặc segment')),
+      : Promise.reject(new Error('Chưa chọn chuyến bay hoặc phân đoạn')),
     [id, enabled],
   )
 
@@ -55,7 +55,7 @@ export const useSegmentEvidence = (entity: string, enabled = true) =>
   useRepositoryQuery(
     () => enabled
       ? dashboardRepository.getSegmentEvidence(entity)
-      : Promise.reject(new Error('Chưa chọn segment')),
+      : Promise.reject(new Error('Chưa chọn phân đoạn')),
     [entity, enabled],
   )
 
@@ -63,6 +63,6 @@ export const useCauseContext = (entity: string, enabled = true) =>
   useRepositoryQuery(
     () => enabled
       ? dashboardRepository.getCauseContext(entity)
-      : Promise.reject(new Error('Chưa chọn segment lịch sử')),
+      : Promise.reject(new Error('Chưa chọn phân đoạn lịch sử')),
     [entity, enabled],
   )

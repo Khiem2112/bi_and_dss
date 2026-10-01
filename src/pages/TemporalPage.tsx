@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ComparisonContext, GlobalFilters, PageId } from '../domain/types'
+import { formatMonth, formatSeason, formatTemporalCell, formatTimeBlock } from '../domain/formatters'
 import { useTemporalPatterns } from '../hooks/dashboardHooks'
 import { LineChart } from '../components/charts/LineChart'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
@@ -40,32 +41,32 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
     <section className="view active" aria-labelledby="temporal-title">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">P3 · Time evidence</div>
-          <h1 id="temporal-title">Khi nào delay tập trung?</h1>
-          <p className="page-subtitle">Scheduled Time Block luôn được dẫn xuất từ CRS_DEP_TIME. Day/Time là local controls, không thay đổi global filter.</p>
+          <div className="eyebrow">P3 · Bằng chứng thời gian</div>
+          <h1 id="temporal-title">Khi nào trễ chuyến tập trung nhiều nhất?</h1>
+          <p className="page-subtitle">Khung giờ bay theo kế hoạch luôn được dẫn xuất từ CRS_DEP_TIME. Thứ/Khung giờ là điều khiển cục bộ, không thay đổi bộ lọc toàn cục.</p>
         </div>
         <IllustrativeLabel />
       </div>
 
       <div className="context-banner" data-component-id="P3-C01">
         <div>
-          <h2>{selectedRoute} · Temporal context</h2>
+          <h2>{selectedRoute} · Ngữ cảnh thời gian</h2>
           <div className="context-list">
             <span className="context-chip">BL-T</span>
-            <span className="context-chip">{selectedCell}</span>
-            <span className="context-chip">{selectedSeason ?? 'All project seasons'}</span>
-            <span className="context-chip">WN fixed</span>
+            <span className="context-chip">{formatTemporalCell(selectedCell)}</span>
+            <span className="context-chip">{selectedSeason ? formatSeason(selectedSeason) : 'Tất cả các mùa'}</span>
+            <span className="context-chip">Cố định hãng WN</span>
           </div>
         </div>
         <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Xem định nghĩa BL-T</button>
       </div>
 
       <div className="grid split-7-5">
-        <Card id="P3-C02" title="Day × Scheduled Time Block" subtitle="Cell color = BL-T Gap · label = Actual Delay Rate">
+        <Card id="P3-C02" title="Thứ trong tuần × Khung giờ kế hoạch" subtitle="Màu ô = Chênh lệch BL-T · Số liệu = Tỷ lệ đến trễ thực tế">
           {query.isLoading || !query.data ? <LoadingState rows={7} /> : (
             <div className="heatmap-v2">
               <div className="heat-label" />
-              {blocks.map((block) => <div className="heat-label" key={block}>{block.replace('Early Morning', 'Early')}</div>)}
+              {blocks.map((block) => <div className="heat-label" key={block}>{formatTimeBlock(block)}</div>)}
               {days.flatMap((day) => [
                 <div className="heat-label" key={`${day}-label`}>{day.replace('Thứ ', 'T').replace('Chủ Nhật', 'CN')}</div>,
                 ...blocks.map((block) => {
@@ -76,8 +77,8 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
                       className={`heat-cell heat-${heatLevel(cell?.gap ?? null)}${selectedCell === id ? ' selected' : ''}`}
                       type="button"
                       key={id}
-                      aria-label={`${id}, rate ${cell?.rate ?? 0}%, gap ${cell?.gap ?? 'N/A'} pp, n ${cell?.n ?? 0}`}
-                      onClick={() => { setSelectedCell(id); onToast(`Đã chọn ${id}; route table được contextualize.`) }}
+                      aria-label={`${formatTemporalCell(id)}, tỷ lệ ${cell?.rate ?? 0}%, chênh lệch ${cell?.gap ?? 'N/A'} điểm %, cỡ mẫu ${cell?.n ?? 0}`}
+                      onClick={() => { setSelectedCell(id); onToast(`Đã chọn ${formatTemporalCell(id)}; bảng đường bay đã được cập nhật theo ngữ cảnh.`) }}
                     >
                       <strong>{cell?.rate.toFixed(1)}%</strong>
                       <small>n={cell?.n.toLocaleString('vi-VN')}</small>
@@ -87,10 +88,10 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
               ])}
             </div>
           )}
-          <div className="legend"><span className="legend-item"><span className="legend-dot gray" />Dưới baseline</span><span className="legend-item"><span className="legend-dot amber" />Gap trung bình</span><span className="legend-item"><span className="legend-dot" />Gap ≥ 5 pp</span></div>
+          <div className="legend"><span className="legend-item"><span className="legend-dot gray" />Dưới mức tham chiếu</span><span className="legend-item"><span className="legend-dot amber" />Chênh lệch trung bình</span><span className="legend-item"><span className="legend-dot" />Chênh lệch ≥ 5 điểm %</span></div>
         </Card>
 
-        <Card id="P3-C03" title="Four Project Seasons" subtitle="Project season · mỗi card gồm 3 tháng">
+        <Card id="P3-C03" title="Bốn mùa phân tích" subtitle="Mùa phân tích · Mỗi thẻ gồm 3 tháng">
           {query.isLoading || !query.data ? <LoadingState rows={6} /> : (
             <div className="season-grid">
               {query.data.seasons.map((season) => (
@@ -98,10 +99,10 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
                   className={`season-card${selectedSeason === season.season ? ' selected' : ''}`}
                   type="button"
                   key={season.season}
-                  onClick={() => { setSelectedSeason(season.season); onToast(`Local season: ${season.season}.`) }}
+                  onClick={() => { setSelectedSeason(season.season); onToast(`Mùa cục bộ: ${formatSeason(season.season)}.`) }}
                 >
-                  <span className="season-title"><strong>{season.season}</strong><b>{season.rate.toFixed(1)}%</b></span>
-                  {season.months.map((month) => <span className="season-month" key={month.month}><span>{month.month}</span><span>{month.rate.toFixed(1)}%</span><small>{month.gap >= 0 ? '+' : ''}{month.gap.toFixed(1)} pp · n={month.n.toLocaleString('vi-VN')}</small></span>)}
+                  <span className="season-title"><strong>{formatSeason(season.season)}</strong><b>{season.rate.toFixed(1)}%</b></span>
+                  {season.months.map((month) => <span className="season-month" key={month.month}><span>{formatMonth(month.month)}</span><span>{month.rate.toFixed(1)}%</span><small>{month.gap >= 0 ? '+' : ''}{month.gap.toFixed(1)} điểm % · n={month.n.toLocaleString('vi-VN')}</small></span>)}
                 </button>
               ))}
             </div>
@@ -109,24 +110,24 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
         </Card>
       </div>
 
-      <Card id="P3-C04" title="Monthly History" subtitle="Chronological evidence · Month → Week → Date">
-        {query.data ? <LineChart data={query.data.monthlyTrend} onSelect={(point) => onToast(`Drill time tại ${point.period}; n=${point.n}.`)} /> : <LoadingState />}
-        <div className="legend"><span className="legend-item"><span className="legend-dot" />Selected context</span><span className="legend-item"><span className="legend-dot gray" />BL-T</span></div>
+      <Card id="P3-C04" title="Lịch sử theo tháng" subtitle="Bằng chứng theo trình tự thời gian · Tháng → Tuần → Ngày">
+        {query.data ? <LineChart data={query.data.monthlyTrend} onSelect={(point) => onToast(`Xem chi tiết thời gian tại ${point.period}; n=${point.n}.`)} /> : <LoadingState />}
+        <div className="legend"><span className="legend-item"><span className="legend-dot" />Ngữ cảnh đã chọn</span><span className="legend-item"><span className="legend-dot gray" />BL-T (Tham chiếu)</span></div>
       </Card>
 
       <div className="grid split-8-4 page-section-gap">
-        <Card id="P3-C05" title="Routes in Selected Time" subtitle={`${selectedCell} · ${selectedSeason ?? 'All seasons'} · directional routes`} action={<button className="btn btn-secondary" type="button" onClick={() => onOpenComparison({ entity: selectedRoute, variant: 'CM-T' })}>So sánh đối thủ</button>}>
-          {query.isLoading || !query.data ? <LoadingState rows={4} /> : query.data.routes.length === 0 ? <EmptyState title="Không có route" detail="Hãy xóa local time selection." /> : (
+        <Card id="P3-C05" title="Đường bay trong khung thời gian đã chọn" subtitle={`${formatTemporalCell(selectedCell)} · ${selectedSeason ? formatSeason(selectedSeason) : 'Tất cả các mùa'} · Đường bay theo chiều`} action={<button className="btn btn-secondary" type="button" onClick={() => onOpenComparison({ entity: selectedRoute, variant: 'CM-T' })}>So sánh hãng bay</button>}>
+          {query.isLoading || !query.data ? <LoadingState rows={4} /> : query.data.routes.length === 0 ? <EmptyState title="Không có đường bay phù hợp" detail="Hãy xóa lựa chọn thời gian cục bộ để xem toàn bộ danh sách." /> : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Directional route</th><th>Rate</th><th>BL-T / Gap</th><th>Avg Delay</th><th>Sample</th></tr></thead>
+                <thead><tr><th>Đường bay theo chiều</th><th>Tỷ lệ trễ</th><th>BL-T / Chênh lệch</th><th>Độ trễ TB</th><th>Cỡ mẫu</th></tr></thead>
                 <tbody>
                   {query.data.routes.map((route) => (
                     <tr className={`selectable${selectedRoute === route.route ? ' selected' : ''}`} key={route.id} onClick={() => { setSelectedRoute(route.route); onSelectEntity(route.route) }}>
                       <td className="route-name">{route.route}</td>
                       <td>{route.rate.toFixed(1)}%</td>
-                      <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)} pp</strong></td>
-                      <td>{route.averageDelay.toFixed(1)} min</td>
+                      <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)} điểm %</strong></td>
+                      <td>{route.averageDelay.toFixed(1)} phút</td>
                       <td>{route.n.toLocaleString('vi-VN')}<span className="subcell"><SampleBadge flag={route.flag} /></span></td>
                     </tr>
                   ))}
@@ -135,15 +136,15 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
             </div>
           )}
         </Card>
-        <Card id="P3-C06" title="Context Actions" subtitle="Giữ route/time selection khi chuyển trang">
+        <Card id="P3-C06" title="Thao tác theo ngữ cảnh" subtitle="Giữ nguyên lựa chọn đường bay/thời gian khi chuyển trang">
           <div className="selected-context">
-            <span>Selected route × time</span><strong>{selectedRoute}</strong><small>{selectedCell} · {selectedSeason ?? 'All seasons'}</small>
+            <span>Đường bay × thời gian đã chọn</span><strong>{selectedRoute}</strong><small>{formatTemporalCell(selectedCell)} · {selectedSeason ? formatSeason(selectedSeason) : 'Tất cả các mùa'}</small>
           </div>
           <div className="stacked-actions">
-            <button className="btn btn-primary" type="button" onClick={() => onNavigate('prediction')}>Mở future risk</button>
-            <button className="btn btn-secondary" type="button" onClick={() => onOpenComparison({ entity: selectedRoute, variant: 'CM-T' })}>Carrier comparison</button>
-            <button className="btn btn-secondary" type="button" onClick={() => onOpenEvidence(selectedRoute)}>Segment evidence</button>
-            <button className="btn btn-secondary" type="button" onClick={() => onOpenCause(selectedRoute)}>Cause context</button>
+            <button className="btn btn-primary" type="button" onClick={() => onNavigate('prediction')}>Mở rủi ro tương lai</button>
+            <button className="btn btn-secondary" type="button" onClick={() => onOpenComparison({ entity: selectedRoute, variant: 'CM-T' })}>So sánh hãng bay</button>
+            <button className="btn btn-secondary" type="button" onClick={() => onOpenEvidence(selectedRoute)}>Bằng chứng phân đoạn</button>
+            <button className="btn btn-secondary" type="button" onClick={() => onOpenCause(selectedRoute)}>Bối cảnh nguyên nhân</button>
           </div>
         </Card>
       </div>

@@ -19,19 +19,19 @@ export interface DashboardMetadata {
 export interface GlobalFilters {
   fromDate: string
   toDate: string
-  origin: string
-  destination: string
-  season: string
-  distanceGroup: string
+  origin: string[]
+  destination: string[]
+  season: string[]
+  distanceGroup: string[]
 }
 
 export const defaultFilters: GlobalFilters = {
   fromDate: '2018-01-01',
   toDate: '2018-12-31',
-  origin: 'all',
-  destination: 'all',
-  season: 'all',
-  distanceGroup: 'all',
+  origin: [],
+  destination: [],
+  season: [],
+  distanceGroup: [],
 }
 
 export interface KpiValue {

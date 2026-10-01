@@ -8,17 +8,17 @@ interface AppShellProps {
 }
 
 const navItems: Array<{ id: PageId; code: string; label: string; detail: string }> = [
-  { id: 'overview', code: 'P1', label: 'Tổng quan', detail: 'Network BI' },
-  { id: 'spatial', code: 'P2', label: 'Sân bay & tuyến', detail: 'Place evidence' },
-  { id: 'temporal', code: 'P3', label: 'Quy luật thời gian', detail: 'Time patterns' },
-  { id: 'prediction', code: 'P4', label: 'Dự báo & ưu tiên', detail: 'DSS review' },
+  { id: 'overview', code: 'P1', label: 'Tổng quan', detail: 'BI mạng lưới' },
+  { id: 'spatial', code: 'P2', label: 'Sân bay & tuyến', detail: 'Bằng chứng không gian' },
+  { id: 'temporal', code: 'P3', label: 'Quy luật thời gian', detail: 'Quy luật theo thời gian' },
+  { id: 'prediction', code: 'P4', label: 'Dự báo & ưu tiên', detail: 'Đánh giá DSS' },
 ]
 
 const pageMeta: Record<PageId, { title: string; detail: string }> = {
-  overview: { title: 'Tổng quan mạng lưới', detail: 'Historical BI evidence · WN fixed' },
-  spatial: { title: 'Sân bay & tuyến bay', detail: 'BL-AR · Rate, Gap và Sample' },
-  temporal: { title: 'Quy luật thời gian', detail: 'BL-T · Scheduled Time Block' },
-  prediction: { title: 'Dự báo & ưu tiên', detail: 'Illustrative risk · Human review' },
+  overview: { title: 'Tổng quan mạng lưới', detail: 'Bằng chứng lịch sử BI · Cố định hãng WN' },
+  spatial: { title: 'Sân bay & tuyến bay', detail: 'BL-AR · Tỷ lệ trễ, Chênh lệch và Cỡ mẫu' },
+  temporal: { title: 'Quy luật thời gian', detail: 'BL-T · Khung giờ bay theo kế hoạch' },
+  prediction: { title: 'Dự báo & ưu tiên', detail: 'Rủi ro minh họa · Đánh giá thủ công' },
 }
 
 export function AppShell({ onOpenMethodology, children }: AppShellProps) {
@@ -33,7 +33,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
           <div className="brand-mark">WN</div>
           <div className="brand-copy">
             <strong>Flight Intelligence</strong>
-            <span>BI & DSS · v2 demo</span>
+            <span>BI & DSS · Bản demo v2</span>
           </div>
         </div>
         <div className="nav-label">Luồng quyết định</div>
@@ -50,8 +50,8 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
           ))}
         </nav>
         <div className="sidebar-note">
-          <strong>Human-in-the-loop</strong>
-          Dashboard chỉ hỗ trợ <em>review first</em>, <em>monitor</em> hoặc <em>insufficient evidence</em>; không phát lệnh vận hành.
+          <strong>Đánh giá bởi con người (Human-in-the-loop)</strong>
+          Bảng điều khiển chỉ hỗ trợ <em>ưu tiên xem xét</em>, <em>theo dõi</em> hoặc <em>chưa đủ bằng chứng</em>; không phát lệnh vận hành.
         </div>
       </aside>
       <main className="main">
@@ -61,7 +61,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
             <span>{pageMeta[page].detail}</span>
           </div>
           <div className="top-actions">
-            <span className="demo-badge">Illustrative demo</span>
+            <span className="demo-badge">Bản demo minh họa</span>
             <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Phương pháp</button>
           </div>
         </header>
