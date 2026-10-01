@@ -119,6 +119,7 @@ export interface GranularTrendSeries {
 }
 
 export interface GranularTrendsData {
+  metadata: DashboardMetadata
   month: GranularTrendSeries[]
   week: GranularTrendSeries[]
   day: GranularTrendSeries[]

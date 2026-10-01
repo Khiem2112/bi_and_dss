@@ -33,6 +33,16 @@ export const componentHelpRegistry: Record<string, ComponentHelpContent> = {
     interpretation: 'Nhấp vào dòng để chọn sân bay hoặc tuyến bay và cập nhật biểu đồ xu hướng bên dưới. Nhấp nút mũi tên để mở rộng hoặc thu gọn các tuyến bay trực thuộc.',
     limitation: 'Các tuyến có cỡ mẫu thấp được gắn cờ cảnh báo và cần được kiểm tra kỹ trước khi đưa vào phân tích chuyên sâu.',
   },
+  'P1-C08': {
+    componentId: 'P1-C08',
+    title: 'Bản đồ điểm nóng sân bay & Thống kê tuyến bay',
+    purpose: 'Định vị trực quan các sân bay điểm nóng và đo lường khoảng cách, thời gian bay cũng như các chỉ số trễ hai chiều giữa các sân bay.',
+    analyticalQuestion: 'Vị trí địa lý và các chỉ số trễ hai chiều (đi/đến) của từng sân bay trên mạng lưới như thế nào?',
+    grain: 'Sân bay / Tuyến bay kết nối',
+    measures: ['Tỷ lệ trễ (%)', 'Chênh lệch chuẩn (điểm %)', 'Số chuyến trễ', 'Trễ trung bình (phút)', 'Khoảng cách & Thời gian bay'],
+    interpretation: 'Quy ước chấm đôi: Mỗi điểm sân bay được biểu diễn bằng một chấm tròn chia làm hai nửa: Nửa trái đại diện cho Sân bay đi (Origin), nửa phải đại diện cho Sân bay đến (Destination). Màu sắc phản ánh mức chênh lệch tỷ lệ trễ so với chuẩn mạng lưới (Đỏ: ≥ 5%, Vàng: 3–4,9%, Xanh: < 3%). Chọn 2 sân bay để vẽ tuyến đo khoảng cách và thời gian bay ước tính.',
+    limitation: 'Dữ liệu minh họa diễn tập giao diện theo DG-BTS-250-v1.',
+  },
   'P2-C05': {
     componentId: 'P2-C05',
     title: 'Xu hướng trễ',

@@ -146,6 +146,104 @@ export class MockDashboardRepository implements DashboardRepository {
     })
   }
 
+  private computeHotspotAirports(
+    eligible: FlightRecord[],
+    airportMap: Map<string, AirportLocation>,
+    networkRate: number
+  ): AirportHotspot[] {
+    const originFlightsMap = new Map<string, FlightRecord[]>()
+    const destFlightsMap = new Map<string, FlightRecord[]>()
+
+    for (const f of eligible) {
+      const oList = originFlightsMap.get(f.ORIGIN) ?? []
+      oList.push(f)
+      originFlightsMap.set(f.ORIGIN, oList)
+
+      const dList = destFlightsMap.get(f.DEST) ?? []
+      dList.push(f)
+      destFlightsMap.set(f.DEST, dList)
+    }
+
+    const allAirportCodes = new Set<string>([...originFlightsMap.keys(), ...destFlightsMap.keys()])
+    const hotspotAirports: AirportHotspot[] = []
+
+    for (const code of allAirportCodes) {
+      const airport = airportMap.get(code)
+      if (!airport) continue
+
+      const oFlights = originFlightsMap.get(code) ?? []
+      const oDelayed = oFlights.filter(isDelayed)
+      const oRate = oFlights.length > 0 ? Number(((oDelayed.length / oFlights.length) * 100).toFixed(1)) : 0
+      const oGap = oFlights.length > 0 ? Number((oRate - networkRate).toFixed(1)) : null
+      const oAvg = oFlights.length > 0 ? Number((oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / oFlights.length).toFixed(1)) : 0
+
+      const originMetrics: RoleMetrics = {
+        role: 'Origin',
+        rate: oRate,
+        delayedCount: scaleCount(oDelayed.length),
+        eligibleCount: scaleCount(oFlights.length),
+        averageDelay: oAvg,
+        gap: oGap,
+        baseline: networkRate,
+        n: scaleCount(oFlights.length),
+        flag: 'Uncalibrated',
+      }
+
+      const dFlights = destFlightsMap.get(code) ?? []
+      const dDelayed = dFlights.filter(isDelayed)
+      const dRate = dFlights.length > 0 ? Number(((dDelayed.length / dFlights.length) * 100).toFixed(1)) : 0
+      const dGap = dFlights.length > 0 ? Number((dRate - networkRate).toFixed(1)) : null
+      const dAvg = dFlights.length > 0 ? Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1)) : 0
+
+      const destMetrics: RoleMetrics = {
+        role: 'Destination',
+        rate: dRate,
+        delayedCount: scaleCount(dDelayed.length),
+        eligibleCount: scaleCount(dFlights.length),
+        averageDelay: dAvg,
+        gap: dGap,
+        baseline: networkRate,
+        n: scaleCount(dFlights.length),
+        flag: 'Uncalibrated',
+      }
+
+      if (oFlights.length === 0 && dFlights.length === 0) continue
+
+      const totalFlights = oFlights.length + dFlights.length
+      const totalDelayed = oDelayed.length + dDelayed.length
+      const combinedRate = totalFlights > 0 ? Number(((totalDelayed / totalFlights) * 100).toFixed(1)) : 0
+      const combinedGap = totalFlights > 0 ? Number((combinedRate - networkRate).toFixed(1)) : null
+      const totalDelayMins = oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) + dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0)
+      const combinedAvg = totalFlights > 0 ? Number((totalDelayMins / totalFlights).toFixed(1)) : 0
+
+      hotspotAirports.push({
+        id: `${code}-hotspot`,
+        entity: `${airport.name} (${code})`,
+        entityType: 'Airport',
+        code,
+        role: 'Destination',
+        x: airport.x,
+        y: airport.y,
+        lat: airport.lat,
+        lng: airport.lng,
+        name: airport.name,
+        city: airport.city ?? airport.name,
+        rate: combinedRate,
+        baseline: networkRate,
+        gap: combinedGap,
+        averageDelay: combinedAvg,
+        n: scaleCount(totalFlights),
+        delayedCount: scaleCount(totalDelayed),
+        eligibleCount: scaleCount(totalFlights),
+        flag: 'Uncalibrated',
+        originMetrics,
+        destMetrics,
+      })
+    }
+
+    return hotspotAirports.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+  }
+
   async getOverview(filters: GlobalFilters): Promise<OverviewData> {
     this.activeFilters = filters
     const [allFlights, airports] = await Promise.all([this.loadFlights(), this.loadAirports()])
@@ -392,6 +490,7 @@ export class MockDashboardRepository implements DashboardRepository {
     }
 
     const unifiedTrends: GranularTrendsData = {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA XU HƯỚNG TỔNG QUAN', eligible.length),
       month: monthlySeries,
       week: weeklySeries,
       day: dailySeries,
@@ -399,79 +498,7 @@ export class MockDashboardRepository implements DashboardRepository {
       baselineAvgDelay: avgDelay,
     }
 
-    const destGroupMap = new Map<string, FlightRecord[]>()
-    for (const f of eligible) {
-      const list = destGroupMap.get(f.DEST) ?? []
-      list.push(f)
-      destGroupMap.set(f.DEST, list)
-    }
-
-    const destinations: AirportHotspot[] = []
-    for (const [destCode, dFlights] of destGroupMap.entries()) {
-      const airport = airportMap.get(destCode)
-      if (!airport) continue
-      const dDelayed = dFlights.filter(isDelayed)
-      const rate = Number(((dDelayed.length / dFlights.length) * 100).toFixed(1))
-      const gap = Number((rate - delayRate).toFixed(1))
-      const dAvg = Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1))
-
-      destinations.push({
-        id: `${destCode}-d`,
-        entity: `${airport.city} (${destCode})`,
-        entityType: 'Airport',
-        code: destCode,
-        role: 'Destination',
-        x: airport.x,
-        y: airport.y,
-        lat: airport.lat,
-        lng: airport.lng,
-        name: airport.name,
-        city: airport.city,
-        rate,
-        baseline: delayRate,
-        gap,
-        averageDelay: dAvg,
-        n: scaleCount(dFlights.length),
-        delayedCount: scaleCount(dDelayed.length),
-        eligibleCount: scaleCount(dFlights.length),
-        flag: 'Uncalibrated',
-      })
-    }
-
-    for (const airport of airports) {
-      if (!destGroupMap.has(airport.code)) {
-        const oFlights = eligible.filter((f) => f.ORIGIN === airport.code)
-        const oDelayed = oFlights.filter(isDelayed)
-        const rate = oFlights.length > 0 ? Number(((oDelayed.length / oFlights.length) * 100).toFixed(1)) : delayRate
-        const gap = Number((rate - delayRate).toFixed(1))
-        const oAvg = oFlights.length > 0
-          ? Number((oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / oFlights.length).toFixed(1))
-          : 0
-
-        destinations.push({
-          id: `${airport.code}-o`,
-          entity: `${airport.city} (${airport.code})`,
-          entityType: 'Airport',
-          code: airport.code,
-          role: 'Origin',
-          x: airport.x,
-          y: airport.y,
-          lat: airport.lat,
-          lng: airport.lng,
-          name: airport.name,
-          city: airport.city,
-          rate,
-          baseline: delayRate,
-          gap,
-          averageDelay: oAvg,
-          n: scaleCount(oFlights.length),
-          delayedCount: scaleCount(oDelayed.length),
-          eligibleCount: scaleCount(oFlights.length),
-          flag: 'Uncalibrated',
-        })
-      }
-    }
-    destinations.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+    const destinations = this.computeHotspotAirports(eligible, airportMap, delayRate)
 
     const routeGroupMap = new Map<string, FlightRecord[]>()
     for (const f of eligible) {
@@ -547,100 +574,10 @@ export class MockDashboardRepository implements DashboardRepository {
       ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
       : 0
 
-    const originFlightsMap = new Map<string, FlightRecord[]>()
-    const destFlightsMap = new Map<string, FlightRecord[]>()
-
-    for (const f of eligible) {
-      const oList = originFlightsMap.get(f.ORIGIN) ?? []
-      oList.push(f)
-      originFlightsMap.set(f.ORIGIN, oList)
-
-      const dList = destFlightsMap.get(f.DEST) ?? []
-      dList.push(f)
-      destFlightsMap.set(f.DEST, dList)
-    }
-
-    const allAirportCodes = new Set<string>([...originFlightsMap.keys(), ...destFlightsMap.keys()])
-    const hotspotAirports: AirportHotspot[] = []
-
-    for (const code of allAirportCodes) {
-      const airport = airportMap.get(code)
-      if (!airport) continue
-
-      const oFlights = originFlightsMap.get(code) ?? []
-      const oDelayed = oFlights.filter(isDelayed)
-      const oRate = oFlights.length > 0 ? Number(((oDelayed.length / oFlights.length) * 100).toFixed(1)) : 0
-      const oGap = oFlights.length > 0 ? Number((oRate - networkRate).toFixed(1)) : null
-      const oAvg = oFlights.length > 0 ? Number((oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / oFlights.length).toFixed(1)) : 0
-
-      const originMetrics: RoleMetrics = {
-        role: 'Origin',
-        rate: oRate,
-        delayedCount: scaleCount(oDelayed.length),
-        eligibleCount: scaleCount(oFlights.length),
-        averageDelay: oAvg,
-        gap: oGap,
-        baseline: networkRate,
-        n: scaleCount(oFlights.length),
-        flag: 'Uncalibrated',
-      }
-
-      const dFlights = destFlightsMap.get(code) ?? []
-      const dDelayed = dFlights.filter(isDelayed)
-      const dRate = dFlights.length > 0 ? Number(((dDelayed.length / dFlights.length) * 100).toFixed(1)) : 0
-      const dGap = dFlights.length > 0 ? Number((dRate - networkRate).toFixed(1)) : null
-      const dAvg = dFlights.length > 0 ? Number((dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / dFlights.length).toFixed(1)) : 0
-
-      const destMetrics: RoleMetrics = {
-        role: 'Destination',
-        rate: dRate,
-        delayedCount: scaleCount(dDelayed.length),
-        eligibleCount: scaleCount(dFlights.length),
-        averageDelay: dAvg,
-        gap: dGap,
-        baseline: networkRate,
-        n: scaleCount(dFlights.length),
-        flag: 'Uncalibrated',
-      }
-
-      if (oFlights.length === 0 && dFlights.length === 0) continue
-
-      const totalFlights = oFlights.length + dFlights.length
-      const totalDelayed = oDelayed.length + dDelayed.length
-      const combinedRate = totalFlights > 0 ? Number(((totalDelayed / totalFlights) * 100).toFixed(1)) : 0
-      const combinedGap = totalFlights > 0 ? Number((combinedRate - networkRate).toFixed(1)) : null
-      const totalDelayMins = oFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) + dFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0)
-      const combinedAvg = totalFlights > 0 ? Number((totalDelayMins / totalFlights).toFixed(1)) : 0
-
-      hotspotAirports.push({
-        id: `${code}-hotspot`,
-        entity: `${airport.name} (${code})`,
-        entityType: 'Airport',
-        code,
-        role: 'Destination',
-        x: airport.x,
-        y: airport.y,
-        lat: airport.lat,
-        lng: airport.lng,
-        name: airport.name,
-        city: airport.city ?? airport.name,
-        rate: combinedRate,
-        baseline: networkRate,
-        gap: combinedGap,
-        averageDelay: combinedAvg,
-        n: scaleCount(totalFlights),
-        delayedCount: scaleCount(totalDelayed),
-        eligibleCount: scaleCount(totalFlights),
-        flag: 'Uncalibrated',
-        originMetrics,
-        destMetrics,
-      })
-    }
+    const hotspotAirports = this.computeHotspotAirports(eligible, airportMap, networkRate)
 
     if (localState.metric === 'rate') {
       hotspotAirports.sort((a, b) => b.rate - a.rate)
-    } else {
-      hotspotAirports.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
     }
 
     const routesByAirport: Record<string, EvidenceRecord[]> = {}
@@ -931,7 +868,14 @@ export class MockDashboardRepository implements DashboardRepository {
       }
     })
 
-    return { month, week, day, baseline: delayRate, baselineAvgDelay: avgDelay }
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA XU HƯỚNG THỰC THỂ', contextFlights.length),
+      month,
+      week,
+      day,
+      baseline: delayRate,
+      baselineAvgDelay: avgDelay,
+    }
   }
 
   async getTemporalPatterns(filters: GlobalFilters, context: TemporalContext): Promise<TemporalPatternsData> {

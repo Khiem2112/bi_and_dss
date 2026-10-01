@@ -22,7 +22,7 @@ import { formatRole } from '../domain/formatters'
 import { useAirportHotspots, useEntityTrend } from '../hooks/dashboardHooks'
 import { AirportMap } from '../components/charts/AirportMap'
 import { UnifiedTrendChart } from '../components/charts/UnifiedTrendChart'
-import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
+import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
 
 interface SpatialPageProps {
   filters: GlobalFilters
@@ -84,6 +84,7 @@ function routeSearchStr(r: EvidenceRecord): string {
 export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvidence, onOpenCause, onSelectEntity, onToast }: SpatialPageProps) {
   const [localState, setLocalState] = useState<SpatialState>({ grain: 'destination', metric: 'gap' })
   const [selectedAirportCode, setSelectedAirportCode] = useState<string | undefined>()
+  const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
   const [expandedAirports, setExpandedAirports] = useState<Set<string>>(new Set())
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set())
   const [routeOnlyMode, setRouteOnlyMode] = useState(false)
@@ -141,6 +142,18 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [contextMenu])
+
+  useEffect(() => {
+    if (routeOnlyMode && selectedRoute) {
+      const timer = setTimeout(() => {
+        const el = document.querySelector('.table-scroll tr.selected')
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+      }, 80)
+      return () => clearTimeout(timer)
+    }
+  }, [routeOnlyMode, selectedRoute])
 
   function openContextMenu(e: React.MouseEvent, entity: string, entityType: 'Airport' | 'Route', code?: string, role?: 'Origin' | 'Destination') {
     e.preventDefault()
@@ -228,6 +241,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
   function selectAirport(code: string) {
     setSelectedAirportCode(code)
     setSelectedRoute(undefined)
+    setSelectedAirportCodes([code])
     const ap = airportsQuery.data?.airports.find((a) => a.code === code)
     if (ap) onSelectEntity(ap.entity)
     onToast(`${code} đã được chọn. Xu hướng bên dưới đã cập nhật.`)
@@ -236,13 +250,60 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
   function selectRoute(route: string) {
     setSelectedRoute(route)
     setSelectedAirportCode(undefined)
+    const parts = route.split(/\s*→\s*/)
+    if (parts.length === 2) {
+      setSelectedAirportCodes([parts[0].trim(), parts[1].trim()])
+    }
     onSelectEntity(route)
     onToast(`Tuyến ${route} đã được chọn. Xu hướng bên dưới đã cập nhật.`)
+  }
+
+  function handleMapSelectPair(pair: string[]) {
+    setSelectedAirportCodes(pair)
+    if (pair.length === 0) {
+      setSelectedAirportCode(undefined)
+      setSelectedRoute(undefined)
+      onToast('Đã xóa tuyến đo.')
+      return
+    }
+
+    if (pair.length === 1) {
+      const code = pair[0]
+      setSelectedAirportCode(code)
+      setSelectedRoute(undefined)
+      const ap = airportsQuery.data?.airports.find((a) => a.code === code)
+      if (ap) onSelectEntity(ap.entity)
+      onToast(`Đã chọn sân bay thứ nhất: ${code}. Nhấp thêm một sân bay nữa để xem thống kê tuyến.`)
+      return
+    }
+
+    if (pair.length === 2) {
+      const [originCode, destCode] = pair
+      const direct = `${originCode} → ${destCode}`
+      const reverse = `${destCode} → ${originCode}`
+      const matched = allRoutes.find((r) => r.entity === direct || r.entity === reverse)
+      const routeEntity = matched ? matched.entity : direct
+
+      setSelectedRoute(routeEntity)
+      setSelectedAirportCode(undefined)
+      setRouteOnlyMode(true)
+      if (routeSearch) setRouteSearch('')
+      onSelectEntity(routeEntity)
+      onToast(`Đã chọn cặp tuyến ${pair[0]} ↔ ${pair[1]}. Bằng chứng đã tự động chuyển sang tab Theo tuyến bay.`)
+    }
+  }
+
+  function handleClearPair() {
+    setSelectedAirportCodes([])
+    setSelectedAirportCode(undefined)
+    setSelectedRoute(undefined)
+    onToast('Đã xóa tuyến đo.')
   }
 
   function resetLocal() {
     setSelectedAirportCode(undefined)
     setSelectedRoute(undefined)
+    setSelectedAirportCodes([])
     setExpandedAirports(new Set())
     setExpandedRoutes(new Set())
     setAirportSearch('')
@@ -292,7 +353,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <IllustrativeLabel />
-          {(selectedAirportCode || selectedRoute) && (
+          {(selectedAirportCode || selectedRoute || selectedAirportCodes.length > 0) && (
             <button className="btn btn-ghost btn-sm" type="button" onClick={resetLocal} title="Bỏ chọn sân bay hoặc tuyến bay đang chọn">Bỏ chọn cục bộ</button>
           )}
         </div>
@@ -316,9 +377,10 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
               routes={mapRoutes}
               networkBaselineRate={airportsQuery.data.networkBaselineRate}
               selectedId={selectedAirport?.id}
+              selectedCodes={selectedAirportCodes}
               enableMeasurement
-              onSelect={(airport) => selectAirport(airport.code)}
-              onSelectPair={(pair) => selectRoute(pair.join(' → '))}
+              onSelectPair={handleMapSelectPair}
+              onClearPair={handleClearPair}
               onAirportContextMenu={(e, airport) => openContextMenu(e, airport.entity, 'Airport', airport.code)}
             />
           )}
@@ -339,6 +401,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
                     setRouteOnlyMode(false)
                     setSelectedRoute(undefined)
                     setSelectedAirportCode(undefined)
+                    setSelectedAirportCodes([])
                   }
                 }}
               >
@@ -352,6 +415,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
                     setRouteOnlyMode(true)
                     setSelectedRoute(undefined)
                     setSelectedAirportCode(undefined)
+                    setSelectedAirportCodes([])
                   }
                 }}
               >
@@ -397,10 +461,17 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
                           `• Cỡ mẫu n: ${route.n.toLocaleString('vi-VN')} chuyến`
                         ].join('\n')
 
+                        const isRouteRowSelected =
+                          selectedRoute === route.entity ||
+                          (selectedAirportCodes.length === 2 &&
+                            parts.length === 2 &&
+                            selectedAirportCodes.includes(originCode) &&
+                            selectedAirportCodes.includes(destCode))
+
                         return (
                           <Fragment key={route.id}>
                             <tr
-                              className={`selectable${selectedRoute === route.entity ? ' selected' : ''}`}
+                              className={`selectable${isRouteRowSelected ? ' selected' : ''}`}
                               onClick={() => selectRoute(route.entity)}
                               onContextMenu={(e) => openContextMenu(e, route.entity, 'Route')}
                             >
@@ -551,7 +622,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
                     </thead>
                     <tbody>
                       {filteredAirports.map((airport) => {
-                        const isSelected = selectedAirportCode === airport.code
+                        const isSelected = selectedAirportCode === airport.code || (selectedAirportCodes.length === 1 && selectedAirportCodes[0] === airport.code)
                         const isExpanded = expandedAirports.has(airport.code)
                         const subRoutes = airportsQuery.data?.routesByAirport[airport.code] ?? []
                         const o = airport.originMetrics
@@ -674,10 +745,16 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
                                       `• Cỡ mẫu n: ${route.n.toLocaleString('vi-VN')} chuyến`
                                     ].join('\n')
 
+                                    const isSubRouteSelected =
+                                      selectedRoute === route.entity ||
+                                      (selectedAirportCodes.length === 2 &&
+                                        ((route.origin === selectedAirportCodes[0] && route.destination === selectedAirportCodes[1]) ||
+                                         (route.origin === selectedAirportCodes[1] && route.destination === selectedAirportCodes[0])))
+
                                     return (
                                       <tr
                                         key={route.id}
-                                        className={`route-child-row selectable${selectedRoute === route.entity ? ' selected' : ''}`}
+                                        className={`route-child-row selectable${isSubRouteSelected ? ' selected' : ''}`}
                                         onClick={() => selectRoute(route.entity)}
                                         onContextMenu={(e) => openContextMenu(e, route.entity, 'Route')}
                                       >
