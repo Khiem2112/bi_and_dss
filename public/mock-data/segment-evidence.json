@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "generatedAt": "2026-10-01T08:00:00+07:00",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "EVIDENCE MINH HỌA — HUMAN REVIEW BẮT BUỘC",
+    "baselineRuleVersion": "BL-DEMO-v0",
+    "sampleRuleVersion": "UNCALIBRATED",
+    "modelVersion": "DEMO-RISK-v0",
+    "priorityRuleVersion": "UNCALIBRATED"
+  },
+  "entity": "DAL → ATL",
+  "historicalRate": 31.8,
+  "baselineRate": 25.6,
+  "gap": 6.2,
+  "eligible": 2184,
+  "delayed": 694,
+  "averageDelay": 14.1,
+  "sampleFlag": "Uncalibrated",
+  "predictedRisk": 38.7,
+  "checks": [
+    { "label": "Historical rate và BL-AR có sẵn", "status": "available" },
+    { "label": "Sample threshold version được duyệt", "status": "pending" },
+    { "label": "Published/calibrated model output", "status": "pending" },
+    { "label": "Priority rule và tie handling", "status": "pending" }
+  ]
+}

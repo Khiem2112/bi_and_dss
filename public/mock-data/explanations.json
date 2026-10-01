@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "generatedAt": "2026-10-01T08:00:00+07:00",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "FEATURE CONTRIBUTIONS MINH HỌA — ASSOCIATION, KHÔNG PHẢI NGUYÊN NHÂN",
+    "modelVersion": "DEMO-RISK-v0",
+    "sampleRuleVersion": "UNCALIBRATED",
+    "priorityRuleVersion": "UNCALIBRATED",
+    "predictionHorizon": "7 ngày minh họa",
+    "scoringCutoff": "2018-12-31T23:59:59-06:00"
+  },
+  "explanations": [
+    {
+      "id": "WN1842-20190102",
+      "entity": "WN 1842 · DAL → ATL",
+      "probability": 0.43,
+      "contributors": [
+        { "label": "Friday / evening-like schedule", "direction": "up", "strength": 82, "description": "Scheduled calendar/time pattern liên quan tới mức risk cao hơn trong dữ liệu học minh họa." },
+        { "label": "DAL → ATL historical profile", "direction": "up", "strength": 68, "description": "Time-safe historical route feature; không phải causal diagnosis." },
+        { "label": "Distance group G03", "direction": "down", "strength": 28, "description": "Khoảng cách được dẫn xuất từ DISTANCE theo DG-BTS-250-v1." }
+      ],
+      "missingFeatures": [],
+      "limitation": "Probability chỉ để diễn tập UI; chưa có calibration, validation hoặc approval cho quyết định thật."
+    },
+    {
+      "id": "DAL-ATL",
+      "entity": "DAL → ATL · segment aggregate",
+      "probability": 0.387,
+      "contributors": [
+        { "label": "Evening flight mix", "direction": "up", "strength": 74, "description": "Tỷ trọng lịch bay evening trong scoring window minh họa." },
+        { "label": "Seasonal calendar context", "direction": "up", "strength": 52, "description": "Calendar-only feature available before departure." },
+        { "label": "Route historical rate", "direction": "up", "strength": 61, "description": "Historical aggregate với time cutoff; không dùng outcome của chuyến cần dự báo." }
+      ],
+      "missingFeatures": ["Verified weather forecast feed"],
+      "limitation": "Aggregation từ flight probability lên segment chưa được phê duyệt; priority giữ trạng thái Uncalibrated."
+    }
+  ]
+}

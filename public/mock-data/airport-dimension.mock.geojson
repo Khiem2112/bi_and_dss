@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "generatedAt": "2026-10-01T08:00:00+07:00",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "ILLUSTRATIVE AIRPORT LOCATIONS / REGIONS"
+  },
+  "features": [
+    { "type": "Feature", "properties": { "airport_code": "DAL", "airport_name": "Dallas Love Field", "city": "Dallas", "state": "TX", "region": "South", "timezone": "America/Chicago", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-96.8518, 32.8471] } },
+    { "type": "Feature", "properties": { "airport_code": "ATL", "airport_name": "Hartsfield-Jackson Atlanta", "city": "Atlanta", "state": "GA", "region": "South", "timezone": "America/New_York", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-84.4277, 33.6407] } },
+    { "type": "Feature", "properties": { "airport_code": "MCO", "airport_name": "Orlando International", "city": "Orlando", "state": "FL", "region": "South", "timezone": "America/New_York", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-81.3081, 28.4312] } },
+    { "type": "Feature", "properties": { "airport_code": "BWI", "airport_name": "Baltimore/Washington International", "city": "Baltimore", "state": "MD", "region": "East", "timezone": "America/New_York", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-76.6684, 39.1754] } },
+    { "type": "Feature", "properties": { "airport_code": "DEN", "airport_name": "Denver International", "city": "Denver", "state": "CO", "region": "Mountain", "timezone": "America/Denver", "source_version": "MOCK-GEO-v0" }, "geometry": { "type": "Point", "coordinates": [-104.6737, 39.8561] } }
+  ]
+}

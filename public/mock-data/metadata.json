@@ -1,0 +1,13 @@
+{
+  "illustrative": true,
+  "schemaVersion": "2.0.0-demo",
+  "generatedAt": "2026-10-01T08:00:00+07:00",
+  "asOfDate": "2018-12-31",
+  "dataLabel": "DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG",
+  "baselineRuleVersion": "BL-DEMO-v0",
+  "sampleRuleVersion": "UNCALIBRATED",
+  "modelVersion": "DEMO-RISK-v0",
+  "priorityRuleVersion": "UNCALIBRATED",
+  "predictionHorizon": "7 ngày minh họa",
+  "scoringCutoff": "2018-12-31T23:59:59-06:00"
+}

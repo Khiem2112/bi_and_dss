@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "generatedAt": "2026-10-01T08:00:00+07:00",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "POST-EVENT CONTEXT — NON-EXCLUSIVE — NOT CAUSAL — NOT A PREDICTOR"
+  },
+  "entity": "DAL → ATL",
+  "delayedN": 694,
+  "recordedN": 604,
+  "causes": [
+    { "label": "Late aircraft", "share": 42, "flights": 254 },
+    { "label": "Carrier", "share": 31, "flights": 187 },
+    { "label": "NAS", "share": 26, "flights": 157 },
+    { "label": "Weather", "share": 14, "flights": 85 },
+    { "label": "Security", "share": 2, "flights": 12 }
+  ]
+}

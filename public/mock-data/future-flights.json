@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "illustrative": true,
+    "schemaVersion": "2.0.0-demo",
+    "generatedAt": "2026-10-01T08:00:00+07:00",
+    "asOfDate": "2018-12-31",
+    "dataLabel": "XÁC SUẤT MINH HỌA — MODEL CHƯA HIỆU CHỈNH / CHƯA PHÊ DUYỆT",
+    "modelVersion": "DEMO-RISK-v0",
+    "sampleRuleVersion": "UNCALIBRATED",
+    "priorityRuleVersion": "UNCALIBRATED",
+    "predictionHorizon": "7 ngày minh họa",
+    "scoringCutoff": "2018-12-31T23:59:59-06:00"
+  },
+  "flights": [
+    { "id": "WN1842-20190102", "flightNumber": "WN 1842", "departureAt": "2019-01-02T18:35:00-06:00", "route": "DAL → ATL", "probability": 0.43, "riskLabel": "High", "modelVersion": "DEMO-RISK-v0" },
+    { "id": "WN2210-20190102", "flightNumber": "WN 2210", "departureAt": "2019-01-02T17:50:00-05:00", "route": "BWI → MCO", "probability": 0.39, "riskLabel": "High", "modelVersion": "DEMO-RISK-v0" },
+    { "id": "WN0938-20190103", "flightNumber": "WN 938", "departureAt": "2019-01-03T16:20:00-06:00", "route": "MDW → DEN", "probability": 0.35, "riskLabel": "Elevated", "modelVersion": "DEMO-RISK-v0" },
+    { "id": "WN1448-20190103", "flightNumber": "WN 1448", "departureAt": "2019-01-03T20:05:00-06:00", "route": "HOU → DEN", "probability": 0.31, "riskLabel": "Elevated", "modelVersion": "DEMO-RISK-v0" },
+    { "id": "WN2671-20190104", "flightNumber": "WN 2671", "departureAt": "2019-01-04T14:45:00-07:00", "route": "PHX → LAS", "probability": 0.24, "riskLabel": "Monitor", "modelVersion": "DEMO-RISK-v0" },
+    { "id": "WN1763-20190104", "flightNumber": "WN 1763", "departureAt": "2019-01-04T09:10:00-07:00", "route": "DEN → MDW", "probability": 0.22, "riskLabel": "Monitor", "modelVersion": "DEMO-RISK-v0" }
+  ]
+}
