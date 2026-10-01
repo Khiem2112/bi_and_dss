@@ -880,7 +880,8 @@ export class MockDashboardRepository implements DashboardRepository {
 
   async getTemporalPatterns(filters: GlobalFilters, context: TemporalContext): Promise<TemporalPatternsData> {
     this.activeFilters = filters
-    const allFlights = await this.loadFlights()
+    const [allFlights, airports] = await Promise.all([this.loadFlights(), this.loadAirports()])
+    const airportMap = new Map(airports.map((a) => [a.code, a]))
     const baseFlights = this.filterFlights(allFlights, filters, 'WN')
     const eligible = baseFlights.filter(isEligible)
 
@@ -894,29 +895,6 @@ export class MockDashboardRepository implements DashboardRepository {
       ? Number(((contextFlights.filter(isDelayed).length / contextFlights.length) * 100).toFixed(1))
       : 0
 
-    const days = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
-    const blocks = ['Early Morning', 'Morning', 'Afternoon', 'Evening']
-
-    const heatmap: HeatCell[] = []
-    for (const day of days) {
-      for (const block of blocks) {
-        const cellFlights = contextFlights.filter(
-          (f) => getDayOfWeek(f.FL_DATE) === day && getTimeBlock(f.CRS_DEP_TIME) === block,
-        )
-        const cellDelayed = cellFlights.filter(isDelayed)
-        const rate = cellFlights.length > 0 ? Number(((cellDelayed.length / cellFlights.length) * 100).toFixed(1)) : 0
-        const gap = cellFlights.length > 0 ? Number((rate - networkRate).toFixed(1)) : null
-        heatmap.push({
-          day,
-          block,
-          rate,
-          gap,
-          n: scaleCount(cellFlights.length),
-          flag: 'Uncalibrated',
-        })
-      }
-    }
-
     const seasonsConfig = [
       { name: 'Winter', months: ['01', '02', '03'], labels: ['Jan', 'Feb', 'Mar'] },
       { name: 'Spring', months: ['04', '05', '06'], labels: ['Apr', 'May', 'Jun'] },
@@ -928,16 +906,24 @@ export class MockDashboardRepository implements DashboardRepository {
       const sFlights = contextFlights.filter((f) => sc.months.includes(f.FL_DATE.slice(5, 7)))
       const sDelayed = sFlights.filter(isDelayed)
       const sRate = sFlights.length > 0 ? Number(((sDelayed.length / sFlights.length) * 100).toFixed(1)) : 0
+      const sAvgDelay = sFlights.length > 0
+        ? Number((sFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / sFlights.length).toFixed(1))
+        : 0
 
       const months = sc.months.map((mStr, idx) => {
         const mFlights = sFlights.filter((f) => f.FL_DATE.slice(5, 7) === mStr)
         const mDelayed = mFlights.filter(isDelayed)
         const mRate = mFlights.length > 0 ? Number(((mDelayed.length / mFlights.length) * 100).toFixed(1)) : sRate
+        const mAvg = mFlights.length > 0
+          ? Number((mFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / mFlights.length).toFixed(1))
+          : 0
         return {
           month: sc.labels[idx],
           rate: mRate,
-          gap: Number((mRate - sRate).toFixed(1)),
+          gap: Number((mRate - networkRate).toFixed(1)),
           n: scaleCount(mFlights.length),
+          delayedCount: scaleCount(mDelayed.length),
+          averageDelay: mAvg,
         }
       })
 
@@ -945,8 +931,60 @@ export class MockDashboardRepository implements DashboardRepository {
         season: sc.name,
         rate: sRate,
         months,
+        delayedCount: scaleCount(sDelayed.length),
+        averageDelay: sAvgDelay,
+        n: scaleCount(sFlights.length),
+        gap: Number((sRate - networkRate).toFixed(1)),
       }
     })
+
+    const monthMapCode: Record<string, string> = {
+      Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+      Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
+    }
+
+    let heatmapFlights = contextFlights
+    if (context.selectedPeriod) {
+      const filtered = contextFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
+      if (filtered.length > 0) heatmapFlights = filtered
+    } else if (context.selectedMonth) {
+      const targetMonthCode = monthMapCode[context.selectedMonth] ?? context.selectedMonth
+      const filtered = contextFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
+      if (filtered.length > 0) heatmapFlights = filtered
+    } else if (context.selectedSeason) {
+      const targetSeason = seasonsConfig.find((s) => s.name === context.selectedSeason)
+      if (targetSeason) {
+        const filtered = contextFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
+        if (filtered.length > 0) heatmapFlights = filtered
+      }
+    }
+
+    const heatmapBaselineRate = heatmapFlights.length > 0
+      ? Number(((heatmapFlights.filter(isDelayed).length / heatmapFlights.length) * 100).toFixed(1))
+      : networkRate
+
+    const days = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
+    const blocks = ['Early Morning', 'Morning', 'Afternoon', 'Evening']
+
+    const heatmap: HeatCell[] = []
+    for (const day of days) {
+      for (const block of blocks) {
+        const cellFlights = heatmapFlights.filter(
+          (f) => getDayOfWeek(f.FL_DATE) === day && getTimeBlock(f.CRS_DEP_TIME) === block,
+        )
+        const cellDelayed = cellFlights.filter(isDelayed)
+        const rate = cellFlights.length > 0 ? Number(((cellDelayed.length / cellFlights.length) * 100).toFixed(1)) : 0
+        const gap = cellFlights.length > 0 ? Number((rate - heatmapBaselineRate).toFixed(1)) : null
+        heatmap.push({
+          day,
+          block,
+          rate,
+          gap,
+          n: scaleCount(cellFlights.length),
+          flag: 'Uncalibrated' as const,
+        })
+      }
+    }
 
     const monthMap = new Map<string, FlightRecord[]>()
     for (const f of contextFlights) {
@@ -960,16 +998,94 @@ export class MockDashboardRepository implements DashboardRepository {
       const mFlights = monthMap.get(period) ?? []
       const mDel = mFlights.filter(isDelayed)
       const r = mFlights.length > 0 ? Number(((mDel.length / mFlights.length) * 100).toFixed(1)) : 0
+      const avg = mFlights.length > 0
+        ? Number((mFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / mFlights.length).toFixed(1))
+        : 0
       return {
         period,
         value: r,
         baseline: networkRate,
+        gap: Number((r - networkRate).toFixed(1)),
+        delayedCount: scaleCount(mDel.length),
+        averageDelay: avg,
         n: scaleCount(mFlights.length),
       }
     })
 
+    let tableBaseFlights = eligible
+    if (context.selectedPeriod) {
+      const filtered = tableBaseFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
+      if (filtered.length > 0) tableBaseFlights = filtered
+    } else if (context.selectedMonth) {
+      const targetMonthCode = monthMapCode[context.selectedMonth] ?? context.selectedMonth
+      const filtered = tableBaseFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
+      if (filtered.length > 0) tableBaseFlights = filtered
+    } else if (context.selectedSeason) {
+      const targetSeason = seasonsConfig.find((s) => s.name === context.selectedSeason)
+      if (targetSeason) {
+        const filtered = tableBaseFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
+        if (filtered.length > 0) tableBaseFlights = filtered
+      }
+    }
+
+    if (context.selectedCell) {
+      const cellParts = context.selectedCell.split(' · ')
+      const cellDay = cellParts[0]?.trim()
+      const cellBlock = cellParts[1]?.trim()
+      if (cellDay && cellBlock) {
+        const cellFiltered = tableBaseFlights.filter(
+          (f) => getDayOfWeek(f.FL_DATE) === cellDay && getTimeBlock(f.CRS_DEP_TIME) === cellBlock,
+        )
+        if (cellFiltered.length > 0) tableBaseFlights = cellFiltered
+      }
+    }
+
+    const tableBaselineRate = tableBaseFlights.length > 0
+      ? Number(((tableBaseFlights.filter(isDelayed).length / tableBaseFlights.length) * 100).toFixed(1))
+      : networkRate
+
+    const hotspotAirports = this.computeHotspotAirports(tableBaseFlights, airportMap, tableBaselineRate)
+
+    const routesByAirport: Record<string, EvidenceRecord[]> = {}
+    for (const airport of hotspotAirports) {
+      const code = airport.code
+      const rMap = new Map<string, FlightRecord[]>()
+      for (const f of tableBaseFlights) {
+        if (f.ORIGIN !== code && f.DEST !== code) continue
+        const route = `${f.ORIGIN} → ${f.DEST}`
+        const list = rMap.get(route) ?? []
+        list.push(f)
+        rMap.set(route, list)
+      }
+      const routeRecords: EvidenceRecord[] = []
+      for (const [route, rFlights] of rMap.entries()) {
+        const rDelayed = rFlights.filter(isDelayed)
+        const rRate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+        const rGap = Number((rRate - tableBaselineRate).toFixed(1))
+        const rAvg = Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1))
+        const parts = route.split(' → ')
+        routeRecords.push({
+          id: route.replace(' → ', '-'),
+          entity: route,
+          entityType: 'Route' as const,
+          origin: parts[0],
+          destination: parts[1],
+          rate: rRate,
+          baseline: tableBaselineRate,
+          gap: rGap,
+          averageDelay: rAvg,
+          n: scaleCount(rFlights.length),
+          delayedCount: scaleCount(rDelayed.length),
+          eligibleCount: scaleCount(rFlights.length),
+          flag: 'Uncalibrated' as const,
+        })
+      }
+      routeRecords.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+      routesByAirport[code] = routeRecords
+    }
+
     const routeMap = new Map<string, FlightRecord[]>()
-    for (const f of eligible) {
+    for (const f of tableBaseFlights) {
       const r = `${f.ORIGIN} → ${f.DEST}`
       const list = routeMap.get(r) ?? []
       list.push(f)
@@ -979,20 +1095,25 @@ export class MockDashboardRepository implements DashboardRepository {
     const routes: RouteCandidate[] = Array.from(routeMap.entries()).map(([route, rFlights]) => {
       const rDelayed = rFlights.filter(isDelayed)
       const rRate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
+      const parts = route.split(' → ')
       return {
         id: route.replace(' → ', '-'),
         entity: route,
-        entityType: 'Route',
+        entityType: 'Route' as const,
         route,
+        origin: parts[0],
+        destination: parts[1],
         rate: rRate,
-        baseline: networkRate,
-        gap: Number((rRate - networkRate).toFixed(1)),
+        baseline: tableBaselineRate,
+        gap: Number((rRate - tableBaselineRate).toFixed(1)),
         averageDelay: Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1)),
         n: scaleCount(rFlights.length),
-        flag: 'Uncalibrated',
+        delayedCount: scaleCount(rDelayed.length),
+        eligibleCount: scaleCount(rFlights.length),
+        flag: 'Uncalibrated' as const,
         sparkline: [rRate, rRate, rRate, rRate, rRate, rRate],
       }
-    })
+    }).sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
 
     return {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG', contextFlights.length),
@@ -1000,6 +1121,9 @@ export class MockDashboardRepository implements DashboardRepository {
       seasons,
       monthlyTrend,
       routes,
+      airports: hotspotAirports,
+      routesByAirport,
+      networkBaselineRate: tableBaselineRate,
     }
   }
 

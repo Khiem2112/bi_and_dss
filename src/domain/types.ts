@@ -51,6 +51,9 @@ export interface TrendPoint {
   value: number
   n: number
   baseline?: number
+  delayedCount?: number
+  averageDelay?: number
+  gap?: number
 }
 
 export interface EvidenceRecord {
@@ -165,12 +168,18 @@ export interface SeasonMonth {
   rate: number
   gap: number
   n: number
+  delayedCount?: number
+  averageDelay?: number
 }
 
 export interface SeasonSummary {
   season: string
   rate: number
   months: SeasonMonth[]
+  delayedCount?: number
+  averageDelay?: number
+  n?: number
+  gap?: number
 }
 
 export interface TemporalPatternsData {
@@ -179,6 +188,9 @@ export interface TemporalPatternsData {
   seasons: SeasonSummary[]
   monthlyTrend: TrendPoint[]
   routes: RouteCandidate[]
+  airports: AirportHotspot[]
+  routesByAirport: Record<string, EvidenceRecord[]>
+  networkBaselineRate: number
 }
 
 export interface CarrierMetric {
@@ -315,6 +327,8 @@ export interface TemporalContext {
   route?: string
   selectedCell?: string
   selectedSeason?: string
+  selectedMonth?: string
+  selectedPeriod?: string
 }
 
 export interface PredictionFilters {
