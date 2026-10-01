@@ -109,7 +109,7 @@ export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison
                     <td className="route-name">{risk.entity}<span className="subcell">{formatEntityType(risk.type)}</span></td>
                     <td>{risk.expectedRate.toFixed(1)}%<span className="subcell">đã chấm điểm n={risk.scoredN}</span></td>
                     <td>{risk.highRiskShare.toFixed(1)}%</td>
-                    <td>{risk.historicalRate.toFixed(1)}% / +{risk.historicalGap.toFixed(1)} điểm %<span className="subcell">lịch sử n={risk.historicalN.toLocaleString('vi-VN')}</span></td>
+                    <td>{risk.historicalRate.toFixed(1)}% / +{risk.historicalGap.toFixed(1)}%<span className="subcell">lịch sử n={risk.historicalN.toLocaleString('vi-VN')}</span></td>
                     <td><SampleBadge flag={risk.sampleFlag} /></td>
                     <td><span className="pill uncalibrated">Đã khóa</span></td>
                   </tr>
@@ -132,7 +132,7 @@ export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison
                   key={risk.id}
                   style={{ left: `${Math.min(86, 10 + risk.historicalGap * 9)}%`, bottom: `${Math.min(82, 8 + (risk.expectedRate - 18) * 3.1)}%`, width: `${28 + Math.sqrt(risk.historicalN) / 5}px`, height: `${28 + Math.sqrt(risk.historicalN) / 5}px` }}
                   onClick={() => setSelectedAggregate(risk.entity)}
-                  aria-label={`${risk.entity}: chênh lệch lịch sử ${risk.historicalGap} điểm %, tỷ lệ dự kiến ${risk.expectedRate}%`}
+                  aria-label={`${risk.entity}: chênh lệch lịch sử ${risk.historicalGap}%, tỷ lệ dự kiến ${risk.expectedRate}%`}
                 >{risk.entity.split(' ')[0]}</button>
               ))}
               <span className="plot-lock">Không tự sinh mức ưu tiên từ các góc phần tư</span>

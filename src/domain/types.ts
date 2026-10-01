@@ -63,6 +63,13 @@ export interface EvidenceRecord {
   averageDelay: number
   n: number
   flag: SampleFlag
+  distance?: number
+  estimatedTime?: number
+  origin?: string
+  destination?: string
+  code?: string
+  delayedCount?: number
+  eligibleCount?: number
 }
 
 export interface AirportHotspot extends EvidenceRecord {
@@ -70,6 +77,10 @@ export interface AirportHotspot extends EvidenceRecord {
   role: 'Destination' | 'Origin'
   x: number
   y: number
+  lat?: number
+  lng?: number
+  name?: string
+  city?: string
 }
 
 export interface RouteCandidate extends EvidenceRecord {
@@ -77,11 +88,36 @@ export interface RouteCandidate extends EvidenceRecord {
   sparkline: number[]
 }
 
+export interface GranularTrendSeries {
+  period: string
+  label: string
+  wn: number | null
+  dl: number | null
+  aa: number | null
+  wnForecast: number | null
+  wnN?: number
+  delayedCount?: number
+  eligibleCount?: number
+  averageDelay?: number
+  baseline: number
+  baselineAvgDelay?: number
+  isFuture?: boolean
+}
+
+export interface GranularTrendsData {
+  month: GranularTrendSeries[]
+  week: GranularTrendSeries[]
+  day: GranularTrendSeries[]
+  baseline: number
+  baselineAvgDelay?: number
+}
+
 export interface OverviewData {
   metadata: DashboardMetadata
   kpis: KpiValue[]
   actualTrend: TrendPoint[]
   predictedTrend: TrendPoint[]
+  unifiedTrends?: GranularTrendsData
   destinations: AirportHotspot[]
   candidates: EvidenceRecord[]
 }

@@ -93,7 +93,7 @@ export function SpatialPage({ filters, initialEntity, onNavigate, onOpenComparis
                     <tr className={`selectable${selectedAirport === airport.id ? ' selected' : ''}`} key={airport.id} onClick={() => { setSelectedAirport(airport.id); onSelectEntity(airport.entity) }}>
                       <td><span className="route-name">{airport.code}</span><span className="subcell">{formatRole(airport.role)}</span></td>
                       <td>{airport.rate.toFixed(1)}%<span className="subcell">TB {airport.averageDelay.toFixed(1)} phút</span></td>
-                      <td>{airport.gap === null ? 'N/A' : `+${airport.gap.toFixed(1)} điểm %`}<span className="subcell">Tham chiếu {airport.baseline?.toFixed(1)}%</span></td>
+                      <td>{airport.gap === null ? 'N/A' : `+${airport.gap.toFixed(1)}%`}<span className="subcell">Tham chiếu {airport.baseline?.toFixed(1)}%</span></td>
                       <td>{airport.n.toLocaleString('vi-VN')}<span className="subcell">Chưa hiệu chỉnh</span></td>
                     </tr>
                   ))}
@@ -125,7 +125,7 @@ export function SpatialPage({ filters, initialEntity, onNavigate, onOpenComparis
                   <tr className={`selectable${selectedRoute === route.route ? ' selected' : ''}`} key={route.id} onClick={() => setRoute(route.route)}>
                     <td className="route-name">{route.route}</td>
                     <td><strong>{route.rate.toFixed(1)}%</strong></td>
-                    <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)} điểm %</strong></td>
+                    <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)}%</strong></td>
                     <td>{route.averageDelay.toFixed(1)} phút</td>
                     <td>{route.n.toLocaleString('vi-VN')}<span className="subcell"><SampleBadge flag={route.flag} /></span></td>
                     <td><MiniSparkline values={route.sparkline} /></td>

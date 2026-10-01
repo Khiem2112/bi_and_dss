@@ -77,7 +77,7 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
                       className={`heat-cell heat-${heatLevel(cell?.gap ?? null)}${selectedCell === id ? ' selected' : ''}`}
                       type="button"
                       key={id}
-                      aria-label={`${formatTemporalCell(id)}, tỷ lệ ${cell?.rate ?? 0}%, chênh lệch ${cell?.gap ?? 'N/A'} điểm %, cỡ mẫu ${cell?.n ?? 0}`}
+                      aria-label={`${formatTemporalCell(id)}, tỷ lệ ${cell?.rate ?? 0}%, chênh lệch ${cell?.gap ?? 'N/A'}%, cỡ mẫu ${cell?.n ?? 0}`}
                       onClick={() => { setSelectedCell(id); onToast(`Đã chọn ${formatTemporalCell(id)}; bảng đường bay đã được cập nhật theo ngữ cảnh.`) }}
                     >
                       <strong>{cell?.rate.toFixed(1)}%</strong>
@@ -88,7 +88,7 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
               ])}
             </div>
           )}
-          <div className="legend"><span className="legend-item"><span className="legend-dot gray" />Dưới mức tham chiếu</span><span className="legend-item"><span className="legend-dot amber" />Chênh lệch trung bình</span><span className="legend-item"><span className="legend-dot" />Chênh lệch ≥ 5 điểm %</span></div>
+          <div className="legend"><span className="legend-item"><span className="legend-dot gray" />Dưới mức tham chiếu</span><span className="legend-item"><span className="legend-dot amber" />Chênh lệch trung bình</span><span className="legend-item"><span className="legend-dot" />Chênh lệch ≥ 5%</span></div>
         </Card>
 
         <Card id="P3-C03" title="Bốn mùa phân tích" subtitle="Mùa phân tích · Mỗi thẻ gồm 3 tháng">
@@ -102,7 +102,7 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
                   onClick={() => { setSelectedSeason(season.season); onToast(`Mùa cục bộ: ${formatSeason(season.season)}.`) }}
                 >
                   <span className="season-title"><strong>{formatSeason(season.season)}</strong><b>{season.rate.toFixed(1)}%</b></span>
-                  {season.months.map((month) => <span className="season-month" key={month.month}><span>{formatMonth(month.month)}</span><span>{month.rate.toFixed(1)}%</span><small>{month.gap >= 0 ? '+' : ''}{month.gap.toFixed(1)} điểm % · n={month.n.toLocaleString('vi-VN')}</small></span>)}
+                  {season.months.map((month) => <span className="season-month" key={month.month}><span>{formatMonth(month.month)}</span><span>{month.rate.toFixed(1)}%</span><small>{month.gap >= 0 ? '+' : ''}{month.gap.toFixed(1)}% · n={month.n.toLocaleString('vi-VN')}</small></span>)}
                 </button>
               ))}
             </div>
@@ -126,7 +126,7 @@ export function TemporalPage({ filters, selectedEntity, onNavigate, onSelectEnti
                     <tr className={`selectable${selectedRoute === route.route ? ' selected' : ''}`} key={route.id} onClick={() => { setSelectedRoute(route.route); onSelectEntity(route.route) }}>
                       <td className="route-name">{route.route}</td>
                       <td>{route.rate.toFixed(1)}%</td>
-                      <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)} điểm %</strong></td>
+                      <td>{route.baseline?.toFixed(1)}% / <strong>+{route.gap?.toFixed(1)}%</strong></td>
                       <td>{route.averageDelay.toFixed(1)} phút</td>
                       <td>{route.n.toLocaleString('vi-VN')}<span className="subcell"><SampleBadge flag={route.flag} /></span></td>
                     </tr>

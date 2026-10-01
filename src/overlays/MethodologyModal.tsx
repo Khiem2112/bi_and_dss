@@ -46,7 +46,7 @@ export function MethodologyModal({ onClose }: { onClose: () => void }) {
           <>
             <h3>Bằng chứng cỡ mẫu</h3>
             <p>Tỷ lệ trễ, khoảng chênh lệch, mức chuẩn đối sánh và mức ưu tiên luôn đi kèm với cỡ mẫu n và nhãn kiểm soát mẫu. Ngưỡng hiện chưa được phê duyệt chính thức, do đó bản demo sử dụng trạng thái <strong>Chưa hiệu chỉnh</strong>.</p>
-            <div className="notice">Chênh lệch mức tham chiếu ≥ 5 điểm % là quy tắc về ý nghĩa thực tế (materiality), không phải ý nghĩa thống kê (statistical significance).</div>
+            <div className="notice">Chênh lệch mức tham chiếu ≥ 5% là quy tắc về ý nghĩa thực tế (materiality), không phải ý nghĩa thống kê (statistical significance).</div>
           </>
         )}
         {tab === 'Model' && (

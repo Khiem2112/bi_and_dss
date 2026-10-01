@@ -50,7 +50,7 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
                 <div className={`carrier-kpi${carrier.carrier === 'WN' ? ' focus' : ''}`} key={carrier.carrier}>
                   <span>{carrier.carrier} · {carrier.name}</span><strong>{carrier.rate.toFixed(1)}%</strong>
                   <small>{carrier.delayed.toLocaleString('vi-VN')} / {carrier.eligible.toLocaleString('vi-VN')} đến trễ / đủ điều kiện</small>
-                  <small>TB {carrier.averageDelay.toFixed(1)} phút · Chênh lệch so với WN {carrier.gapVsWn === null ? '—' : `${carrier.gapVsWn.toFixed(1)} điểm %`}</small>
+                  <small>TB {carrier.averageDelay.toFixed(1)} phút · Chênh lệch so với WN {carrier.gapVsWn === null ? '—' : `${carrier.gapVsWn.toFixed(1)}%`}</small>
                   <SampleBadge flag={carrier.flag} />
                 </div>
               ))}
@@ -78,7 +78,7 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
             <Card id="CM-C06" title="Phân rã theo tuyến bay – thời gian" subtitle="Các ô đối sánh chung · CM-A sử dụng chế độ xem này làm chính">
               <div className="table-wrap">
                 <table><thead><tr><th>Ô đối sánh tương đương</th><th>Tỷ lệ WN / n</th><th>Tỷ lệ đối thủ / n</th><th>Chênh lệch</th></tr></thead><tbody>
-                  {query.data.breakdown.map((row) => <tr key={row.cell}><td className="route-name">{formatTemporalCell(row.cell)}</td><td>{row.wnRate.toFixed(1)}% / {row.wnN}</td><td>{row.peerRate.toFixed(1)}% / {row.peerN}</td><td><strong>+{(row.wnRate - row.peerRate).toFixed(1)} điểm %</strong></td></tr>)}
+                  {query.data.breakdown.map((row) => <tr key={row.cell}><td className="route-name">{formatTemporalCell(row.cell)}</td><td>{row.wnRate.toFixed(1)}% / {row.wnN}</td><td>{row.peerRate.toFixed(1)}% / {row.peerN}</td><td><strong>+{(row.wnRate - row.peerRate).toFixed(1)}%</strong></td></tr>)}
                 </tbody></table>
               </div>
             </Card>

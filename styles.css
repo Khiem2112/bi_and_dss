@@ -3383,3 +3383,578 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+/* Tối ưu thẻ KPI và Tooltip định nghĩa nghiệp vụ */
+.kpi-tooltip-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.kpi-card-clean {
+  min-height: 108px;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.kpi-card-clean .kpi-value {
+  margin: 12px 0 0;
+}
+
+.kpi-business-tooltip {
+  max-width: 280px;
+  white-space: normal;
+  line-height: 1.5;
+  font-size: 11px;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+/* Biểu đồ xu hướng hợp nhất đa hãng và dự báo */
+.unified-trend-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trend-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+
+.granularity-tabs {
+  display: inline-flex;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.tab-btn {
+  border: 0;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.trend-toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-chip:hover {
+  background: var(--surface-sunken);
+}
+
+.toggle-chip.inactive {
+  opacity: 0.45;
+  background: var(--surface-sunken);
+  border-style: dashed;
+}
+
+.chip-indicator {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.chip-indicator.wn-color {
+  background: #e11d48;
+}
+
+.chip-indicator.dl-color {
+  background: #2563eb;
+}
+
+.chip-indicator.aa-color {
+  background: #9333ea;
+}
+
+.chip-indicator.forecast-color {
+  background: #d97706;
+  border: 1px dashed #b45309;
+}
+
+.unified-chart-svg-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.unified-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.future-zone-label {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #d97706;
+}
+
+.baseline-interactive-layer {
+  cursor: pointer;
+}
+
+.baseline-interactive-layer.hovered .baseline-visual-line {
+  filter: drop-shadow(0 0 4px rgba(2, 132, 199, 0.4));
+}
+
+.trend-footer-legend {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-items-list {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.legend-dot.wn-dot {
+  background: #e11d48;
+}
+
+.legend-dot.dl-dot {
+  background: #2563eb;
+}
+
+.legend-dot.aa-dot {
+  background: #9333ea;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 16px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.legend-line.forecast-line {
+  background: #d97706;
+  border-top: 1px dashed #b45309;
+}
+
+.legend-line.baseline-line {
+  background: #64748b;
+  border-top: 1px dashed #475569;
+}
+
+.chart-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.section-title-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(225, 29, 72, 0.1);
+  color: #e11d48;
+}
+
+.section-title-tag.bar-tag {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+}
+
+.chart-sub-note {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.avg-delay-bar-group {
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.15s ease;
+}
+
+.avg-delay-bar-group:hover rect,
+.avg-delay-bar-group:focus-visible rect {
+  filter: brightness(1.12) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.reconciled-bundle-card {
+  margin-top: 10px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.bundle-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bundle-period-tag {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.bundle-future-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+}
+
+.bundle-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.bundle-metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bundle-cell-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.bundle-cell-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.bundle-cell-value.warning-delay {
+  color: #e11d48;
+}
+
+.bundle-cell-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.diff-higher {
+  color: #e11d48;
+  font-weight: 700;
+}
+
+.diff-lower {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.legend-dot.red-bar-dot {
+  background: #e11d48;
+  border-radius: 2px;
+}
+
+.legend-dot.amber-bar-dot {
+  background: #f59e0b;
+  border-radius: 2px;
+}
+
+.legend-dot.green-bar-dot {
+  background: #10b981;
+  border-radius: 2px;
+}
+
+.axis-future {
+  fill: #d97706;
+  font-weight: 700;
+}
+
+/* Bản đồ điểm nóng và Đo khoảng cách tuyến */
+.map-route-line {
+  filter: drop-shadow(0 2px 4px rgba(225, 29, 72, 0.3));
+}
+
+.map-measurement-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  margin-top: 10px;
+  box-shadow: var(--shadow-xs);
+}
+
+.measurement-route-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.badge-point {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.badge-point.point-1 {
+  background: #2563eb;
+}
+
+.badge-point.point-2 {
+  background: #e11d48;
+}
+
+.route-arrow {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.measurement-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  margin-top: 3px;
+  color: var(--ink-secondary);
+}
+
+.stat-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-weight: 700;
+  color: var(--ink);
+  margin-left: 3px;
+}
+
+.stat-separator {
+  color: var(--line-dark);
+}
+
+.map-instruction-bar {
+  padding: 8px 14px;
+  background: var(--blue-soft);
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--blue-dark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* Đối tượng cần kiểm tra - 3 thông tin bổ sung và chênh lệch nổi bật */
+.candidate-row-full {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 12px 10px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.candidate-row-full:hover,
+.candidate-row-full:focus-visible {
+  background: var(--surface-sunken);
+  outline: none;
+}
+
+.candidate-row-full.active-candidate {
+  background: rgba(225, 29, 72, 0.06);
+  border-left: 3px solid #e11d48;
+}
+
+.candidate-main-header {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.candidate-gap-higher {
+  color: #dc2626 !important;
+  font-weight: 800 !important;
+}
+
+.candidate-gap-lower {
+  color: #16a34a !important;
+  font-weight: 800 !important;
+}
+
+.candidate-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.candidate-extra-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extra-label {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.extra-val {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Thanh thông số đo lường so sánh hai sân bay */
+.measurement-bundle-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+  flex-wrap: wrap;
+}
+
+.bundle-strip-item {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Tooltip định nghĩa nghiệp vụ KPI kèm bộ 3 chỉ số mạng lưới */
+.kpi-business-tooltip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  text-align: left;
+}
+
+.kpi-tooltip-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f8fafc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 4px;
+}
+
+.kpi-tooltip-body {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.kpi-tooltip-bundle {
+  margin-top: 2px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-bundle-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.tooltip-bundle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #f1f5f9;
+}
+
+

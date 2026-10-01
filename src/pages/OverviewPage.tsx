@@ -1,9 +1,11 @@
-import type { GlobalFilters, PageId } from '../domain/types'
+import { useState } from 'react'
+import type { EvidenceRecord, GlobalFilters, PageId } from '../domain/types'
 import { formatEntityType } from '../domain/formatters'
 import { useOverview } from '../hooks/dashboardHooks'
 import { AirportMap } from '../components/charts/AirportMap'
-import { LineChart } from '../components/charts/LineChart'
-import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
+import { UnifiedTrendChart } from '../components/charts/UnifiedTrendChart'
+import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
+import { Tooltip } from '../components/atoms/Tooltip/Tooltip'
 
 interface OverviewPageProps {
   filters: GlobalFilters
@@ -14,10 +16,84 @@ interface OverviewPageProps {
   onToast: (message: string) => void
 }
 
-export function OverviewPage({ filters, onNavigate, onSelectEntity, onOpenEvidence, onOpenMethodology, onToast }: OverviewPageProps) {
+const KPI_BUSINESS_DEFINITIONS: Record<string, string> = {
+  'P1-C02': 'Tổng số chuyến bay thương mại theo kế hoạch đã hoàn thành hành trình (không hủy chuyến, không chuyển hướng) và có đầy đủ dữ liệu ghi nhận giờ đến.',
+  'P1-C03': 'Tổng số chuyến bay có thời gian đến thực tế trễ từ 15 phút trở lên so với lịch bay công bố ban đầu.',
+  'P1-C04': 'Tỷ lệ phần trăm số chuyến bay đến trễ (từ 15 phút trở lên) trên tổng số chuyến bay đủ điều kiện vận hành.',
+  'P1-C05': 'Độ trễ đến trung bình tính bằng phút trên toàn bộ các chuyến bay đủ điều kiện trong kỳ phân tích.',
+}
+
+function formatDuration(minutes?: number): string {
+  if (!minutes || minutes <= 0) return 'Đang cập nhật'
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m} phút`
+  return m === 0 ? `${h} giờ` : `${h} giờ ${m} phút (~${minutes} phút)`
+}
+
+export function OverviewPage({
+  filters,
+  onSelectEntity,
+  onOpenEvidence,
+  onOpenMethodology,
+  onToast,
+}: OverviewPageProps) {
   const query = useOverview(filters)
+  const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
 
   if (query.isError) return <ErrorState message={query.error?.message ?? 'Lỗi không xác định'} onRetry={query.refetch} />
+
+  const handleSelectCandidate = (candidate: EvidenceRecord) => {
+    onSelectEntity(candidate.entity)
+    if (candidate.entity.includes('→')) {
+      const parts = candidate.entity.split('→').map((s) => s.trim())
+      if (parts.length === 2) {
+        setSelectedAirportCodes([parts[0], parts[1]])
+        onToast(`Đã làm nổi bật tuyến ${parts[0]} ↔ ${parts[1]} trên bản đồ điểm nóng.`)
+        return
+      }
+    }
+    if (candidate.code) {
+      setSelectedAirportCodes([candidate.code])
+      onToast(`Đã làm nổi bật sân bay ${candidate.code} trên bản đồ điểm nóng.`)
+      return
+    }
+    onToast(`Đã chọn đối tượng ${candidate.entity}.`)
+  }
+
+  if (query.isLoading || !query.data) {
+    return (
+      <section className="view active" aria-labelledby="overview-title">
+        <div className="page-heading">
+          <div>
+            <div className="eyebrow">P1 · Tổng quan mạng lưới</div>
+            <h1 id="overview-title">Từ tín hiệu mạng lưới đến nhánh cần điều tra</h1>
+            <p className="page-subtitle">
+              Theo dõi chỉ số KPI lịch sử, đối chiếu xu hướng đa hãng cùng mô hình dự báo và chọn phân đoạn sân bay, đường bay để kiểm chứng sâu hơn.
+            </p>
+          </div>
+          <div className="page-actions">
+            <IllustrativeLabel />
+            <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>
+              Xem định nghĩa KPI
+            </button>
+          </div>
+        </div>
+        <div className="grid cols-4">
+          <LoadingState />
+          <LoadingState />
+          <LoadingState />
+          <LoadingState />
+        </div>
+      </section>
+    )
+  }
+
+  const overview = query.data
+  const eligibleKpi = overview.kpis.find((k) => k.id === 'P1-C02')?.value ?? '83.936'
+  const delayedKpi = overview.kpis.find((k) => k.id === 'P1-C03')?.value ?? '15.444'
+  const rateKpi = overview.kpis.find((k) => k.id === 'P1-C04')?.value ?? '18,4%'
+  const avgDelayKpi = overview.kpis.find((k) => k.id === 'P1-C05')?.value ?? '12,3 phút'
 
   return (
     <section className="view active" aria-labelledby="overview-title">
@@ -25,77 +101,191 @@ export function OverviewPage({ filters, onNavigate, onSelectEntity, onOpenEviden
         <div>
           <div className="eyebrow">P1 · Tổng quan mạng lưới</div>
           <h1 id="overview-title">Từ tín hiệu mạng lưới đến nhánh cần điều tra</h1>
-          <p className="page-subtitle">Theo dõi chỉ số KPI lịch sử, đối chiếu xu hướng mô hình minh họa và chọn phân đoạn sân bay, đường bay hoặc thời gian để kiểm chứng sâu hơn.</p>
+          <p className="page-subtitle">
+            Theo dõi chỉ số KPI lịch sử, đối chiếu xu hướng đa hãng cùng mô hình dự báo và chọn phân đoạn sân bay, đường bay để kiểm chứng sâu hơn.
+          </p>
         </div>
         <div className="page-actions">
           <IllustrativeLabel />
-          <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Xem định nghĩa KPI</button>
+          <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>
+            Xem định nghĩa KPI
+          </button>
         </div>
       </div>
 
-      {query.isLoading || !query.data ? (
-        <div className="grid cols-4"><LoadingState /><LoadingState /><LoadingState /><LoadingState /></div>
-      ) : (
-        <>
-          <div className="grid cols-4">
-            {query.data.kpis.map((kpi) => (
-              <button className="card kpi-card kpi-button" type="button" data-component-id={kpi.id} key={kpi.id} onClick={onOpenMethodology}>
-                <div className="kpi-label"><span>{kpi.label}</span><span className="component-id">{kpi.id}</span></div>
-                <div className="kpi-value">{kpi.value}</div>
-                <div className="kpi-context">{kpi.context}</div>
-              </button>
-            ))}
-          </div>
+      <div className="grid cols-4">
+        {overview.kpis.map((kpi) => {
+          const businessDef = KPI_BUSINESS_DEFINITIONS[kpi.id] ?? kpi.context ?? kpi.label
 
-          <div className="grid cols-2 synchronized-charts">
-            <Card id="P1-C06" title="Xu hướng trễ chuyến thực tế" subtitle="Dữ liệu lịch sử BI · Tháng → Tuần → Ngày">
-              <LineChart data={query.data.actualTrend} onSelect={(point) => onToast(`Đã chọn ${point.period}; ngữ cảnh sẵn sàng chuyển tiếp sang P2/P3.`)} />
-              <div className="legend"><span className="legend-item"><span className="legend-dot" />Tỷ lệ trễ chuyến thực tế</span><span className="legend-item">Chú giải bao gồm cỡ mẫu n từng tháng</span></div>
-            </Card>
-            <Card id="P1-C07" title="Xu hướng ước tính từ mô hình" subtitle="Tỷ lệ trễ dự kiến từ mô hình · Diễn tập kiểm định và chấm điểm">
-              <LineChart data={query.data.predictedTrend} secondary onSelect={(point) => onToast(`Ước tính mô hình ${point.period}: ${point.value.toFixed(1)}% · minh họa.`)} />
-              <div className="legend"><span className="legend-item"><span className="legend-dot blue" />Xác suất trung bình</span><span className="legend-item"><SampleBadge flag="Uncalibrated" /></span></div>
-            </Card>
-          </div>
-
-          <div className="grid split-7-5">
-            <Card id="P1-C08" title="Bản đồ điểm nóng sân bay đến" subtitle="Màu sắc = Chênh lệch BL-AR · Kích thước = cỡ mẫu n" action={<IllustrativeLabel compact />}>
-              <AirportMap
-                airports={query.data.destinations}
-                onSelect={(airport) => {
-                  onSelectEntity(airport.entity)
-                  onToast(`Đã chọn ${airport.entity}; chuyển sang P2 để xem xếp hạng chi tiết.`)
-                  onNavigate('spatial')
-                }}
-              />
-            </Card>
-            <Card id="P1-C09" title="Đối tượng cần điều tra" subtitle="Không gắn nhãn Điểm nóng xác nhận khi quy tắc cỡ mẫu chưa hiệu chỉnh">
-              {query.data.candidates.length === 0 ? (
-                <EmptyState title="Không có đối tượng phù hợp" detail="Hãy đặt lại bộ lọc để mở rộng phạm vi dữ liệu." />
-              ) : (
-                <div className="candidate-list">
-                  {query.data.candidates.map((candidate, index) => (
-                    <button
-                      type="button"
-                      className="candidate-row"
-                      key={candidate.id}
-                      onClick={() => {
-                        onSelectEntity(candidate.entity)
-                        onNavigate(candidate.entityType === 'Time' ? 'temporal' : 'spatial')
-                      }}
-                    >
-                      <span className="candidate-rank">{String(index + 1).padStart(2, '0')}</span>
-                      <span className="candidate-name"><strong>{candidate.entity}</strong><small>{formatEntityType(candidate.entityType)} · n={candidate.n.toLocaleString('vi-VN')}</small></span>
-                      <span className="candidate-metric"><strong>{candidate.rate.toFixed(1)}%</strong><small>{candidate.gap === null ? 'Chênh lệch N/A' : `${candidate.gap > 0 ? '+' : ''}${candidate.gap.toFixed(1)} điểm %`}</small></span>
-                    </button>
-                  ))}
+          const tooltipContent = (
+            <div className="kpi-business-tooltip-content">
+              <div className="kpi-tooltip-title">
+                {kpi.label} ({kpi.id})
+              </div>
+              <div className="kpi-tooltip-body">{businessDef}</div>
+              <div className="kpi-tooltip-bundle">
+                <span className="tooltip-bundle-heading">Bộ ba chỉ số trễ mạng lưới đồng bộ:</span>
+                <div className="tooltip-bundle-row">
+                  <span>• Tỷ lệ trễ: <strong>{rateKpi}</strong></span>
+                  <span>• Số chuyến trễ: <strong>{delayedKpi} / {eligibleKpi}</strong> chuyến</span>
+                  <span>• Độ trễ TB: <strong>{avgDelayKpi}</strong></span>
                 </div>
-              )}
-              <button className="btn btn-secondary full-width" type="button" onClick={() => onOpenEvidence(query.data?.candidates[0]?.entity ?? 'DAL → ATL')}>Mở bằng chứng phân đoạn</button>
-            </Card>
-          </div>
-        </>
+              </div>
+            </div>
+          )
+
+          return (
+            <div className="kpi-tooltip-wrapper" key={kpi.id}>
+              <Tooltip content={tooltipContent} side="bottom" className="kpi-business-tooltip">
+                <button
+                  className="card kpi-card kpi-card-clean kpi-button"
+                  type="button"
+                  data-component-id={kpi.id}
+                  onClick={onOpenMethodology}
+                  aria-label={`${kpi.label}: ${kpi.value}`}
+                >
+                  <div className="kpi-label">
+                    <span>{kpi.label}</span>
+                    <span className="component-id">{kpi.id}</span>
+                  </div>
+                  <div className="kpi-value">{kpi.value}</div>
+                </button>
+              </Tooltip>
+            </div>
+          )
+        })}
+      </div>
+
+      {overview.unifiedTrends && (
+        <Card
+          id="P1-C06"
+          title="Xu hướng trễ chuyến mạng lưới & Dự báo mô hình"
+          subtitle="Đối chiếu tỷ lệ trễ thực tế các hãng bay (WN, DL, AA) và ước tính dự báo tương lai"
+          action={<IllustrativeLabel compact />}
+        >
+          <UnifiedTrendChart
+            data={overview.unifiedTrends}
+            onSelectPeriod={(period) =>
+              onToast(`Đã chọn chu kỳ ${period}; ngữ cảnh sẵn sàng chuyển tiếp sang P2/P3.`)
+            }
+            onToast={onToast}
+          />
+        </Card>
       )}
+
+      <div className="grid split-7-5">
+        <Card
+          id="P1-C08"
+          title="Bản đồ điểm nóng sân bay & Đo khoảng cách hành trình"
+          subtitle="Nhấn chọn 2 sân bay để tính quãng đường và thời gian bay · Màu sắc = Chênh lệch BL-AR"
+          action={<IllustrativeLabel compact />}
+        >
+          <AirportMap
+            airports={overview.destinations}
+            selectedCodes={selectedAirportCodes}
+            onSelectPair={(pair) => {
+              setSelectedAirportCodes(pair)
+              if (pair.length === 1) {
+                onToast(`Đã chọn sân bay thứ nhất: ${pair[0]}. Nhấp thêm một sân bay nữa để đo tuyến.`)
+              } else if (pair.length === 2) {
+                onToast(`Đã chọn cặp tuyến ${pair[0]} ↔ ${pair[1]}. Xem khoảng cách và thời gian bay bên dưới.`)
+              }
+            }}
+            onClearPair={() => {
+              setSelectedAirportCodes([])
+              onToast('Đã xóa tuyến đo.')
+            }}
+          />
+        </Card>
+
+        <Card
+          id="P1-C09"
+          title="Đối tượng cần kiểm tra"
+          subtitle="Xếp hạng các tuyến bay trọng yếu có chênh lệch tỷ lệ trễ so với mức chuẩn mạng lưới"
+        >
+          {overview.candidates.length === 0 ? (
+            <EmptyState title="Không có đối tượng phù hợp" detail="Hãy đặt lại bộ lọc để mở rộng phạm vi dữ liệu." />
+          ) : (
+            <div className="candidate-list">
+              {overview.candidates.map((candidate, index) => {
+                const isRoute = candidate.entityType === 'Route' || candidate.entity.includes('→')
+                const gap = candidate.gap ?? 0
+                const gapClass = gap > 0 ? 'candidate-gap-higher' : gap < 0 ? 'candidate-gap-lower' : ''
+                const isSelectedRoute =
+                  isRoute &&
+                  candidate.origin &&
+                  candidate.destination &&
+                  selectedAirportCodes.includes(candidate.origin) &&
+                  selectedAirportCodes.includes(candidate.destination)
+
+                const delayedCountText = candidate.delayedCount?.toLocaleString('vi-VN') ?? '0'
+                const eligibleCountText = candidate.eligibleCount?.toLocaleString('vi-VN') ?? candidate.n.toLocaleString('vi-VN')
+
+                return (
+                  <button
+                    type="button"
+                    className={`candidate-row-full ${isSelectedRoute ? 'active-candidate' : ''}`}
+                    key={candidate.id}
+                    onClick={() => handleSelectCandidate(candidate)}
+                    aria-label={`Chọn tuyến ${candidate.entity}: Tỷ lệ trễ ${candidate.rate.toFixed(1).replace('.', ',')}%, Số chuyến trễ ${delayedCountText}/${eligibleCountText}, Độ trễ TB ${candidate.averageDelay.toFixed(1).replace('.', ',')} phút, Chênh lệch ${gap > 0 ? '+' : ''}${gap.toFixed(1).replace('.', ',')}%`}
+                  >
+                    <div className="candidate-main-header">
+                      <span className="candidate-rank">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="candidate-name">
+                        <strong>{candidate.entity}</strong>
+                        <small>
+                          {formatEntityType(candidate.entityType)} · Trễ {delayedCountText} / {eligibleCountText} chuyến
+                        </small>
+                      </span>
+                      <span className="candidate-metric">
+                        <strong>{candidate.rate.toFixed(1).replace('.', ',')}%</strong>
+                        <small className={gapClass}>
+                          {candidate.gap === null
+                            ? 'Chênh lệch N/A'
+                            : `${candidate.gap > 0 ? '+' : ''}${candidate.gap.toFixed(1).replace('.', ',')}%`}
+                        </small>
+                      </span>
+                    </div>
+
+                    {isRoute && (
+                      <div className="candidate-extra-grid">
+                        <div className="candidate-extra-item">
+                          <span className="extra-label">TB trễ chuyến</span>
+                          <span className="extra-val">
+                            {candidate.averageDelay.toFixed(1).replace('.', ',')} phút
+                          </span>
+                        </div>
+                        <div className="candidate-extra-item">
+                          <span className="extra-label">Quãng đường</span>
+                          <span className="extra-val">
+                            {candidate.distance
+                              ? `${candidate.distance.toLocaleString('vi-VN')} dặm (~${Math.round(candidate.distance * 1.60934).toLocaleString('vi-VN')} km)`
+                              : 'Đang cập nhật'}
+                          </span>
+                        </div>
+                        <div className="candidate-extra-item">
+                          <span className="extra-label">Thời gian ước tính</span>
+                          <span className="extra-val">
+                            {formatDuration(candidate.estimatedTime)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <button
+            className="btn btn-secondary full-width"
+            type="button"
+            style={{ marginTop: '12px' }}
+            onClick={() => onOpenEvidence(overview.candidates[0]?.entity ?? 'DAL → ATL')}
+          >
+            Mở bằng chứng phân đoạn
+          </button>
+        </Card>
+      </div>
     </section>
   )
 }

@@ -29,7 +29,7 @@ export function SegmentEvidenceDrawer({ entity, filters, onClose, onOpenComparis
           <div className="drawer-hero"><IllustrativeLabel /><span>Đường bay theo chiều / đối tượng đã chọn</span><h3>{query.data.entity}</h3><p>Ranh giới đánh giá bởi con người · không phát lệnh vận hành</p></div>
           <div className="evidence-grid drawer-evidence">
             <div className="evidence-item"><span>Tỷ lệ đến trễ thực tế</span><strong>{query.data.historicalRate.toFixed(1)}%</strong><small>{query.data.delayed} / {query.data.eligible} đến trễ / đủ điều kiện</small></div>
-            <div className="evidence-item"><span>BL-AR / Chênh lệch</span><strong>{query.data.baselineRate.toFixed(1)}% / +{query.data.gap.toFixed(1)} điểm %</strong><small>Ý nghĩa thực tế khác ý nghĩa thống kê</small></div>
+            <div className="evidence-item"><span>BL-AR / Chênh lệch</span><strong>{query.data.baselineRate.toFixed(1)}% / +{query.data.gap.toFixed(1)}%</strong><small>Ý nghĩa thực tế khác ý nghĩa thống kê</small></div>
             <div className="evidence-item"><span>Độ trễ đến trung bình</span><strong>{query.data.averageDelay.toFixed(1)} phút</strong><small>Chỉ áp dụng tập chuyến bay đủ điều kiện</small></div>
             <div className="evidence-item"><span>Tỷ lệ trễ dự kiến từ mô hình</span><strong>{query.data.predictedRisk?.toFixed(1) ?? 'N/A'}%</strong><small>Minh họa / chưa hiệu chỉnh</small></div>
           </div>
