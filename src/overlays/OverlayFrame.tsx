@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 
 interface OverlayFrameProps {
@@ -18,7 +19,10 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     titleRef.current?.focus()
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
       if (event.key !== 'Tab' || !panelRef.current) return
@@ -29,13 +33,28 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
     }
+
     document.addEventListener('keydown', onKeyDown)
-    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus() }
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      previous?.focus()
+    }
   }, [onClose])
 
-  return (
-    <div className={`overlay-backdrop open ${mode}`} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <div className={`overlay-panel ${mode}${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={`${componentId}-title`} ref={panelRef}>
+  const overlayElement = (
+    <div
+      className={`overlay-backdrop open ${mode === 'drawer' ? 'drawer' : 'overlay-backdrop--modal'}`}
+      role="presentation"
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}
+    >
+      <div
+        className={`overlay-panel ${mode === 'drawer' ? 'drawer' : 'overlay-panel--modal'}${wide ? ' wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${componentId}-title`}
+        ref={panelRef}
+      >
         <header className="overlay-header">
           <div>
             <span className="component-id">{componentId}</span>
@@ -52,4 +71,7 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return overlayElement
+  return createPortal(overlayElement, document.body)
 }

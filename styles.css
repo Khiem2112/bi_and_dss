@@ -609,7 +609,7 @@ h3 {
   opacity: 1;
 }
 
-.modal {
+.modal-backdrop .modal {
   width: min(600px, 100%);
   max-height: min(720px, 88vh);
   display: flex;
@@ -3171,6 +3171,15 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
+}
+
+.overlay-panel:not(.drawer) {
+  animation: modalScaleIn 180ms ease-out;
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .overlay-panel.wide {
