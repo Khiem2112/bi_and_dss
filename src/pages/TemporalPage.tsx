@@ -7,6 +7,7 @@ import { SeasonalBarChart } from '../components/charts/SeasonalBarChart'
 import { RouteAirportEvidenceTable } from '../components/tables/RouteAirportEvidenceTable'
 import { CustomContextMenu, type ContextMenuItem } from '../components/ui/CustomContextMenu'
 import { Card, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
+import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 
 interface TemporalPageProps {
   filters: GlobalFilters
@@ -183,12 +184,12 @@ export function TemporalPage({
 
       <div className="context-banner" data-component-id="P3-C01">
         <div>
-          <h2>{selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN'} · Ngữ cảnh thời gian</h2>
+          <div className="card-title-group"><h2>{selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN'} · Ngữ cảnh thời gian</h2><ComponentHelpButton componentId="P3-C01" title="Ngữ cảnh thời gian" /></div>
           <div className="context-list">
-            <span className="context-chip">BL-T</span>
-            <span className="context-chip">{formatTemporalCell(selectedCell)}</span>
-            <span className="context-chip">{activeTimeLabel}</span>
-            <span className="context-chip">Cố định hãng WN</span>
+            <span className="context-chip" tabIndex={0} data-tooltip="Mức chuẩn theo ngữ cảnh thời gian đang chọn">BL-T</span>
+            <span className="context-chip" tabIndex={0} data-tooltip="Ô ngày trong tuần – khung giờ đang chọn">{formatTemporalCell(selectedCell)}</span>
+            <span className="context-chip" tabIndex={0} data-tooltip="Phạm vi thời gian phân tích hiện hành">{activeTimeLabel}</span>
+            <span className="context-chip" tabIndex={0} data-tooltip="Phân tích chỉ áp dụng cho hãng Southwest (WN)">Cố định hãng WN</span>
           </div>
         </div>
         <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>
@@ -333,14 +334,20 @@ export function TemporalPage({
                       className={`heat-cell heat-${heatLevel(cell?.gap ?? null)}${isSelected ? ' selected' : ''}`}
                       type="button"
                       key={id}
-                      aria-label={`${formatTemporalCell(id)}, tỷ lệ ${cell?.rate ?? 0}%, chênh lệch ${cell?.gap ?? 'N/A'}%, cỡ mẫu ${cell?.n ?? 0}`}
+                      aria-label={cell && cell.n > 0
+                        ? `${formatTemporalCell(id)}, tỷ lệ đến trễ ${cell.rate}%, số chuyến đến trễ ${cell.delayedCount} trên ${cell.n}, độ trễ đến trung bình ${cell.averageDelay} phút, chênh lệch ${cell.gap ?? 'không khả dụng'}%`
+                        : `${formatTemporalCell(id)}, không có chuyến bay đủ điều kiện`}
+                      data-tooltip-multiline
+                      data-tooltip={cell && cell.n > 0
+                        ? `${formatTemporalCell(id)}\n• Tỷ lệ chuyến đến trễ: ${cell.rate.toFixed(1).replace('.', ',')}%\n• Số chuyến đến trễ: ${cell.delayedCount.toLocaleString('vi-VN')} / ${cell.n.toLocaleString('vi-VN')}\n• Độ trễ đến trung bình: ${cell.averageDelay.toFixed(1).replace('.', ',')} phút`
+                        : `${formatTemporalCell(id)}\nKhông có chuyến bay đủ điều kiện`}
                       onClick={() => {
                         setSelectedCell(id)
                         onToast(`Đã chọn ${formatTemporalCell(id)}; bảng số liệu bên dưới đã được cập nhật.`)
                       }}
                     >
-                      <strong>{cell?.rate.toFixed(1)}%</strong>
-                      <small>n={cell?.n.toLocaleString('vi-VN')}</small>
+                      <strong>{cell && cell.n > 0 ? `${cell.rate.toFixed(1)}%` : '—'}</strong>
+                      <small>{cell && cell.n > 0 ? `n=${cell.n.toLocaleString('vi-VN')}` : 'Không có dữ liệu'}</small>
                     </button>
                   )
                 }),

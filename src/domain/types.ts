@@ -160,6 +160,8 @@ export interface HeatCell {
   rate: number
   gap: number | null
   n: number
+  delayedCount: number
+  averageDelay: number
   flag: SampleFlag
 }
 
@@ -207,9 +209,13 @@ export interface CarrierMetric {
 export interface CarrierBreakdown {
   cell: string
   wnRate: number
+  wnDelayed: number
   peerRate: number
+  peerDelayed: number
   wnN: number
   peerN: number
+  wnAverageDelay: number
+  peerAverageDelay: number
 }
 
 export interface CarrierComparisonData {
@@ -234,6 +240,11 @@ export interface FutureFlight {
   probability: number
   riskLabel: 'High' | 'Elevated' | 'Monitor'
   modelVersion: string
+  historicalRate: number | null
+  historicalDelayed: number
+  historicalEligible: number
+  historicalAverageDelay: number | null
+  historicalUnavailableReason?: string
 }
 
 export interface FutureFlightsData {
@@ -249,6 +260,9 @@ export interface RiskAggregate {
   highRiskShare: number
   historicalRate: number
   historicalGap: number
+  historicalDelayed: number
+  historicalEligible: number
+  historicalAverageDelay: number
   scoredN: number
   historicalN: number
   sampleFlag: SampleFlag
@@ -259,7 +273,16 @@ export interface RiskAggregate {
 export interface RiskAggregatesData {
   metadata: DashboardMetadata
   aggregates: RiskAggregate[]
-  byTime: Array<{ label: string; expectedRate: number; n: number }>
+  byTime: Array<{
+    label: string
+    expectedRate: number
+    n: number
+    historicalRate: number | null
+    historicalDelayed: number
+    historicalEligible: number
+    historicalAverageDelay: number | null
+    unavailableReason?: string
+  }>
 }
 
 export interface ExplanationContributor {
@@ -282,12 +305,13 @@ export interface PredictionExplanationData {
 export interface SegmentEvidenceData {
   metadata: DashboardMetadata
   entity: string
-  historicalRate: number
-  baselineRate: number
-  gap: number
+  historicalRate: number | null
+  baselineRate: number | null
+  gap: number | null
   eligible: number
   delayed: number
-  averageDelay: number
+  averageDelay: number | null
+  unavailableReason?: string
   sampleFlag: SampleFlag
   predictedRisk: number | null
   checks: Array<{ label: string; status: 'available' | 'pending' }>
@@ -296,7 +320,11 @@ export interface SegmentEvidenceData {
 export interface CauseContextData {
   metadata: DashboardMetadata
   entity: string
+  eligible: number
   delayedN: number
+  delayRate: number | null
+  averageDelay: number | null
+  unavailableReason?: string
   recordedN: number
   causes: Array<{ label: string; share: number; flights: number }>
 }

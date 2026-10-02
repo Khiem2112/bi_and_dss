@@ -34,7 +34,13 @@ export function Card({ id, title, subtitle, action, className = '', children }: 
 
 export function SampleBadge({ flag }: { flag: string }) {
   const className = flag === 'Sufficient' ? 'sufficient' : flag === 'Low sample' ? 'low' : 'uncalibrated'
-  return <span className={`pill ${className}`}>{formatSampleFlag(flag)}</span>
+  const label = formatSampleFlag(flag)
+  const description = flag === 'Sufficient'
+    ? 'Cỡ mẫu đáp ứng ngưỡng đã công bố cho ngữ cảnh này.'
+    : flag === 'Low sample'
+      ? 'Cỡ mẫu chưa đạt ngưỡng để diễn giải ổn định.'
+      : 'Ngưỡng cỡ mẫu chưa có phiên bản hiệu chỉnh được phê duyệt.'
+  return <span className={`pill ${className}`} tabIndex={0} data-tooltip={description} aria-label={`${label}. ${description}`}>{label}</span>
 }
 
 export function EmptyState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {
@@ -68,5 +74,6 @@ export function LoadingState({ rows = 4 }: { rows?: number }) {
 }
 
 export function IllustrativeLabel({ compact = false }: { compact?: boolean }) {
-  return <span className={`illustrative-label${compact ? ' compact' : ''}`}>● Dữ liệu minh họa</span>
+  const description = 'Các giá trị dùng để kiểm thử bố cục và tương tác; không phải kết quả đo lường sản xuất.'
+  return <span className={`illustrative-label${compact ? ' compact' : ''}`} tabIndex={0} data-tooltip={description} aria-label={`Dữ liệu minh họa. ${description}`}>● Dữ liệu minh họa</span>
 }

@@ -62,7 +62,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
             <span>{pageMeta[page].detail}</span>
           </div>
           <div className="top-actions">
-            <span className="demo-badge">Bản demo minh họa</span>
+            <span className="demo-badge" tabIndex={0} data-tooltip="Toàn bộ số liệu hiện tại chỉ phục vụ diễn tập giao diện và không phải kết quả đo lường sản xuất." aria-label="Bản demo minh họa. Toàn bộ số liệu chỉ phục vụ diễn tập giao diện.">Bản demo minh họa</span>
             <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Phương pháp</button>
           </div>
         </header>

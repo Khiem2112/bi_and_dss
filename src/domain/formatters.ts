@@ -1,5 +1,15 @@
 import type { SampleFlag } from './types'
 
+export function formatDateDisplay(dateStr?: string): string {
+  if (!dateStr) return ''
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    return `${day}/${month}/${year}`
+  }
+  return dateStr
+}
+
 export const sampleFlagLabels: Record<SampleFlag, string> = {
   Sufficient: 'Đủ mẫu',
   'Low sample': 'Cỡ mẫu thấp',

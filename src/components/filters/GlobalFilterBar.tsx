@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { defaultFilters, type GlobalFilters } from '../../domain/types'
-import { DatePicker, formatDateDisplay } from '../atoms/DatePicker/DatePicker'
+import { DatePicker } from '../atoms/DatePicker/DatePicker'
+import { formatDateDisplay } from '../../domain/formatters'
 import { MultiSelectCombobox, type MultiSelectItem } from '../atoms/Combobox/MultiSelectCombobox'
+import { ComponentHelpButton } from '../ui/ComponentHelpButton'
 
 interface GlobalFilterBarProps {
   filters: GlobalFilters
@@ -38,7 +40,13 @@ const DISTANCE_GROUP_OPTIONS: readonly MultiSelectItem[] = [
   { value: 'G02', label: 'G02', subLabel: '250–499 dặm' },
   { value: 'G03', label: 'G03', subLabel: '500–749 dặm' },
   { value: 'G04', label: 'G04', subLabel: '750–999 dặm' },
-  { value: 'G05+', label: 'G05+', subLabel: 'Từ 1.000 dặm' },
+  { value: 'G05', label: 'G05', subLabel: '1.000–1.249 dặm' },
+  { value: 'G06', label: 'G06', subLabel: '1.250–1.499 dặm' },
+  { value: 'G07', label: 'G07', subLabel: '1.500–1.749 dặm' },
+  { value: 'G08', label: 'G08', subLabel: '1.750–1.999 dặm' },
+  { value: 'G09', label: 'G09', subLabel: '2.000–2.249 dặm' },
+  { value: 'G10', label: 'G10', subLabel: '2.250–2.499 dặm' },
+  { value: 'G11', label: 'G11', subLabel: 'Từ 2.500 dặm' },
 ]
 
 export function GlobalFilterBar({ filters, onApply }: GlobalFilterBarProps) {
@@ -63,7 +71,7 @@ export function GlobalFilterBar({ filters, onApply }: GlobalFilterBarProps) {
     <section className={`filterbar-v2${collapsed ? ' collapsed' : ''}`} data-component-id="P1-C01" aria-label="Bộ lọc toàn cục">
       <div className="filter-summary">
         <div>
-          <span className="filter-kicker">Phạm vi phân tích</span>
+          <span className="filter-kicker card-title-group">Phạm vi phân tích <ComponentHelpButton componentId="P1-C01" title="Phạm vi phân tích" /></span>
           <strong>{formatDateDisplay(filters.fromDate)} → {formatDateDisplay(filters.toDate)}</strong>
           <span>Hãng bay: WN · {activeCount} nhóm bộ lọc bổ sung</span>
         </div>

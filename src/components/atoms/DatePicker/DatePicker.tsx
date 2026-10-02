@@ -52,14 +52,14 @@ export type DateRangePickerProps = {
 
 const padZero = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
 
-export const formatDateToISO = (date: Date): string => {
+const formatDateToISO = (date: Date): string => {
   const y = date.getFullYear()
   const m = padZero(date.getMonth() + 1)
   const d = padZero(date.getDate())
   return `${y}-${m}-${d}`
 }
 
-export const formatDateDisplay = (dateStr?: string): string => {
+const formatDateDisplay = (dateStr?: string): string => {
   if (!dateStr) return ''
   const parts = dateStr.split('-')
   if (parts.length === 3) {

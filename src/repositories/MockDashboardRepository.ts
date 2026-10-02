@@ -38,7 +38,15 @@ import type { DashboardRepository } from './DashboardRepository'
 
 const MOCK_SAMPLE_MULTIPLIER = 25
 
-const scaleCount = (n: number): number => Math.round(n * MOCK_SAMPLE_MULTIPLIER)
+const scaleCount = (n: number): number => {
+  if (!Number.isSafeInteger(n) || n < 0) throw new Error('Số đếm mẫu phải là số nguyên không âm an toàn')
+  if (!Number.isSafeInteger(MOCK_SAMPLE_MULTIPLIER) || MOCK_SAMPLE_MULTIPLIER <= 0) {
+    throw new Error('Hệ số nhân mẫu phải là số nguyên dương an toàn')
+  }
+  const scaled = n * MOCK_SAMPLE_MULTIPLIER
+  if (!Number.isSafeInteger(scaled)) throw new Error('Số đếm sau khi nhân mẫu vượt giới hạn an toàn')
+  return scaled
+}
 
 const isEligible = (f: FlightRecord): boolean =>
   f.CANCELLED === 0 &&
@@ -58,11 +66,8 @@ const getSeason = (dateStr: string): string => {
 }
 
 const getDistanceGroup = (distance: number): string => {
-  if (distance < 250) return 'G01'
-  if (distance < 500) return 'G02'
-  if (distance < 750) return 'G03'
-  if (distance < 1000) return 'G04'
-  return 'G05+'
+  const group = Math.min(11, Math.max(1, Math.floor(distance / 250) + 1))
+  return `G${String(group).padStart(2, '0')}`
 }
 
 const getTimeBlock = (crsDepTime: number): string => {
@@ -255,6 +260,7 @@ export class MockDashboardRepository implements DashboardRepository {
 
     const eligibleCount = scaleCount(eligible.length)
     const delayedCount = scaleCount(delayed.length)
+    const hasEligible = eligible.length > 0
     const delayRate = eligible.length > 0 ? Number(((delayed.length / eligible.length) * 100).toFixed(1)) : 0
     const avgDelay = eligible.length > 0
       ? Number((eligible.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / eligible.length).toFixed(1))
@@ -276,14 +282,14 @@ export class MockDashboardRepository implements DashboardRepository {
       {
         id: 'P1-C04',
         label: 'Tỷ lệ đến trễ thực tế',
-        value: `${delayRate.toFixed(1).replace('.', ',')}%`,
-        context: 'Tỷ lệ chuyến bay trễ trên tổng số chuyến bay đủ điều kiện',
+        value: hasEligible ? `${delayRate.toFixed(1).replace('.', ',')}%` : '—',
+        context: hasEligible ? 'Tỷ lệ chuyến bay trễ trên tổng số chuyến bay đủ điều kiện' : 'Không có chuyến bay đủ điều kiện',
       },
       {
         id: 'P1-C05',
         label: 'Độ trễ đến trung bình',
-        value: `${avgDelay.toFixed(1).replace('.', ',')} phút`,
-        context: 'Số phút trễ bình quân trên các chuyến bay đủ điều kiện',
+        value: hasEligible ? `${avgDelay.toFixed(1).replace('.', ',')} phút` : '—',
+        context: hasEligible ? 'Số phút trễ bình quân trên các chuyến bay đủ điều kiện' : 'Không có chuyến bay đủ điều kiện',
       },
     ]
 
@@ -300,11 +306,16 @@ export class MockDashboardRepository implements DashboardRepository {
       const mFlights = monthMap.get(period) ?? []
       const mDelayed = mFlights.filter(isDelayed)
       const rate = mFlights.length > 0 ? Number(((mDelayed.length / mFlights.length) * 100).toFixed(1)) : 0
+      const averageDelay = mFlights.length > 0
+        ? Number((mFlights.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / mFlights.length).toFixed(1))
+        : 0
       return {
         period,
         value: rate,
         n: scaleCount(mFlights.length),
         baseline: delayRate,
+        delayedCount: scaleCount(mDelayed.length),
+        averageDelay,
       }
     })
 
@@ -315,6 +326,8 @@ export class MockDashboardRepository implements DashboardRepository {
         value: simulatedRate,
         n: pt.n,
         baseline: delayRate,
+        delayedCount: pt.delayedCount,
+        averageDelay: pt.averageDelay,
       }
     })
 
@@ -356,10 +369,6 @@ export class MockDashboardRepository implements DashboardRepository {
         dl: null,
         aa: null,
         wnForecast: futureForecastRate,
-        wnN: scaleCount(260),
-        delayedCount: scaleCount(Math.round(260 * futureForecastRate / 100)),
-        eligibleCount: scaleCount(260),
-        averageDelay: Number((avgDelay * 1.18).toFixed(1)),
         baseline: delayRate,
         baselineAvgDelay: avgDelay,
         isFuture: true,
@@ -419,10 +428,6 @@ export class MockDashboardRepository implements DashboardRepository {
           dl: null,
           aa: null,
           wnForecast: simVal,
-          wnN: scaleCount(130),
-          delayedCount: scaleCount(Math.round(130 * simVal / 100)),
-          eligibleCount: scaleCount(130),
-          averageDelay: Number((avgDelay * 1.14 + (fIdx === 0 ? 2.1 : -1.0)).toFixed(1)),
           baseline: delayRate,
           baselineAvgDelay: avgDelay,
           isFuture: true,
@@ -478,10 +483,6 @@ export class MockDashboardRepository implements DashboardRepository {
           dl: null,
           aa: null,
           wnForecast: simVal,
-          wnN: scaleCount(130),
-          delayedCount: scaleCount(Math.round(130 * simVal / 100)),
-          eligibleCount: scaleCount(130),
-          averageDelay: Number((avgDelay * 1.12 + (fIdx === 0 ? 1.8 : -0.9)).toFixed(1)),
           baseline: delayRate,
           baselineAvgDelay: avgDelay,
           isFuture: true,
@@ -732,8 +733,6 @@ export class MockDashboardRepository implements DashboardRepository {
         entityFilters.grain === 'origin' ? f.ORIGIN === entityFilters.entityCode : f.DEST === entityFilters.entityCode,
       )
     }
-    if (contextFlights.length === 0) contextFlights = allEligible
-
     const contextDelayed = contextFlights.filter(isDelayed)
     const delayRate = contextFlights.length > 0
       ? Number(((contextDelayed.length / contextFlights.length) * 100).toFixed(1))
@@ -789,10 +788,6 @@ export class MockDashboardRepository implements DashboardRepository {
         dl: null,
         aa: null,
         wnForecast: futureForecastRate,
-        wnN: scaleCount(260),
-        delayedCount: scaleCount(Math.round(260 * futureForecastRate / 100)),
-        eligibleCount: scaleCount(260),
-        averageDelay: Number((avgDelay * 1.18).toFixed(1)),
         baseline: delayRate,
         baselineAvgDelay: avgDelay,
         isFuture: true,
@@ -887,8 +882,7 @@ export class MockDashboardRepository implements DashboardRepository {
 
     let contextFlights = eligible
     if (context.route) {
-      const rFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.route)
-      if (rFlights.length > 0) contextFlights = rFlights
+      contextFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.route)
     }
 
     const networkRate = contextFlights.length > 0
@@ -945,17 +939,14 @@ export class MockDashboardRepository implements DashboardRepository {
 
     let heatmapFlights = contextFlights
     if (context.selectedPeriod) {
-      const filtered = contextFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
-      if (filtered.length > 0) heatmapFlights = filtered
+      heatmapFlights = contextFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
     } else if (context.selectedMonth) {
       const targetMonthCode = monthMapCode[context.selectedMonth] ?? context.selectedMonth
-      const filtered = contextFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
-      if (filtered.length > 0) heatmapFlights = filtered
+      heatmapFlights = contextFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
     } else if (context.selectedSeason) {
       const targetSeason = seasonsConfig.find((s) => s.name === context.selectedSeason)
       if (targetSeason) {
-        const filtered = contextFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
-        if (filtered.length > 0) heatmapFlights = filtered
+        heatmapFlights = contextFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
       }
     }
 
@@ -975,12 +966,17 @@ export class MockDashboardRepository implements DashboardRepository {
         const cellDelayed = cellFlights.filter(isDelayed)
         const rate = cellFlights.length > 0 ? Number(((cellDelayed.length / cellFlights.length) * 100).toFixed(1)) : 0
         const gap = cellFlights.length > 0 ? Number((rate - heatmapBaselineRate).toFixed(1)) : null
+        const averageDelay = cellFlights.length > 0
+          ? Number((cellFlights.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / cellFlights.length).toFixed(1))
+          : 0
         heatmap.push({
           day,
           block,
           rate,
           gap,
           n: scaleCount(cellFlights.length),
+          delayedCount: scaleCount(cellDelayed.length),
+          averageDelay,
           flag: 'Uncalibrated' as const,
         })
       }
@@ -1014,17 +1010,14 @@ export class MockDashboardRepository implements DashboardRepository {
 
     let tableBaseFlights = eligible
     if (context.selectedPeriod) {
-      const filtered = tableBaseFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
-      if (filtered.length > 0) tableBaseFlights = filtered
+      tableBaseFlights = tableBaseFlights.filter((f) => f.FL_DATE.startsWith(context.selectedPeriod!))
     } else if (context.selectedMonth) {
       const targetMonthCode = monthMapCode[context.selectedMonth] ?? context.selectedMonth
-      const filtered = tableBaseFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
-      if (filtered.length > 0) tableBaseFlights = filtered
+      tableBaseFlights = tableBaseFlights.filter((f) => f.FL_DATE.slice(5, 7) === targetMonthCode)
     } else if (context.selectedSeason) {
       const targetSeason = seasonsConfig.find((s) => s.name === context.selectedSeason)
       if (targetSeason) {
-        const filtered = tableBaseFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
-        if (filtered.length > 0) tableBaseFlights = filtered
+        tableBaseFlights = tableBaseFlights.filter((f) => targetSeason.months.includes(f.FL_DATE.slice(5, 7)))
       }
     }
 
@@ -1033,10 +1026,9 @@ export class MockDashboardRepository implements DashboardRepository {
       const cellDay = cellParts[0]?.trim()
       const cellBlock = cellParts[1]?.trim()
       if (cellDay && cellBlock) {
-        const cellFiltered = tableBaseFlights.filter(
+        tableBaseFlights = tableBaseFlights.filter(
           (f) => getDayOfWeek(f.FL_DATE) === cellDay && getTimeBlock(f.CRS_DEP_TIME) === cellBlock,
         )
-        if (cellFiltered.length > 0) tableBaseFlights = cellFiltered
       }
     }
 
@@ -1135,25 +1127,43 @@ export class MockDashboardRepository implements DashboardRepository {
 
     let entityFlights = eligibleAll
     if (context.entity.includes('→')) {
-      const match = eligibleAll.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.entity)
-      if (match.length > 0) entityFlights = match
+      entityFlights = eligibleAll.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.entity)
     } else if (context.entity.length === 3) {
-      const match = eligibleAll.filter((f) => f.ORIGIN === context.entity || f.DEST === context.entity)
-      if (match.length > 0) entityFlights = match
+      entityFlights = eligibleAll.filter((f) => f.ORIGIN === context.entity || f.DEST === context.entity)
     }
 
-    const targetCarriers = ['WN', ...peers.filter(Boolean)]
+    const targetCarriers = ['WN', ...peers.filter(Boolean).filter((carrier, index, values) => carrier !== 'WN' && values.indexOf(carrier) === index)]
+    const primaryPeer = targetCarriers.find((carrier) => carrier !== 'WN') ?? 'DL'
+    const comparisonCell = (flight: FlightRecord) =>
+      `${flight.ORIGIN} → ${flight.DEST} · ${getDayOfWeek(flight.FL_DATE)} · ${getTimeBlock(flight.CRS_DEP_TIME)}`
+
+    const flightsByCell = new Map<string, FlightRecord[]>()
+    for (const flight of entityFlights.filter((item) => targetCarriers.includes(item.OP_CARRIER))) {
+      const key = comparisonCell(flight)
+      const items = flightsByCell.get(key) ?? []
+      items.push(flight)
+      flightsByCell.set(key, items)
+    }
+    const sharedCellKeys = new Set(
+      Array.from(flightsByCell.entries())
+        .filter(([, items]) => targetCarriers.every((carrier) => items.some((item) => item.OP_CARRIER === carrier)))
+        .map(([key]) => key),
+    )
+    const comparableFlights = entityFlights.filter(
+      (flight) => targetCarriers.includes(flight.OP_CARRIER) && sharedCellKeys.has(comparisonCell(flight)),
+    )
     const carrierMetrics: CarrierMetric[] = []
     let wnRate = 0
 
-    const wnFlights = entityFlights.filter((f) => f.OP_CARRIER === 'WN')
+    const wnFlights = comparableFlights.filter((f) => f.OP_CARRIER === 'WN')
     const wnDelayed = wnFlights.filter(isDelayed)
     if (wnFlights.length > 0) {
       wnRate = Number(((wnDelayed.length / wnFlights.length) * 100).toFixed(1))
     }
 
     for (const c of targetCarriers) {
-      const cFlights = entityFlights.filter((f) => f.OP_CARRIER === c)
+      const cFlights = comparableFlights.filter((f) => f.OP_CARRIER === c)
+      if (cFlights.length === 0) continue
       const cDelayed = cFlights.filter(isDelayed)
       const rate = cFlights.length > 0 ? Number(((cDelayed.length / cFlights.length) * 100).toFixed(1)) : 0
       const avg = cFlights.length > 0
@@ -1175,7 +1185,7 @@ export class MockDashboardRepository implements DashboardRepository {
 
     const trend: Record<string, TrendPoint[]> = {}
     for (const c of targetCarriers) {
-      const cFlights = entityFlights.filter((f) => f.OP_CARRIER === c)
+      const cFlights = comparableFlights.filter((f) => f.OP_CARRIER === c)
       const cMonthMap = new Map<string, FlightRecord[]>()
       for (const f of cFlights) {
         const m = f.FL_DATE.slice(0, 7)
@@ -1187,48 +1197,48 @@ export class MockDashboardRepository implements DashboardRepository {
         const mList = cMonthMap.get(period) ?? []
         const mDel = mList.filter(isDelayed)
         const r = mList.length > 0 ? Number(((mDel.length / mList.length) * 100).toFixed(1)) : 0
-        return { period, value: r, n: scaleCount(mList.length) }
+        const averageDelay = mList.length > 0
+          ? Number((mList.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / mList.length).toFixed(1))
+          : 0
+        return { period, value: r, n: scaleCount(mList.length), delayedCount: scaleCount(mDel.length), averageDelay }
       })
     }
 
-    const primaryPeer = peers[0] || 'DL'
-    const breakdown: CarrierBreakdown[] = [
-      {
-        cell: `${context.entity} · Thứ Sáu · Buổi tối`,
-        wnRate: Number((wnRate * 1.15).toFixed(1)),
-        peerRate: Number((wnRate * 0.92).toFixed(1)),
-        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.15))),
-        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.15))),
-      },
-      {
-        cell: `${context.entity} · Chủ Nhật · Buổi tối`,
-        wnRate: Number((wnRate * 1.08).toFixed(1)),
-        peerRate: Number((wnRate * 0.88).toFixed(1)),
-        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.13))),
-        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.13))),
-      },
-      {
-        cell: `${context.entity} · Thứ Hai · Buổi sáng`,
-        wnRate: Number((wnRate * 0.85).toFixed(1)),
-        peerRate: Number((wnRate * 0.82).toFixed(1)),
-        wnN: scaleCount(Math.max(10, Math.round(wnFlights.length * 0.14))),
-        peerN: scaleCount(Math.max(10, Math.round(entityFlights.filter((f) => f.OP_CARRIER === primaryPeer).length * 0.14))),
-      },
-    ]
+    const breakdown: CarrierBreakdown[] = Array.from(sharedCellKeys)
+      .map((cell) => {
+        const items = flightsByCell.get(cell) ?? []
+        const wn = items.filter((flight) => flight.OP_CARRIER === 'WN')
+        const peer = items.filter((flight) => flight.OP_CARRIER === primaryPeer)
+        const wnDelayed = wn.filter(isDelayed)
+        const peerDelayed = peer.filter(isDelayed)
+        return {
+          cell,
+          wnRate: Number(((wnDelayed.length / wn.length) * 100).toFixed(1)),
+          wnDelayed: scaleCount(wnDelayed.length),
+          peerRate: Number(((peerDelayed.length / peer.length) * 100).toFixed(1)),
+          peerDelayed: scaleCount(peerDelayed.length),
+          wnN: scaleCount(wn.length),
+          peerN: scaleCount(peer.length),
+          wnAverageDelay: Number((wn.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / wn.length).toFixed(1)),
+          peerAverageDelay: Number((peer.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / peer.length).toFixed(1)),
+        }
+      })
+      .sort((left, right) => (right.wnN + right.peerN) - (left.wnN + left.peerN))
 
-    const totalEligible = scaleCount(entityFlights.length)
-    const included = Math.round(totalEligible * 0.88)
-    const excluded = totalEligible - included
+    const relevantFlights = entityFlights.filter((flight) => targetCarriers.includes(flight.OP_CARRIER))
+    const included = scaleCount(comparableFlights.length)
+    const excluded = scaleCount(relevantFlights.length - comparableFlights.length)
+    const coverage = relevantFlights.length > 0 ? Number(((comparableFlights.length / relevantFlights.length) * 100).toFixed(1)) : 0
 
     return {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA — SO SÁNH CHỈ TRONG CÁC Ô ĐỐI SÁNH CHUNG', entityFlights.length),
       contextId: `cmp-${context.entity.replace(/[^A-Za-z0-9]/g, '-')}-2018`,
       entity: context.entity,
       baselineId: 'BL-C',
-      sharedCells: 18,
+      sharedCells: sharedCellKeys.size,
       includedFlights: included,
       excludedFlights: excluded,
-      coverage: 88.5,
+      coverage,
       carriers: carrierMetrics,
       trend,
       breakdown,
@@ -1241,12 +1251,13 @@ export class MockDashboardRepository implements DashboardRepository {
     const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
     const eligible = baseFlights.filter(isEligible)
 
-    const routeDelayMap = new Map<string, { total: number; delayed: number }>()
+    const routeDelayMap = new Map<string, { total: number; delayed: number; arrivalDelaySum: number }>()
     for (const f of eligible) {
       const r = `${f.ORIGIN} → ${f.DEST}`
-      const entry = routeDelayMap.get(r) ?? { total: 0, delayed: 0 }
+      const entry = routeDelayMap.get(r) ?? { total: 0, delayed: 0, arrivalDelaySum: 0 }
       entry.total += 1
       if (isDelayed(f)) entry.delayed += 1
+      entry.arrivalDelaySum += f.ARR_DELAY ?? 0
       routeDelayMap.set(r, entry)
     }
 
@@ -1254,25 +1265,42 @@ export class MockDashboardRepository implements DashboardRepository {
     const availableRoutes = Array.from(routeDelayMap.keys())
     const candidateRoutes = availableRoutes.length > 0 ? availableRoutes.slice(0, 6) : defaultRoutes
 
+    const predictionStart = filters.window.split(' → ')[0] || '2019-01-01'
+    const windowAdjustment = predictionStart === '2019-01-01' ? 0 : 0.03
     const flights: FutureFlight[] = candidateRoutes.map((route, idx) => {
       const stats = routeDelayMap.get(route)
       const historicalRate = stats && stats.total > 0 ? stats.delayed / stats.total : 0.28
-      const probability = Number(Math.min(0.85, Math.max(0.12, historicalRate * 1.25 + (idx % 3 === 0 ? 0.05 : -0.03))).toFixed(2))
+      const probability = Number(Math.min(0.85, Math.max(0.12, historicalRate * 1.25 + (idx % 3 === 0 ? 0.05 : -0.03) + windowAdjustment)).toFixed(2))
       const riskLabel: FutureFlight['riskLabel'] = probability >= 0.38 ? 'High' : probability >= 0.28 ? 'Elevated' : 'Monitor'
       const flightNum = 1000 + idx * 215
+      const date = new Date(`${predictionStart}T00:00:00Z`)
+      date.setUTCDate(date.getUTCDate() + idx + 1)
+      const departureHour = [5, 8, 14, 19][idx % 4]
 
       return {
-        id: `WN${flightNum}-2019010${idx + 2}`,
+        id: `WN${flightNum}-${date.toISOString().slice(0, 10).replace(/-/g, '')}`,
         flightNumber: `WN ${flightNum}`,
-        departureAt: `2019-01-0${idx + 2}T1${6 + (idx % 4)}:30:00-06:00`,
+        departureAt: `${date.toISOString().slice(0, 10)}T${String(departureHour).padStart(2, '0')}:30:00-06:00`,
         route,
         probability,
         riskLabel,
         modelVersion: 'DEMO-RISK-v0',
+        historicalRate: stats && stats.total > 0 ? Number((historicalRate * 100).toFixed(1)) : null,
+        historicalDelayed: stats ? scaleCount(stats.delayed) : 0,
+        historicalEligible: stats ? scaleCount(stats.total) : 0,
+        historicalAverageDelay: stats && stats.total > 0 ? Number((stats.arrivalDelaySum / stats.total).toFixed(1)) : null,
+        historicalUnavailableReason: stats && stats.total > 0 ? undefined : 'Không có bằng chứng lịch sử tương ứng',
       }
     })
 
-    const filteredFlights = filters.route ? flights.filter((f) => f.route === filters.route) : flights
+    const filteredFlights = flights.filter((flight) => {
+      if (filters.route && flight.route !== filters.route) return false
+      if (filters.timeBlock) {
+        const hour = Number(flight.departureAt.slice(11, 13))
+        if (getTimeBlock(hour * 100) !== filters.timeBlock) return false
+      }
+      return true
+    })
 
     return {
       metadata: this.createMetadata('XÁC SUẤT MINH HỌA — MODEL CHƯA HIỆU CHỈNH / CHƯA PHÊ DUYỆT', filteredFlights.length),
@@ -1285,12 +1313,15 @@ export class MockDashboardRepository implements DashboardRepository {
     const allFlights = await this.loadFlights()
     const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
     const eligible = baseFlights.filter(isEligible)
+    const aggregateFlights = filters.timeBlock
+      ? eligible.filter((flight) => getTimeBlock(flight.CRS_DEP_TIME) === filters.timeBlock)
+      : eligible
     const networkRate = eligible.length > 0
       ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
-      : 25.0
+      : 0
 
     const routeMap = new Map<string, FlightRecord[]>()
-    for (const f of eligible) {
+    for (const f of aggregateFlights) {
       const r = `${f.ORIGIN} → ${f.DEST}`
       const list = routeMap.get(r) ?? []
       list.push(f)
@@ -1301,7 +1332,8 @@ export class MockDashboardRepository implements DashboardRepository {
       .map(([route, list]) => {
         const del = list.filter(isDelayed)
         const rate = (del.length / list.length) * 100
-        return { route, count: list.length, rate }
+        const averageDelay = list.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / list.length
+        return { route, count: list.length, delayed: del.length, rate, averageDelay }
       })
       .sort((a, b) => b.rate - a.rate)
 
@@ -1309,12 +1341,13 @@ export class MockDashboardRepository implements DashboardRepository {
       ? sortedRoutes.filter((item) => item.route === filters.route)
       : sortedRoutes
 
+    const windowAdjustment = filters.window.startsWith('2019-01-08') ? 1.5 : 0
     const aggregates: RiskAggregate[] = candidateRoutes.slice(0, 4).map((item) => {
 
       const histRate = Number(item.rate.toFixed(1))
       const histGap = Number((histRate - networkRate).toFixed(1))
-      const expRate = Number((histRate * 1.18).toFixed(1))
-      const highRisk = Number((histRate * 1.25).toFixed(1))
+      const expRate = Number((histRate * 1.18 + windowAdjustment).toFixed(1))
+      const highRisk = Number((histRate * 1.25 + windowAdjustment).toFixed(1))
 
       return {
         id: item.route.replace(' → ', '-'),
@@ -1324,7 +1357,10 @@ export class MockDashboardRepository implements DashboardRepository {
         highRiskShare: Math.min(100, highRisk),
         historicalRate: histRate,
         historicalGap: histGap,
-        scoredN: Math.round(item.count * 0.15) + 30,
+        historicalDelayed: scaleCount(item.delayed),
+        historicalEligible: scaleCount(item.count),
+        historicalAverageDelay: Number(item.averageDelay.toFixed(1)),
+        scoredN: scaleCount(Math.max(1, Math.round(item.count * 0.15))),
         historicalN: scaleCount(item.count),
         sampleFlag: 'Uncalibrated',
         priority: 'Uncalibrated',
@@ -1332,29 +1368,24 @@ export class MockDashboardRepository implements DashboardRepository {
       }
     })
 
-    if (aggregates.length === 0) {
-      aggregates.push({
-        id: 'DAL-ATL',
-        entity: 'DAL → ATL',
-        type: 'Route',
-        expectedRate: 38.7,
-        highRiskShare: 41.2,
-        historicalRate: 31.8,
-        historicalGap: 6.2,
-        scoredN: 84,
-        historicalN: 2184,
-        sampleFlag: 'Uncalibrated',
-        priority: 'Uncalibrated',
-        rationale: 'Rủi ro minh họa cao, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt.',
-      })
-    }
-
-    const byTime = [
-      { label: 'Sáng sớm', expectedRate: 19.4, n: 130 },
-      { label: 'Buổi sáng', expectedRate: 24.8, n: 198 },
-      { label: 'Buổi chiều', expectedRate: 30.7, n: 224 },
-      { label: 'Buổi tối', expectedRate: 36.1, n: 180 },
-    ]
+    const byTime = ['Early Morning', 'Morning', 'Afternoon', 'Evening'].map((label) => {
+      const historical = eligible.filter((flight) => getTimeBlock(flight.CRS_DEP_TIME) === label)
+      const delayed = historical.filter(isDelayed)
+      const historicalRate = historical.length > 0 ? (delayed.length / historical.length) * 100 : null
+      const historicalAverageDelay = historical.length > 0
+        ? historical.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / historical.length
+        : null
+      return {
+        label,
+        expectedRate: historicalRate === null ? 0 : Number((historicalRate * 1.12 + windowAdjustment).toFixed(1)),
+        n: historical.length > 0 ? scaleCount(Math.max(1, Math.round(historical.length * 0.15))) : 0,
+        historicalRate: historicalRate === null ? null : Number(historicalRate.toFixed(1)),
+        historicalDelayed: scaleCount(delayed.length),
+        historicalEligible: scaleCount(historical.length),
+        historicalAverageDelay: historicalAverageDelay === null ? null : Number(historicalAverageDelay.toFixed(1)),
+        unavailableReason: historical.length > 0 ? undefined : 'Không có chuyến bay đủ điều kiện',
+      }
+    })
 
     return {
       metadata: this.createMetadata('RỦI RO VÀ MỨC ƯU TIÊN MINH HỌA — KHÔNG PHẢI KHUYẾN NGHỊ VẬN HÀNH', eligible.length),
@@ -1402,27 +1433,27 @@ export class MockDashboardRepository implements DashboardRepository {
     const allFlights = await this.loadFlights()
     const baseFlights = this.filterFlights(allFlights, activeF, 'WN')
     const eligible = baseFlights.filter(isEligible)
-    const networkRate = eligible.length > 0
+    const networkRate: number | null = eligible.length > 0
       ? Number(((eligible.filter(isDelayed).length / eligible.length) * 100).toFixed(1))
-      : 25.0
+      : null
 
     let segmentFlights = eligible
     if (entity.includes('→')) {
-      const match = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
-      if (match.length > 0) segmentFlights = match
+      segmentFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
     } else if (entity.length === 3) {
-      const match = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
-      if (match.length > 0) segmentFlights = match
+      segmentFlights = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
     }
 
     const sDelayed = segmentFlights.filter(isDelayed)
-    const historicalRate = segmentFlights.length > 0
+    const historicalRate: number | null = segmentFlights.length > 0
       ? Number(((sDelayed.length / segmentFlights.length) * 100).toFixed(1))
-      : networkRate
-    const gap = Number((historicalRate - networkRate).toFixed(1))
-    const avg = segmentFlights.length > 0
+      : null
+    const gap = historicalRate !== null && networkRate !== null
+      ? Number((historicalRate - networkRate).toFixed(1))
+      : null
+    const avg: number | null = segmentFlights.length > 0
       ? Number((segmentFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / segmentFlights.length).toFixed(1))
-      : 0
+      : null
 
     return {
       metadata: this.createMetadata('BẰNG CHỨNG MINH HỌA — BẮT BUỘC ĐÁNH GIÁ THỦ CÔNG (HUMAN REVIEW)', segmentFlights.length),
@@ -1433,8 +1464,9 @@ export class MockDashboardRepository implements DashboardRepository {
       eligible: scaleCount(segmentFlights.length),
       delayed: scaleCount(sDelayed.length),
       averageDelay: avg,
+      unavailableReason: segmentFlights.length > 0 ? undefined : 'Không có chuyến bay đủ điều kiện cho phân đoạn và bộ lọc hiện tại',
       sampleFlag: 'Uncalibrated',
-      predictedRisk: Number((historicalRate * 1.18).toFixed(1)),
+      predictedRisk: historicalRate === null ? null : Number((historicalRate * 1.18).toFixed(1)),
       checks: [
         { label: 'Tỷ lệ trễ lịch sử và mức tham chiếu BL-AR có sẵn', status: 'available' },
         { label: 'Phiên bản ngưỡng cỡ mẫu được phê duyệt', status: 'pending' },
@@ -1452,14 +1484,16 @@ export class MockDashboardRepository implements DashboardRepository {
 
     let segmentFlights = eligible
     if (entity.includes('→')) {
-      const match = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
-      if (match.length > 0) segmentFlights = match
+      segmentFlights = eligible.filter((f) => `${f.ORIGIN} → ${f.DEST}` === entity)
     } else if (entity.length === 3) {
-      const match = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
-      if (match.length > 0) segmentFlights = match
+      segmentFlights = eligible.filter((f) => f.DEST === entity || f.ORIGIN === entity)
     }
 
     const delayedFlights = segmentFlights.filter(isDelayed)
+    const delayRate = segmentFlights.length > 0 ? (delayedFlights.length / segmentFlights.length) * 100 : null
+    const averageDelay = segmentFlights.length > 0
+      ? segmentFlights.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / segmentFlights.length
+      : null
     const recordedFlights = delayedFlights.filter(
       (f) =>
         (f.LATE_AIRCRAFT_DELAY || 0) > 0 ||
@@ -1483,7 +1517,11 @@ export class MockDashboardRepository implements DashboardRepository {
         delayedFlights.length,
       ),
       entity,
+      eligible: scaleCount(segmentFlights.length),
       delayedN: scaleCount(delayedFlights.length),
+      delayRate: delayRate === null ? null : Number(delayRate.toFixed(1)),
+      averageDelay: averageDelay === null ? null : Number(averageDelay.toFixed(1)),
+      unavailableReason: segmentFlights.length > 0 ? undefined : 'Không có chuyến bay đủ điều kiện',
       recordedN: scaleCount(recordedFlights.length),
       causes: [
         {

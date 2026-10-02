@@ -727,12 +727,18 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast }: UnifiedTren
                   Số phút trễ trên từng chuyến của WN:
                 </span>
                 <span className="tooltip-row-val highlight-delay">
-                  <strong>
-                    {(activePoint.averageDelay ?? 0) > 0 ? '+' : ''}
-                    {activePoint.averageDelay !== undefined ? activePoint.averageDelay.toFixed(1).replace('.', ',') : '0,0'} phút
-                  </strong>
+                  <strong>{activePoint.averageDelay !== undefined
+                    ? `${activePoint.averageDelay > 0 ? '+' : ''}${activePoint.averageDelay.toFixed(1).replace('.', ',')} phút`
+                    : '—'}</strong>
                 </span>
               </div>
+
+              {activePoint.isFuture && activePoint.delayedCount === undefined && (
+                <div className="tooltip-item-row">
+                  <span className="tooltip-row-label">Bằng chứng lịch sử:</span>
+                  <span className="tooltip-row-val">Không áp dụng cho điểm dự báo</span>
+                </div>
+              )}
 
               <div className="tooltip-divider" />
 

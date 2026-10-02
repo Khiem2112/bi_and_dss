@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import type { ComparisonContext, GlobalFilters } from '../domain/types'
+import type { CarrierBreakdown, ComparisonContext, GlobalFilters } from '../domain/types'
 import { formatTemporalCell } from '../domain/formatters'
 import { useCarrierComparison } from '../hooks/dashboardHooks'
 import { MiniSparkline } from '../components/charts/MiniSparkline'
-import { Card, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
+import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState, SampleBadge } from '../components/ui/Card'
+import { SearchableSortableTable, type DashboardTableColumn } from '../components/tables/SearchableSortableTable'
+import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 import { OverlayFrame } from './OverlayFrame'
 
 interface CarrierComparisonModalProps {
@@ -18,6 +20,28 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
   const [peer1, setPeer1] = useState('DL')
   const [peer2, setPeer2] = useState('AA')
   const query = useCarrierComparison(context, [peer1, peer2].filter(Boolean), true, filters)
+
+  const breakdownColumns: readonly DashboardTableColumn<CarrierBreakdown>[] = [
+    {
+      id: 'cell', header: 'Ô đối sánh tương đương', cell: (row) => <span className="route-name">{formatTemporalCell(row.cell)}</span>,
+      searchValue: (row) => [formatTemporalCell(row.cell), row.cell], sortValue: (row) => formatTemporalCell(row.cell),
+    },
+    {
+      id: 'wn', header: 'Bộ ba chỉ số WN',
+      cell: (row) => <span><strong>{row.wnRate.toFixed(1)}%</strong><span className="subcell">Trễ {row.wnDelayed.toLocaleString('vi-VN')} / {row.wnN.toLocaleString('vi-VN')} · TB {row.wnAverageDelay.toFixed(1)} phút</span></span>,
+      searchValue: (row) => [row.wnRate, `${row.wnRate.toFixed(1)}%`, row.wnDelayed, row.wnN, row.wnAverageDelay], sortValue: (row) => row.wnRate,
+    },
+    {
+      id: 'peer', header: `Bộ ba chỉ số ${peer1}`,
+      cell: (row) => <span><strong>{row.peerRate.toFixed(1)}%</strong><span className="subcell">Trễ {row.peerDelayed.toLocaleString('vi-VN')} / {row.peerN.toLocaleString('vi-VN')} · TB {row.peerAverageDelay.toFixed(1)} phút</span></span>,
+      searchValue: (row) => [peer1, row.peerRate, `${row.peerRate.toFixed(1)}%`, row.peerDelayed, row.peerN, row.peerAverageDelay], sortValue: (row) => row.peerRate,
+    },
+    {
+      id: 'gap', header: 'Chênh lệch tỷ lệ',
+      cell: (row) => <strong>{row.wnRate - row.peerRate >= 0 ? '+' : ''}{(row.wnRate - row.peerRate).toFixed(1)}%</strong>,
+      searchValue: (row) => [row.wnRate - row.peerRate, `${(row.wnRate - row.peerRate).toFixed(1)}%`], sortValue: (row) => row.wnRate - row.peerRate,
+    },
+  ]
 
 
   return (
@@ -37,10 +61,12 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
         <IllustrativeLabel />
       </div>
 
-      {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải dữ liệu so sánh'} onRetry={query.refetch} /> : query.isLoading || !query.data ? <LoadingState rows={8} /> : (
+      {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải dữ liệu so sánh'} onRetry={query.refetch} /> : query.isLoading || !query.data ? <LoadingState rows={8} /> : query.data.carriers.length === 0 ? (
+        <EmptyState title="Không có hãng bay đủ điều kiện đối sánh" detail="Không có ô đường bay – thời gian chung cho WN và các hãng đã chọn trong phạm vi bộ lọc. Hãy đổi hãng đối sánh hoặc mở rộng bộ lọc." />
+      ) : (
         <>
           <div className="comparison-banner" data-component-id="CM-C01">
-            <div><span>CM-C01 · Ngữ cảnh & Tính tương đương</span><strong>{query.data.entity} · {query.data.baselineId}</strong><small>2018-01-01 → 2018-12-31 · số ô đối sánh chung = {query.data.sharedCells} · trọng tâm WN</small></div>
+            <div><span className="card-title-group">CM-C01 · Ngữ cảnh & Tính tương đương <ComponentHelpButton componentId="CM-C01" title="Ngữ cảnh và tính tương đương" /></span><strong>{query.data.entity} · {query.data.baselineId}</strong><small>2018-01-01 → 2018-12-31 · số ô đối sánh chung = {query.data.sharedCells} · trọng tâm WN</small></div>
             <div className="coverage-ring" style={{ '--coverage': `${query.data.coverage * 3.6}deg` } as React.CSSProperties}><strong>{query.data.coverage.toFixed(1)}%</strong><span>độ bao phủ</span></div>
           </div>
 
@@ -61,14 +87,14 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
             <Card id="CM-C03" title="So sánh tỷ lệ trễ có kiểm soát" subtitle="Sắp xếp theo tỷ lệ đến trễ · chỉ phản ánh tương quan quan sát được">
               <div className="bar-list large-bars">
                 {[...query.data.carriers].sort((a, b) => b.rate - a.rate).map((carrier) => (
-                  <div className="bar-row carrier-bar" key={carrier.carrier}><span>{carrier.carrier}</span><span className="bar-track"><span className="bar-fill" style={{ width: `${carrier.rate * 2.4}%`, background: carrier.carrier === 'WN' ? '#e11d48' : '#64748b' }} /></span><strong>{carrier.rate.toFixed(1)}%</strong><small>n={carrier.eligible.toLocaleString('vi-VN')}</small></div>
+                  <div className="bar-row carrier-bar" key={carrier.carrier} tabIndex={0} data-tooltip-multiline data-tooltip={`${carrier.carrier} · ${carrier.name}\n• Tỷ lệ chuyến đến trễ: ${carrier.rate.toFixed(1)}%\n• Số chuyến đến trễ: ${carrier.delayed.toLocaleString('vi-VN')} / ${carrier.eligible.toLocaleString('vi-VN')}\n• Độ trễ đến trung bình: ${carrier.averageDelay.toFixed(1)} phút`}><span>{carrier.carrier}</span><span className="bar-track"><span className="bar-fill" style={{ width: `${carrier.rate * 2.4}%`, background: carrier.carrier === 'WN' ? '#e11d48' : '#64748b' }} /></span><strong>{carrier.rate.toFixed(1)}%</strong><small>n={carrier.eligible.toLocaleString('vi-VN')}</small></div>
                 ))}
               </div>
             </Card>
             <Card id="CM-C04" title="So sánh theo thời gian" subtitle="Chỉ trong các kỳ tương đương · Tháng → Tuần → Ngày">
               <div className="carrier-sparklines">
                 {Object.entries(query.data.trend).filter(([carrier]) => query.data?.carriers.some((item) => item.carrier === carrier)).map(([carrier, points]) => (
-                  <div key={carrier}><strong>{carrier}</strong><MiniSparkline values={points.map((point) => point.value)} /><span>{points[0]?.value.toFixed(1)}% → {points[points.length - 1]?.value.toFixed(1)}%</span></div>
+                  <div key={carrier}><strong>{carrier}</strong><MiniSparkline values={points.map((point) => point.value)} details={points.map((point) => ({ label: point.period, value: point.value, delayedCount: point.delayedCount ?? 0, eligibleCount: point.n, averageDelay: point.averageDelay ?? 0 }))} /><span>{points[0]?.value.toFixed(1)}% → {points[points.length - 1]?.value.toFixed(1)}%</span></div>
                 ))}
               </div>
             </Card>
@@ -76,11 +102,15 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
 
           <div className="grid split-7-5 page-section-gap">
             <Card id="CM-C06" title="Phân rã theo tuyến bay – thời gian" subtitle="Các ô đối sánh chung · CM-A sử dụng chế độ xem này làm chính">
-              <div className="table-wrap">
-                <table><thead><tr><th>Ô đối sánh tương đương</th><th>Tỷ lệ WN / n</th><th>Tỷ lệ đối thủ / n</th><th>Chênh lệch</th></tr></thead><tbody>
-                  {query.data.breakdown.map((row) => <tr key={row.cell}><td className="route-name">{formatTemporalCell(row.cell)}</td><td>{row.wnRate.toFixed(1)}% / {row.wnN}</td><td>{row.peerRate.toFixed(1)}% / {row.peerN}</td><td><strong>+{(row.wnRate - row.peerRate).toFixed(1)}%</strong></td></tr>)}
-                </tbody></table>
-              </div>
+              <SearchableSortableTable
+                tableLabel="phân rã đối sánh theo đường bay và thời gian"
+                rows={query.data.breakdown}
+                columns={breakdownColumns}
+                rowId={(row) => row.cell}
+                initialSortBy="gap"
+                initialSortDirection="desc"
+                searchPlaceholder="Tìm đường bay, ngày, khung giờ hoặc chỉ số"
+              />
             </Card>
             <div className="stacked-cards">
               <Card id="CM-C05" title="Độ bao phủ dữ liệu tương đương" subtitle="Dữ liệu đưa vào / loại trừ">
@@ -88,11 +118,11 @@ export function CarrierComparisonModal({ context, filters, onClose, onOpenEviden
                 <p className="microcopy">Loại bỏ các chuyến bay ngoài các ô tuyến bay – thời gian chung; kết quả tổng hợp luôn hiển thị độ bao phủ.</p>
               </Card>
               <Card id="CM-C07" title="Chi tiết mức tham chiếu & cỡ mẫu" subtitle="Siêu dữ liệu quy tắc">
-                <div className="rule-checklist"><div className="rule-row"><span className="rule-status">ID</span>{query.data.baselineId} · ngữ cảnh tuyến bay – thời gian chung</div><div className="rule-row"><span className="rule-status no">UC</span>Ngưỡng cỡ mẫu chưa hiệu chỉnh</div></div>
+                <div className="rule-checklist"><div className="rule-row"><span className="rule-status" tabIndex={0} data-tooltip="ID: định danh của mức tham chiếu dùng cho phép so sánh">ID</span>{query.data.baselineId} · ngữ cảnh tuyến bay – thời gian chung</div><div className="rule-row"><span className="rule-status no" tabIndex={0} data-tooltip="UC: ngưỡng cỡ mẫu chưa được hiệu chỉnh và phê duyệt">UC</span>Ngưỡng cỡ mẫu chưa hiệu chỉnh</div></div>
               </Card>
             </div>
           </div>
-          <div className="notice" data-component-id="CM-C08"><strong>CM-C08 · Diễn giải:</strong> Đây là tương quan quan sát được trong các ô đối sánh tương đương, không phải bằng chứng hãng bay gây ra trễ chuyến. Không thay thế giá trị N/A bằng trung bình toàn mạng lưới hoặc 0.</div>
+          <div className="notice" data-component-id="CM-C08"><span className="card-title-group"><strong>CM-C08 · Diễn giải</strong><ComponentHelpButton componentId="CM-C08" title="Giới hạn diễn giải so sánh hãng" /></span> Đây là tương quan quan sát được trong các ô đối sánh tương đương, không phải bằng chứng hãng bay gây ra trễ chuyến. Không thay thế giá trị N/A bằng trung bình toàn mạng lưới hoặc 0.</div>
         </>
       )}
     </OverlayFrame>

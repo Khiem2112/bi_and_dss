@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 
 interface OverlayFrameProps {
   mode: 'modal' | 'drawer'
@@ -38,7 +39,10 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
         <header className="overlay-header">
           <div>
             <span className="component-id">{componentId}</span>
-            <h2 id={`${componentId}-title`} tabIndex={-1} ref={titleRef}>{title}</h2>
+            <div className="card-title-group">
+              <h2 id={`${componentId}-title`} tabIndex={-1} ref={titleRef}>{title}</h2>
+              <ComponentHelpButton componentId={componentId} title={title} />
+            </div>
             {subtitle && <p>{subtitle}</p>}
           </div>
           <button className="modal-close-btn" type="button" onClick={onClose} aria-label={`Đóng ${title}`}>Đóng ×</button>

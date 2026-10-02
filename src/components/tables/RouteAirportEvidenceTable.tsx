@@ -42,7 +42,12 @@ function sortIndicator(key: TableSortKey, currentKey: TableSortKey, dir: TableSo
 }
 
 function normalizeText(str: string): string {
-  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase('vi').replace(/\s+/g, ' ').trim()
+}
+
+function matchesTerms(index: string, query: string): boolean {
+  const normalizedIndex = normalizeText(index)
+  return normalizeText(query).split(' ').filter(Boolean).every((term) => normalizedIndex.includes(term))
 }
 
 function airportSearchString(a: AirportHotspot): string {
@@ -50,15 +55,23 @@ function airportSearchString(a: AirportHotspot): string {
   if (a.originMetrics) {
     parts.push(
       `${a.originMetrics.rate.toFixed(1)}%`,
+      `${a.originMetrics.rate.toFixed(1).replace('.', ',')}%`,
       a.originMetrics.gap !== null && a.originMetrics.gap !== undefined ? `+${a.originMetrics.gap.toFixed(1)}%` : '',
       a.originMetrics.averageDelay.toFixed(1),
+      String(a.originMetrics.delayedCount),
+      String(a.originMetrics.eligibleCount),
+      a.originMetrics.flag,
     )
   }
   if (a.destMetrics) {
     parts.push(
       `${a.destMetrics.rate.toFixed(1)}%`,
+      `${a.destMetrics.rate.toFixed(1).replace('.', ',')}%`,
       a.destMetrics.gap !== null && a.destMetrics.gap !== undefined ? `+${a.destMetrics.gap.toFixed(1)}%` : '',
       a.destMetrics.averageDelay.toFixed(1),
+      String(a.destMetrics.delayedCount),
+      String(a.destMetrics.eligibleCount),
+      a.destMetrics.flag,
     )
   }
   return parts.join(' ')
@@ -68,9 +81,13 @@ function routeSearchString(r: EvidenceRecord): string {
   return [
     r.entity,
     `${r.rate.toFixed(1)}%`,
+    `${r.rate.toFixed(1).replace('.', ',')}%`,
     r.gap !== null ? `+${r.gap.toFixed(1)}%` : '',
     r.averageDelay.toFixed(1),
+    r.delayedCount ?? 0,
+    r.eligibleCount ?? r.n,
     r.n.toLocaleString('vi-VN'),
+    r.flag,
   ].join(' ')
 }
 
@@ -147,8 +164,7 @@ export function RouteAirportEvidenceTable({
   }
 
   const filteredAirports = useMemo(() => {
-    const q = normalizeText(airportSearch)
-    const filtered = q ? airports.filter((a) => normalizeText(airportSearchString(a)).includes(q)) : airports
+    const filtered = airportSearch ? airports.filter((a) => matchesTerms(airportSearchString(a), airportSearch)) : airports
     if (sortDir === 'none') return filtered
     return [...filtered].sort((a, b) => {
       let cmp = 0
@@ -168,21 +184,27 @@ export function RouteAirportEvidenceTable({
       } else if (sortKey === 'n') {
         cmp = a.n - b.n
       }
+      if (cmp === 0) cmp = (a.code ?? a.id).localeCompare(b.code ?? b.id, 'vi')
       return sortDir === 'asc' ? cmp : -cmp
     })
   }, [airports, airportSearch, sortKey, sortDir])
 
   const filteredRoutes = useMemo(() => {
-    const q = normalizeText(routeSearch)
-    const filtered = q ? routes.filter((r) => normalizeText(routeSearchString(r)).includes(q)) : routes
+    const filtered = routeSearch ? routes.filter((r) => matchesTerms(routeSearchString(r), routeSearch)) : routes
     if (routeSortDir === 'none') return filtered
     return [...filtered].sort((a, b) => {
       let cmp = 0
       if (routeSortKey === 'code') cmp = a.entity.localeCompare(b.entity, 'vi')
       else if (routeSortKey === 'rate') cmp = a.rate - b.rate
-      else if (routeSortKey === 'gap') cmp = (a.gap ?? 0) - (b.gap ?? 0)
+      else if (routeSortKey === 'gap') {
+        if (a.gap === null && b.gap === null) cmp = 0
+        else if (a.gap === null) return 1
+        else if (b.gap === null) return -1
+        else cmp = a.gap - b.gap
+      }
       else if (routeSortKey === 'averageDelay') cmp = a.averageDelay - b.averageDelay
       else if (routeSortKey === 'n') cmp = a.n - b.n
+      if (cmp === 0) cmp = a.id.localeCompare(b.id, 'vi')
       return routeSortDir === 'asc' ? cmp : -cmp
     })
   }, [routes, routeSearch, routeSortKey, routeSortDir])
@@ -197,38 +219,22 @@ export function RouteAirportEvidenceTable({
   const AirportSortTh = ({ colKey, label }: { colKey: TableSortKey; label: string }) => (
     <th
       scope="col"
-      className="sortable"
-      tabIndex={0}
       aria-sort={sortKey === colKey ? (sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none') : 'none'}
-      onClick={() => handleAirportSort(colKey)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleAirportSort(colKey)
-        }
-      }}
     >
-      {label}
-      <span className="sort-icon">{sortIndicator(colKey, sortKey, sortDir)}</span>
+      <button className="table-sort-button" type="button" onClick={() => handleAirportSort(colKey)}>
+        {label}<span className="sort-icon">{sortIndicator(colKey, sortKey, sortDir) || ' ↕'}</span>
+      </button>
     </th>
   )
 
   const RouteSortTh = ({ colKey, label }: { colKey: TableSortKey; label: string }) => (
     <th
       scope="col"
-      className="sortable"
-      tabIndex={0}
       aria-sort={routeSortKey === colKey ? (routeSortDir === 'asc' ? 'ascending' : routeSortDir === 'desc' ? 'descending' : 'none') : 'none'}
-      onClick={() => handleRouteSort(colKey)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleRouteSort(colKey)
-        }
-      }}
     >
-      {label}
-      <span className="sort-icon">{sortIndicator(colKey, routeSortKey, routeSortDir)}</span>
+      <button className="table-sort-button" type="button" onClick={() => handleRouteSort(colKey)}>
+        {label}<span className="sort-icon">{sortIndicator(colKey, routeSortKey, routeSortDir) || ' ↕'}</span>
+      </button>
     </th>
   )
 
@@ -291,9 +297,6 @@ export function RouteAirportEvidenceTable({
                     <RouteSortTh colKey="code" label="Tuyến bay" />
                     <RouteSortTh colKey="gap" label="Tỷ lệ trễ & Chênh lệch" />
                     <RouteSortTh colKey="averageDelay" label="Trễ TB" />
-                    <th style={{ width: '48px', textAlign: 'center' }} aria-label="Thao tác">
-                      Thao tác
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -329,7 +332,28 @@ export function RouteAirportEvidenceTable({
                           onClick={() => onSelectRoute(route.entity)}
                           onContextMenu={(e) => onOpenContextMenu(e, route.entity, 'Route')}
                         >
-                          <td className="route-name">{route.entity}</td>
+                          <td className="route-name">
+                            <div className="table-entity-with-actions">
+                              <span>{route.entity}</span>
+                              <span className="table-inline-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn--xs expand-btn"
+                                  onClick={(e) => { e.stopPropagation(); toggleRouteExpand(route.entity) }}
+                                  aria-expanded={isRouteExpanded}
+                                  aria-label={`${isRouteExpanded ? 'Thu gọn' : 'Mở rộng'} 2 sân bay của tuyến ${route.entity}`}
+                                  data-tooltip={isRouteExpanded ? 'Thu gọn sân bay đi/đến' : 'Xem 2 sân bay của tuyến này'}
+                                >{isRouteExpanded ? '▲' : '▼'}</button>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn--xs"
+                                  onClick={(e) => { e.stopPropagation(); onOpenContextMenu(e, route.entity, 'Route') }}
+                                  data-tooltip="Mở menu thao tác"
+                                  aria-label={`Mở thao tác cho tuyến ${route.entity}`}
+                                >⋮</button>
+                              </span>
+                            </div>
+                          </td>
                           <td data-tooltip-multiline data-tooltip={routeTooltip}>
                             <strong>{route.rate.toFixed(1).replace('.', ',')}%</strong>{' '}
                             {route.gap !== null && (
@@ -340,35 +364,6 @@ export function RouteAirportEvidenceTable({
                           </td>
                           <td data-tooltip={`Trễ trung bình tuyến ${route.entity}: ${route.averageDelay.toFixed(1).replace('.', ',')} phút`}>
                             {route.averageDelay.toFixed(1).replace('.', ',')} ph
-                          </td>
-                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'inline-flex', gap: '3px', alignItems: 'center' }}>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn--xs expand-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  toggleRouteExpand(route.entity)
-                                }}
-                                aria-expanded={isRouteExpanded}
-                                aria-label={`${isRouteExpanded ? 'Thu gọn' : 'Mở rộng'} 2 sân bay của tuyến ${route.entity}`}
-                                data-tooltip={isRouteExpanded ? 'Thu gọn sân bay đi/đến' : 'Xem 2 sân bay của tuyến này'}
-                                title={isRouteExpanded ? 'Thu gọn sân bay đi/đến' : 'Xem 2 sân bay của tuyến này'}
-                              >
-                                {isRouteExpanded ? '▲' : '▼'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn--xs"
-                                style={{ padding: '0 4px', minWidth: '18px', height: '22px', fontSize: '12px', fontWeight: 'bold' }}
-                                onClick={(e) => onOpenContextMenu(e, route.entity, 'Route')}
-                                data-tooltip="Mở menu thao tác"
-                                title="Mở menu thao tác"
-                                aria-label="Thao tác"
-                              >
-                                ⋮
-                              </button>
-                            </div>
                           </td>
                         </tr>
                         {isRouteExpanded && (
@@ -383,8 +378,7 @@ export function RouteAirportEvidenceTable({
                               onContextMenu={(e) => onOpenContextMenu(e, originAirport?.entity ?? originCode, 'Airport', originCode, 'Origin')}
                             >
                               <td style={{ paddingLeft: '1.5rem' }}>
-                                <span className="route-name route-name--small">{originCode}</span>
-                                <span className="subcell">Sân bay đi</span>
+                                <div className="table-entity-with-actions"><span><span className="route-name route-name--small">{originCode}</span><span className="subcell">Sân bay đi</span></span><button type="button" className="btn btn-ghost btn--xs" onClick={(e) => { e.stopPropagation(); onSelectAirport(originCode) }} aria-label={`Xem sân bay đi ${originCode}`}>Xem</button></div>
                               </td>
                               <td
                                 data-tooltip-multiline
@@ -400,19 +394,6 @@ export function RouteAirportEvidenceTable({
                               <td data-tooltip={`Trễ trung bình: ${originAirport?.originMetrics ? originAirport.originMetrics.averageDelay.toFixed(1).replace('.', ',') + ' ph' : '--'}`}>
                                 {originAirport?.originMetrics ? `${originAirport.originMetrics.averageDelay.toFixed(1).replace('.', ',')} ph` : '--'}
                               </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn--xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onSelectAirport(originCode)
-                                  }}
-                                  title={`Xem sân bay đi ${originCode}`}
-                                >
-                                  Xem
-                                </button>
-                              </td>
                             </tr>
                             <tr
                               key={`${route.id}-dest`}
@@ -424,8 +405,7 @@ export function RouteAirportEvidenceTable({
                               onContextMenu={(e) => onOpenContextMenu(e, destAirport?.entity ?? destCode, 'Airport', destCode, 'Destination')}
                             >
                               <td style={{ paddingLeft: '1.5rem' }}>
-                                <span className="route-name route-name--small">{destCode}</span>
-                                <span className="subcell">Sân bay đến</span>
+                                <div className="table-entity-with-actions"><span><span className="route-name route-name--small">{destCode}</span><span className="subcell">Sân bay đến</span></span><button type="button" className="btn btn-ghost btn--xs" onClick={(e) => { e.stopPropagation(); onSelectAirport(destCode) }} aria-label={`Xem sân bay đến ${destCode}`}>Xem</button></div>
                               </td>
                               <td
                                 data-tooltip-multiline
@@ -440,19 +420,6 @@ export function RouteAirportEvidenceTable({
                               </td>
                               <td data-tooltip={`Trễ trung bình: ${destAirport?.destMetrics ? destAirport.destMetrics.averageDelay.toFixed(1).replace('.', ',') + ' ph' : '--'}`}>
                                 {destAirport?.destMetrics ? `${destAirport.destMetrics.averageDelay.toFixed(1).replace('.', ',')} ph` : '--'}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn--xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onSelectAirport(destCode)
-                                  }}
-                                  title={`Xem sân bay đến ${destCode}`}
-                                >
-                                  Xem
-                                </button>
                               </td>
                             </tr>
                           </>
@@ -496,9 +463,6 @@ export function RouteAirportEvidenceTable({
                     <AirportSortTh colKey="code" label="Sân bay" />
                     <AirportSortTh colKey="gap" label="Tỷ lệ trễ & Chênh lệch" />
                     <AirportSortTh colKey="averageDelay" label="Trễ TB" />
-                    <th style={{ width: '48px', textAlign: 'center' }} aria-label="Thao tác">
-                      Thao tác
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -537,15 +501,18 @@ export function RouteAirportEvidenceTable({
                           onContextMenu={(e) => onOpenContextMenu(e, airport.entity, 'Airport', airport.code)}
                         >
                           <td>
-                            <span className="route-name" title={airport.entity}>
-                              {airport.code}
-                            </span>
-                            <span className="subcell">{airport.city ?? airport.name}</span>
+                            <div className="table-entity-with-actions">
+                              <span><span className="route-name" title={airport.entity}>{airport.code}</span><span className="subcell">{airport.city ?? airport.name}</span></span>
+                              <span className="table-inline-actions">
+                                <button type="button" className="btn btn-ghost btn--xs expand-btn" onClick={(e) => { e.stopPropagation(); toggleAirportExpand(airport.code) }} aria-expanded={isExpanded} aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} các tuyến ứng với sân bay ${airport.code}`} data-tooltip={isExpanded ? `Thu gọn các tuyến của ${airport.code}` : `Xem các tuyến ứng với sân bay ${airport.code}`}>{isExpanded ? '▲' : '▼'}</button>
+                                <button type="button" className="btn btn-ghost btn--xs" onClick={(e) => { e.stopPropagation(); onOpenContextMenu(e, airport.entity, 'Airport', airport.code) }} data-tooltip="Mở menu thao tác" aria-label={`Mở thao tác cho sân bay ${airport.code}`}>⋮</button>
+                              </span>
+                            </div>
                           </td>
 
                           <td className="dual-stat-cell" data-tooltip-multiline data-tooltip={tooltipDetail}>
                             <div className="role-stat-row">
-                              <span className="role-badge role-badge--origin">Đi</span>
+                              <span className="role-badge role-badge--origin" tabIndex={0} data-tooltip="Sân bay giữ vai trò điểm đi trong tuyến đang chọn">Đi</span>
                               <span className="role-rate-val">{o ? `${o.rate.toFixed(1).replace('.', ',')}%` : '--'}</span>
                               {o?.gap !== null && o?.gap !== undefined && (
                                 <span className={`role-gap-val ${(o.gap ?? 0) > 0 ? 'diff-higher' : 'diff-lower'}`}>
@@ -554,7 +521,7 @@ export function RouteAirportEvidenceTable({
                               )}
                             </div>
                             <div className="role-stat-row">
-                              <span className="role-badge role-badge--dest">Đến</span>
+                              <span className="role-badge role-badge--dest" tabIndex={0} data-tooltip="Sân bay giữ vai trò điểm đến trong tuyến đang chọn">Đến</span>
                               <span className="role-rate-val">{d ? `${d.rate.toFixed(1).replace('.', ',')}%` : '--'}</span>
                               {d?.gap !== null && d?.gap !== undefined && (
                                 <span className={`role-gap-val ${(d.gap ?? 0) > 0 ? 'diff-higher' : 'diff-lower'}`}>
@@ -566,51 +533,22 @@ export function RouteAirportEvidenceTable({
 
                           <td className="dual-stat-cell" data-tooltip-multiline data-tooltip={avgTooltip}>
                             <div className="role-stat-row">
-                              <span className="role-badge role-badge--origin">Đi</span>
+                              <span className="role-badge role-badge--origin" tabIndex={0} data-tooltip="Sân bay giữ vai trò điểm đi trong tuyến đang chọn">Đi</span>
                               <span>{o ? `${o.averageDelay.toFixed(1).replace('.', ',')} ph` : '--'}</span>
                             </div>
                             <div className="role-stat-row">
-                              <span className="role-badge role-badge--dest">Đến</span>
+                              <span className="role-badge role-badge--dest" tabIndex={0} data-tooltip="Sân bay giữ vai trò điểm đến trong tuyến đang chọn">Đến</span>
                               <span>{d ? `${d.averageDelay.toFixed(1).replace('.', ',')} ph` : '--'}</span>
                             </div>
                           </td>
 
-                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'inline-flex', gap: '3px', alignItems: 'center' }}>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn--xs expand-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  toggleAirportExpand(airport.code)
-                                }}
-                                aria-expanded={isExpanded}
-                                aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} các tuyến ứng với sân bay ${airport.code}`}
-                                data-tooltip={isExpanded ? `Thu gọn các tuyến của ${airport.code}` : `Xem các tuyến ứng với sân bay ${airport.code}`}
-                                title={isExpanded ? `Thu gọn các tuyến của ${airport.code}` : `Xem các tuyến ứng với sân bay ${airport.code}`}
-                              >
-                                {isExpanded ? '▲' : '▼'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn--xs"
-                                style={{ padding: '0 4px', minWidth: '18px', height: '22px', fontSize: '12px', fontWeight: 'bold' }}
-                                onClick={(e) => onOpenContextMenu(e, airport.entity, 'Airport', airport.code)}
-                                data-tooltip="Mở menu thao tác"
-                                title="Mở menu thao tác"
-                                aria-label="Thao tác"
-                              >
-                                ⋮
-                              </button>
-                            </div>
-                          </td>
                         </tr>
 
                         {isExpanded && (
                           <>
                             {subRoutes.length === 0 ? (
                               <tr key={`${airport.code}-noroutes`} className="route-child-row">
-                                <td colSpan={4} style={{ paddingLeft: '2rem', fontStyle: 'italic', color: 'var(--muted)' }}>
+                                <td colSpan={3} style={{ paddingLeft: '2rem', fontStyle: 'italic', color: 'var(--muted)' }}>
                                   Không có tuyến bay kết nối phù hợp bộ lọc hiện tại.
                                 </td>
                               </tr>
@@ -639,7 +577,7 @@ export function RouteAirportEvidenceTable({
                                     onContextMenu={(e) => onOpenContextMenu(e, route.entity, 'Route')}
                                   >
                                     <td style={{ paddingLeft: '2rem' }}>
-                                      <span className="route-name route-name--small">{route.entity}</span>
+                                      <div className="table-entity-with-actions"><span className="route-name route-name--small">{route.entity}</span><button type="button" className="btn btn-ghost btn--xs" onClick={(e) => { e.stopPropagation(); onSelectRoute(route.entity) }} aria-label={`Xem tuyến ${route.entity}`}>Xem</button></div>
                                     </td>
                                     <td data-tooltip-multiline data-tooltip={routeTooltip}>
                                       <strong>{route.rate.toFixed(1).replace('.', ',')}%</strong>{' '}
@@ -651,19 +589,6 @@ export function RouteAirportEvidenceTable({
                                     </td>
                                     <td data-tooltip={`Trễ trung bình: ${route.averageDelay.toFixed(1).replace('.', ',')} ph`}>
                                       {route.averageDelay.toFixed(1).replace('.', ',')} ph
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                      <button
-                                        type="button"
-                                        className="btn btn-ghost btn--xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          onSelectRoute(route.entity)
-                                        }}
-                                        title={`Xem tuyến ${route.entity}`}
-                                      >
-                                        Xem
-                                      </button>
                                     </td>
                                   </tr>
                                 )

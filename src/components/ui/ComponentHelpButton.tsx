@@ -91,6 +91,7 @@ export function ComponentHelpButton({ componentId, title }: ComponentHelpButtonP
         className="help-trigger-btn"
         aria-label={`Giải thích: ${title}`}
         aria-expanded={isOpen}
+        aria-controls={`help-popover-${componentId}`}
         onClick={handleToggle}
       >
         ?
@@ -99,6 +100,7 @@ export function ComponentHelpButton({ componentId, title }: ComponentHelpButtonP
       {isOpen &&
         createPortal(
           <div
+            id={`help-popover-${componentId}`}
             ref={popoverRef}
             className="help-popover"
             style={{ top: `${popoverPos.top}px`, left: `${popoverPos.left}px` }}

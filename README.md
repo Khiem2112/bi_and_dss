@@ -13,7 +13,11 @@ Production check:
 
 ```powershell
 npm run build
+npm run lint
+npm test
 ```
+
+`npm test` chạy các contract test cho KPI eligibility/delay, sample scaling, global filters, zero-result, table search/sort, component help và quy tắc không fallback âm thầm.
 
 ## Architecture
 
@@ -31,3 +35,5 @@ Page/component → domain hook → DashboardRepository → MockDashboardReposito
 ## Decision-safety note
 
 All displayed values are illustrative. Sample thresholds, verified airport geography, calibrated model output, and the priority rule remain unapproved; the UI therefore keeps hotspot/priority states uncalibrated or locked.
+
+Implementation evidence, browser screenshots and report-safe limitations are recorded in [`../dashboard_readiness_report.md`](../dashboard_readiness_report.md).

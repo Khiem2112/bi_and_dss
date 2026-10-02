@@ -6,6 +6,7 @@ import { AirportMap } from '../components/charts/AirportMap'
 import { UnifiedTrendChart } from '../components/charts/UnifiedTrendChart'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
 import { Tooltip } from '../components/atoms/Tooltip/Tooltip'
+import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 
 interface OverviewPageProps {
   filters: GlobalFilters
@@ -135,19 +136,19 @@ export function OverviewPage({
           )
 
           return (
-            <div className="kpi-tooltip-wrapper" key={kpi.id}>
+            <div className="card kpi-card kpi-card-clean kpi-tooltip-wrapper" data-component-id={kpi.id} key={kpi.id}>
+              <div className="kpi-label card-title-group">
+                <span>{kpi.label}</span>
+                <ComponentHelpButton componentId={kpi.id} title={kpi.label} />
+                <span className="component-id">{kpi.id}</span>
+              </div>
               <Tooltip content={tooltipContent} side="bottom" className="kpi-business-tooltip">
                 <button
-                  className="card kpi-card kpi-card-clean kpi-button"
+                  className="kpi-button kpi-value-button"
                   type="button"
-                  data-component-id={kpi.id}
                   onClick={onOpenMethodology}
                   aria-label={`${kpi.label}: ${kpi.value}`}
                 >
-                  <div className="kpi-label">
-                    <span>{kpi.label}</span>
-                    <span className="component-id">{kpi.id}</span>
-                  </div>
                   <div className="kpi-value">{kpi.value}</div>
                 </button>
               </Tooltip>

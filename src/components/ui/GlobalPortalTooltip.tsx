@@ -91,12 +91,19 @@ export function GlobalPortalTooltip() {
       }
     }
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      currentTargetRef.current = null
+      setTooltip((prev) => ({ ...prev, visible: false }))
+    }
+
     document.addEventListener('mouseover', handlePointerOver, true)
     document.addEventListener('mouseout', handlePointerOut, true)
     document.addEventListener('focusin', handleFocusIn, true)
     document.addEventListener('focusout', handleFocusOut, true)
     window.addEventListener('scroll', handleScroll, true)
     window.addEventListener('resize', handleScroll)
+    document.addEventListener('keydown', handleKeyDown, true)
 
     return () => {
       document.removeEventListener('mouseover', handlePointerOver, true)
@@ -105,6 +112,7 @@ export function GlobalPortalTooltip() {
       document.removeEventListener('focusout', handleFocusOut, true)
       window.removeEventListener('scroll', handleScroll, true)
       window.removeEventListener('resize', handleScroll)
+      document.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [])
 
