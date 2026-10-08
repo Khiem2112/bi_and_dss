@@ -1342,17 +1342,52 @@ export class MockDashboardRepository implements DashboardRepository {
       : sortedRoutes
 
     const windowAdjustment = filters.window.startsWith('2019-01-08') ? 1.5 : 0
-    const aggregates: RiskAggregate[] = candidateRoutes.slice(0, 4).map((item) => {
 
+    const airports = await this.loadAirports()
+    const airportMap = new Map(airports.map((a) => [a.code, a]))
+    const hotspotAirports = this.computeHotspotAirports(aggregateFlights, airportMap, networkRate)
+
+    const airportAggregates: RiskAggregate[] = hotspotAirports.map((item) => {
+      const histRate = Number(item.rate.toFixed(1))
+      const histGap = Number((item.gap ?? (histRate - networkRate)).toFixed(1))
+      const expRate = Number((histRate * 1.15 + windowAdjustment).toFixed(1))
+      const highRisk = Number((histRate * 1.22 + windowAdjustment).toFixed(1))
+      const rawCount = item.eligibleCount ?? item.n
+      const scoredN = scaleCount(Math.max(1, Math.round((rawCount / MOCK_SAMPLE_MULTIPLIER) * 0.15)))
+
+      return {
+        id: item.code,
+        entity: `${item.name} (${item.code})`,
+        type: 'Airport' as const,
+        code: item.code,
+        expectedRate: expRate,
+        highRiskShare: Math.min(100, highRisk),
+        historicalRate: histRate,
+        historicalGap: histGap,
+        historicalDelayed: item.delayedCount ?? 0,
+        historicalEligible: item.eligibleCount ?? item.n,
+        historicalAverageDelay: Number(item.averageDelay.toFixed(1)),
+        scoredN,
+        historicalN: item.n,
+        sampleFlag: item.flag,
+        priority: 'Uncalibrated' as const,
+        rationale: `Rủi ro minh họa cho sân bay ${item.name} (${item.code}), tỷ lệ đến trễ lịch sử ${histRate.toFixed(1).replace('.', ',')}%; quy tắc cỡ mẫu/ưu tiên chưa duyệt.`,
+      }
+    }).sort((a, b) => b.expectedRate - a.expectedRate)
+
+    const routeAggregates: RiskAggregate[] = candidateRoutes.map((item) => {
       const histRate = Number(item.rate.toFixed(1))
       const histGap = Number((histRate - networkRate).toFixed(1))
       const expRate = Number((histRate * 1.18 + windowAdjustment).toFixed(1))
       const highRisk = Number((histRate * 1.25 + windowAdjustment).toFixed(1))
+      const parts = item.route.split(' → ')
 
       return {
         id: item.route.replace(' → ', '-'),
         entity: item.route,
-        type: 'Route',
+        type: 'Route' as const,
+        origin: parts[0]?.trim(),
+        destination: parts[1]?.trim(),
         expectedRate: expRate,
         highRiskShare: Math.min(100, highRisk),
         historicalRate: histRate,
@@ -1362,11 +1397,20 @@ export class MockDashboardRepository implements DashboardRepository {
         historicalAverageDelay: Number(item.averageDelay.toFixed(1)),
         scoredN: scaleCount(Math.max(1, Math.round(item.count * 0.15))),
         historicalN: scaleCount(item.count),
-        sampleFlag: 'Uncalibrated',
-        priority: 'Uncalibrated',
-        rationale: 'Rủi ro minh họa cao, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt.',
+        sampleFlag: 'Uncalibrated' as const,
+        priority: 'Uncalibrated' as const,
+        rationale: `Rủi ro minh họa cao cho tuyến ${item.route}, dữ liệu lịch sử cao hơn BL-AR; quy tắc cỡ mẫu/ưu tiên chưa duyệt.`,
       }
     })
+
+    const routesByAirport: Record<string, RiskAggregate[]> = {}
+    for (const ap of hotspotAirports) {
+      routesByAirport[ap.code] = routeAggregates.filter(
+        (r) => r.origin === ap.code || r.destination === ap.code
+      )
+    }
+
+    const aggregates: RiskAggregate[] = [...routeAggregates, ...airportAggregates].sort((a, b) => b.expectedRate - a.expectedRate)
 
     const byTime = ['Early Morning', 'Morning', 'Afternoon', 'Evening'].map((label) => {
       const historical = eligible.filter((flight) => getTimeBlock(flight.CRS_DEP_TIME) === label)
@@ -1390,13 +1434,21 @@ export class MockDashboardRepository implements DashboardRepository {
     return {
       metadata: this.createMetadata('RỦI RO VÀ MỨC ƯU TIÊN MINH HỌA — KHÔNG PHẢI KHUYẾN NGHỊ VẬN HÀNH', eligible.length),
       aggregates,
+      routes: routeAggregates,
+      airports: airportAggregates,
+      routesByAirport,
       byTime,
     }
   }
 
   async getPredictionExplanation(id: string): Promise<PredictionExplanationData> {
     const isFlight = id.startsWith('WN')
-    const entity = isFlight ? `${id.slice(0, 6)} · Tuyến bay kế hoạch` : `${id.replace('-', ' → ')} · Tuyến bay tổng hợp`
+    const isAirport = !isFlight && !id.includes('-') && !id.includes(' → ')
+    const entity = isFlight
+      ? `${id.slice(0, 6)} · Tuyến bay kế hoạch`
+      : isAirport
+      ? `${id} · Sân bay phân đoạn`
+      : `${id.replace('-', ' → ')} · Tuyến bay tổng hợp`
 
     return {
       metadata: this.createMetadata('ĐÓNG GÓP ĐẶC TRƯNG MINH HỌA — TƯƠNG QUAN, KHÔNG PHẢI NGUYÊN NHÂN NHÂN QUẢ', 1),

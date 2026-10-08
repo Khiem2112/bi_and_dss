@@ -268,11 +268,17 @@ export interface RiskAggregate {
   sampleFlag: SampleFlag
   priority: 'Review first' | 'Monitor' | 'Uncalibrated'
   rationale: string
+  code?: string
+  origin?: string
+  destination?: string
 }
 
 export interface RiskAggregatesData {
   metadata: DashboardMetadata
   aggregates: RiskAggregate[]
+  routes?: RiskAggregate[]
+  airports?: RiskAggregate[]
+  routesByAirport?: Record<string, RiskAggregate[]>
   byTime: Array<{
     label: string
     expectedRate: number
