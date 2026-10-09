@@ -32,7 +32,7 @@ export interface GlobalFilters {
 }
 
 export const defaultFilters: GlobalFilters = {
-  fromDate: '2018-01-01',
+  fromDate: '2015-01-01',
   toDate: '2018-12-31',
   airportClauses: [],
   season: [],
@@ -141,15 +141,40 @@ export interface GranularTrendsData {
   baselineAvgDelay?: number
 }
 
+export interface DelaySeverityBand {
+  id: string
+  label: string
+  shortLabel: string
+  minArrivalDelay?: number
+  maxArrivalDelay?: number
+  share: number
+  metrics: DelayMetricBundle
+}
+
+export interface YearMonthDelayPoint {
+  period: string
+  year: number
+  month: number
+  label: string
+  metrics: DelayMetricBundle
+}
+
+export interface TimeBlockDelaySummary {
+  block: string
+  label: string
+  metrics: DelayMetricBundle
+}
+
 export interface OverviewData {
   metadata: DashboardMetadata
   kpis: KpiValue[]
   actualTrend: TrendPoint[]
   predictedTrend: TrendPoint[]
   unifiedTrends?: GranularTrendsData
-  destinations: AirportHotspot[]
-  candidates: EvidenceRecord[]
-  routes?: EvidenceRecord[]
+  severityBands: DelaySeverityBand[]
+  yearMonthComparison: YearMonthDelayPoint[]
+  timeBlocks: TimeBlockDelaySummary[]
+  seasons: SeasonSummary[]
 }
 
 export interface AirportHotspotsData {
@@ -382,7 +407,7 @@ export interface PredictionFilters {
   timeBlock?: string
 }
 
-export type AnalysisGrain = 'network' | 'airport' | 'route' | 'time_period' | 'time_cell' | 'future_flight'
+export type AnalysisGrain = 'network' | 'airport' | 'route' | 'time_period' | 'time_cell' | 'segment' | 'future_flight'
 
 export type ComparisonIntent = 'rate' | 'trend' | 'airport' | 'time_pattern' | 'future_history'
 
@@ -407,6 +432,7 @@ export interface WnAnalysisFilters {
   dateFrom?: string
   dateTo?: string
   months?: number[]
+  seasons?: string[]
   dayOfWeeks?: string[]
   scheduledTimeBlocks?: string[]
   airportClauses?: AirportClause[]
@@ -416,6 +442,8 @@ export interface WnAnalysisFilters {
   distanceGroups?: string[]
   distanceRange?: DistanceRange
   delayedOnly?: boolean
+  minimumArrivalDelay?: number
+  maximumArrivalDelay?: number
 }
 
 export interface WnAnalysisContext {

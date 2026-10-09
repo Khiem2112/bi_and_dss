@@ -3,6 +3,7 @@ import type {
   AirportHotspotsData,
   AirportLocation,
   CauseContextData,
+  DelaySeverityBand,
   DelayMetricBundle,
   DashboardMetadata,
   EvidenceRecord,
@@ -33,8 +34,10 @@ import type {
   SpatialState,
   TemporalContext,
   TemporalPatternsData,
+  TimeBlockDelaySummary,
   TrendPoint,
   WnAnalysisFilters,
+  YearMonthDelayPoint,
 } from '../domain/types'
 import { defaultFilters } from '../domain/types'
 import { matchesAirportClauseGroup } from '../domain/airportClauses'
@@ -114,6 +117,43 @@ const normalizeSearch = (value: string): string => value
   .trim()
   .replace(/\s+/g, ' ')
 
+const analysisFilterLabel = (key: string): string => ({
+  dateFrom: 'Từ ngày', dateTo: 'Đến ngày', months: 'Tháng', seasons: 'Mùa phân tích',
+  dayOfWeeks: 'Thứ trong tuần', scheduledTimeBlocks: 'Khung giờ kế hoạch', airportClauses: 'Sân bay và tuyến',
+  route: 'Đường bay', airport: 'Sân bay', airportRole: 'Vai trò sân bay', distanceGroups: 'Nhóm khoảng cách',
+  distanceRange: 'Khoảng cách', delayedOnly: 'Chỉ chuyến đến trễ', minimumArrivalDelay: 'Độ trễ đến tối thiểu',
+  maximumArrivalDelay: 'Độ trễ đến tối đa',
+}[key] ?? 'Điều kiện nguồn')
+
+const analysisFilterValue = (key: string, value: unknown): string => {
+  if (key === 'airportClauses' && Array.isArray(value)) return value.map((item) => {
+    const clause = item as { mode: string; airport?: string; origin?: string; destination?: string }
+    if (clause.mode === 'route') return `${clause.origin} → ${clause.destination}`
+    if (clause.mode === 'origin') return `Sân bay đi ${clause.airport}`
+    if (clause.mode === 'destination') return `Sân bay đến ${clause.airport}`
+    return `Sân bay ${clause.airport} · mọi vai trò`
+  }).join(', ')
+  if (key === 'seasons' && Array.isArray(value)) {
+    const labels: Record<string, string> = { Winter: 'Mùa đông', Spring: 'Mùa xuân', Summer: 'Mùa hè', Autumn: 'Mùa thu' }
+    return value.map((item) => labels[String(item)] ?? String(item)).join(', ')
+  }
+  if (key === 'scheduledTimeBlocks' && Array.isArray(value)) {
+    const labels: Record<string, string> = { 'Early Morning': 'Sáng sớm', Morning: 'Buổi sáng', Afternoon: 'Buổi chiều', Evening: 'Buổi tối' }
+    return value.map((item) => labels[String(item)] ?? String(item)).join(', ')
+  }
+  if (Array.isArray(value)) return value.map(String).join(', ')
+  if (key === 'airportRole') return value === 'origin' ? 'Sân bay đi' : value === 'destination' ? 'Sân bay đến' : 'Mọi vai trò'
+  if (key === 'minimumArrivalDelay') return `Từ ${Number(value).toLocaleString('vi-VN')} phút`
+  if (key === 'maximumArrivalDelay') return `Đến ${Number(value).toLocaleString('vi-VN')} phút`
+  if (key === 'delayedOnly') return value ? 'Có' : 'Không'
+  if (key === 'distanceRange' && typeof value === 'object' && value) {
+    const range = value as { minMiles: number; maxMiles: number }
+    return `${range.minMiles.toLocaleString('vi-VN')}–${range.maxMiles.toLocaleString('vi-VN')} dặm`
+  }
+  if (typeof value === 'object') return 'Điều kiện tổng hợp'
+  return String(value)
+}
+
 const wait = (duration = 180) => new Promise((resolve) => window.setTimeout(resolve, duration))
 
 export class MockDashboardRepository implements DashboardRepository {
@@ -181,6 +221,7 @@ export class MockDashboardRepository implements DashboardRepository {
       if (filters.dateFrom && flight.FL_DATE < filters.dateFrom) return false
       if (filters.dateTo && flight.FL_DATE > filters.dateTo) return false
       if (filters.months?.length && !filters.months.includes(Number(flight.FL_DATE.slice(5, 7)))) return false
+      if (filters.seasons?.length && !filters.seasons.includes(getSeason(flight.FL_DATE))) return false
       if (filters.dayOfWeeks?.length && !filters.dayOfWeeks.includes(getDayOfWeek(flight.FL_DATE))) return false
       if (filters.scheduledTimeBlocks?.length && !filters.scheduledTimeBlocks.includes(getTimeBlock(flight.CRS_DEP_TIME))) return false
       if (!matchesAirportClauseGroup(flight, filters.airportClauses)) return false
@@ -194,6 +235,8 @@ export class MockDashboardRepository implements DashboardRepository {
       if (filters.distanceGroups?.length && !filters.distanceGroups.includes(getDistanceGroup(flight.DISTANCE))) return false
       if (!matchesDistanceRange(flight.DISTANCE, filters.distanceRange)) return false
       if (filters.delayedOnly && !isDelayed(flight)) return false
+      if (filters.minimumArrivalDelay !== undefined && (flight.ARR_DELAY ?? -Infinity) < filters.minimumArrivalDelay) return false
+      if (filters.maximumArrivalDelay !== undefined && (flight.ARR_DELAY ?? Infinity) > filters.maximumArrivalDelay) return false
       return true
     })
   }
@@ -298,13 +341,11 @@ export class MockDashboardRepository implements DashboardRepository {
 
   async getOverview(filters: GlobalFilters): Promise<OverviewData> {
     this.activeFilters = filters
-    const [allFlights, airports] = await Promise.all([this.loadFlights(), this.loadAirports()])
-    const airportMap = new Map(airports.map((a) => [a.code, a]))
+    const allFlights = await this.loadFlights()
 
     const baseFlights = this.filterFlights(allFlights, filters, 'WN')
     const eligible = baseFlights.filter(isEligible)
     const delayed = eligible.filter(isDelayed)
-
     const eligibleCount = scaleCount(eligible.length)
     const delayedCount = scaleCount(delayed.length)
     const hasEligible = eligible.length > 0
@@ -395,7 +436,7 @@ export class MockDashboardRepository implements DashboardRepository {
         : 0
       return {
         period,
-        label: `Tháng ${monthNum}/2018`,
+        label: `Tháng ${monthNum}/${period.slice(0, 4)}`,
         wn,
         dl,
         aa,
@@ -543,65 +584,89 @@ export class MockDashboardRepository implements DashboardRepository {
 
     const unifiedTrends: GranularTrendsData = {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA XU HƯỚNG TỔNG QUAN', eligible.length),
-      month: monthlySeries,
-      week: weeklySeries,
-      day: dailySeries,
+      month: [...monthlySeries.filter((point) => !point.isFuture).slice(-12), ...monthlySeries.filter((point) => point.isFuture)],
+      week: [...weeklySeries.filter((point) => !point.isFuture).slice(-12), ...weeklySeries.filter((point) => point.isFuture)],
+      day: [...dailySeries.filter((point) => !point.isFuture).slice(-30), ...dailySeries.filter((point) => point.isFuture)],
       baseline: delayRate,
       baselineAvgDelay: avgDelay,
     }
 
-    const destinations = this.computeHotspotAirports(eligible, airportMap, delayRate)
-
-    const routeGroupMap = new Map<string, FlightRecord[]>()
-    for (const f of eligible) {
-      const route = `${f.ORIGIN} → ${f.DEST}`
-      const list = routeGroupMap.get(route) ?? []
-      list.push(f)
-      routeGroupMap.set(route, list)
-    }
-
-    const routeCandidates: EvidenceRecord[] = []
-    for (const [route, rFlights] of routeGroupMap.entries()) {
-      const rDelayed = rFlights.filter(isDelayed)
-      const rate = Number(((rDelayed.length / rFlights.length) * 100).toFixed(1))
-      const gap = Number((rate - delayRate).toFixed(1))
-      const rAvg = Number((rFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / rFlights.length).toFixed(1))
-      const distance = Math.round(rFlights.reduce((acc, cur) => acc + (cur.DISTANCE || 0), 0) / rFlights.length)
-      const estimatedTime = Math.round(
-        rFlights.reduce((acc, cur) => acc + (cur.CRS_ELAPSED_TIME || cur.ACTUAL_ELAPSED_TIME || 0), 0) / rFlights.length
-      )
-      const [origin, destination] = route.split(' → ')
-
-      routeCandidates.push({
-        id: route.replace(' → ', '-'),
-        entity: route,
-        entityType: 'Route',
-        rate,
-        baseline: delayRate,
-        gap,
-        averageDelay: rAvg,
-        n: scaleCount(rFlights.length),
-        delayedCount: scaleCount(rDelayed.length),
-        eligibleCount: scaleCount(rFlights.length),
-        flag: 'Uncalibrated',
-        distance,
-        estimatedTime,
-        origin,
-        destination,
+    const severityDefinitions: Array<Omit<DelaySeverityBand, 'share' | 'metrics'>> = [
+      { id: 'early', label: 'Đến sớm', shortLabel: '< 0 phút', maxArrivalDelay: -0.001 },
+      { id: 'on-time', label: 'Đúng giờ hoặc trễ dưới ngưỡng', shortLabel: '0–14 phút', minArrivalDelay: 0, maxArrivalDelay: 14.999 },
+      { id: 'delay-15-29', label: 'Trễ nhẹ', shortLabel: '15–29 phút', minArrivalDelay: 15, maxArrivalDelay: 29.999 },
+      { id: 'delay-30-59', label: 'Trễ đáng kể', shortLabel: '30–59 phút', minArrivalDelay: 30, maxArrivalDelay: 59.999 },
+      { id: 'delay-60-plus', label: 'Trễ nghiêm trọng', shortLabel: 'Từ 60 phút', minArrivalDelay: 60 },
+    ]
+    const severityBands = severityDefinitions.map((definition) => {
+      const records = eligible.filter((flight) => {
+        const arrivalDelay = flight.ARR_DELAY ?? 0
+        if (definition.minArrivalDelay !== undefined && arrivalDelay < definition.minArrivalDelay) return false
+        if (definition.maxArrivalDelay !== undefined && arrivalDelay > definition.maxArrivalDelay) return false
+        return true
       })
-    }
-    routeCandidates.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
+      return {
+        ...definition,
+        share: eligible.length > 0 ? Number(((records.length / eligible.length) * 100).toFixed(3)) : 0,
+        metrics: calculateBundle(records),
+      }
+    })
 
-    const candidates: EvidenceRecord[] = []
-    const positiveGapRoutes = routeCandidates.filter((r) => (r.gap ?? 0) > 0)
-    const negativeGapRoutes = routeCandidates.filter((r) => (r.gap ?? 0) < 0).reverse()
+    const yearMonthComparison: YearMonthDelayPoint[] = sortedMonths.map((period) => {
+      const records = monthMap.get(period) ?? []
+      const year = Number(period.slice(0, 4))
+      const month = Number(period.slice(5, 7))
+      return {
+        period,
+        year,
+        month,
+        label: `Tháng ${month}/${year}`,
+        metrics: calculateBundle(records),
+      }
+    })
 
-    positiveGapRoutes.slice(0, 3).forEach((r) => candidates.push(r))
-    negativeGapRoutes.slice(0, 2).forEach((r) => candidates.push(r))
+    const timeBlockConfig = [
+      { block: 'Early Morning', label: 'Sáng sớm' },
+      { block: 'Morning', label: 'Buổi sáng' },
+      { block: 'Afternoon', label: 'Buổi chiều' },
+      { block: 'Evening', label: 'Buổi tối' },
+    ]
+    const timeBlocks: TimeBlockDelaySummary[] = timeBlockConfig.map(({ block, label }) => ({
+      block,
+      label,
+      metrics: calculateBundle(eligible.filter((flight) => getTimeBlock(flight.CRS_DEP_TIME) === block)),
+    }))
 
-    if (candidates.length === 0 && routeCandidates.length > 0) {
-      candidates.push(...routeCandidates.slice(0, 5))
-    }
+    const seasonConfig = [
+      { season: 'Winter', months: [['01', 'Jan'], ['02', 'Feb'], ['03', 'Mar']] as const },
+      { season: 'Spring', months: [['04', 'Apr'], ['05', 'May'], ['06', 'Jun']] as const },
+      { season: 'Summer', months: [['07', 'Jul'], ['08', 'Aug'], ['09', 'Sep']] as const },
+      { season: 'Autumn', months: [['10', 'Oct'], ['11', 'Nov'], ['12', 'Dec']] as const },
+    ]
+    const seasons: SeasonSummary[] = seasonConfig.map((definition) => {
+      const seasonFlights = eligible.filter((flight) => definition.months.some(([month]) => flight.FL_DATE.slice(5, 7) === month))
+      const seasonBundle = calculateBundle(seasonFlights)
+      return {
+        season: definition.season,
+        rate: seasonBundle.delayRate ?? 0,
+        n: seasonBundle.eligibleFlights,
+        delayedCount: seasonBundle.delayedFlights,
+        averageDelay: seasonBundle.averageArrivalDelayMinutes ?? 0,
+        gap: seasonBundle.delayRate === null ? 0 : Number((seasonBundle.delayRate - delayRate).toFixed(1)),
+        months: definition.months.map(([monthCode, monthLabel]) => {
+          const records = seasonFlights.filter((flight) => flight.FL_DATE.slice(5, 7) === monthCode)
+          const bundle = calculateBundle(records)
+          return {
+            month: monthLabel,
+            rate: bundle.delayRate ?? 0,
+            gap: bundle.delayRate === null ? 0 : Number((bundle.delayRate - delayRate).toFixed(1)),
+            n: bundle.eligibleFlights,
+            delayedCount: bundle.delayedFlights,
+            averageDelay: bundle.averageArrivalDelayMinutes ?? 0,
+          }
+        }),
+      }
+    })
 
     return {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG', eligible.length),
@@ -609,9 +674,10 @@ export class MockDashboardRepository implements DashboardRepository {
       actualTrend,
       predictedTrend,
       unifiedTrends,
-      destinations,
-      candidates,
-      routes: routeCandidates,
+      severityBands,
+      yearMonthComparison,
+      timeBlocks,
+      seasons,
     }
   }
 
@@ -1345,7 +1411,7 @@ export class MockDashboardRepository implements DashboardRepository {
     })
     const start = Math.max(0, (request.page - 1) * request.pageSize)
     const appliedFilters = [
-      ...Object.entries(request.sourceFilters).filter(([, value]) => value !== undefined && (!Array.isArray(value) || value.length > 0)).map(([key, value]) => ({ key, label: key, value: Array.isArray(value) ? value.join(', ') : String(value), provenance: 'source' as const, locked: key === 'route' || key === 'airport' })),
+      ...Object.entries(request.sourceFilters).filter(([, value]) => value !== undefined && (!Array.isArray(value) || value.length > 0)).map(([key, value]) => ({ key, label: analysisFilterLabel(key), value: analysisFilterValue(key, value), provenance: 'source' as const, locked: key === 'route' || key === 'airport' })),
       ...Object.entries(local).filter(([, value]) => value !== undefined && value !== '' && value !== 'all').map(([key, value]) => ({ key, label: key, value: String(value), provenance: 'investigation' as const })),
     ]
     return {

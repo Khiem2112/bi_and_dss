@@ -36,6 +36,7 @@ export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnal
       airportClauses: activeGlobalFilters.airportClauses.length
         ? activeGlobalFilters.airportClauses.map((clause) => ({ ...clause }))
         : undefined,
+      seasons: activeGlobalFilters.season.length ? [...activeGlobalFilters.season] : undefined,
       dayOfWeeks: activeGlobalFilters.dayOfWeek.length ? [...activeGlobalFilters.dayOfWeek] : undefined,
       scheduledTimeBlocks: activeGlobalFilters.scheduledTimeBlock.length ? [...activeGlobalFilters.scheduledTimeBlock] : undefined,
       distanceGroups: distanceFilter?.mode === 'groups' && distanceFilter.groups.length ? [...distanceFilter.groups] : undefined,

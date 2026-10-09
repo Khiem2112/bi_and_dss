@@ -42,10 +42,11 @@ const timeBlocks = [
 ]
 
 const sourceLabels: Record<string, string> = {
-  dateFrom: 'Từ ngày', dateTo: 'Đến ngày', months: 'Tháng', dayOfWeeks: 'Thứ', scheduledTimeBlocks: 'Khung giờ',
+  dateFrom: 'Từ ngày', dateTo: 'Đến ngày', months: 'Tháng', seasons: 'Mùa phân tích', dayOfWeeks: 'Thứ', scheduledTimeBlocks: 'Khung giờ',
   airportClauses: 'Điều kiện sân bay & tuyến',
   route: 'Đường bay', airport: 'Sân bay và phạm vi', airportRole: 'Vai trò sân bay',
   distanceGroups: 'Nhóm cự ly chuẩn', distanceRange: 'Khoảng cự ly', delayedOnly: 'Chỉ chuyến trễ',
+  minimumArrivalDelay: 'Độ trễ đến tối thiểu', maximumArrivalDelay: 'Độ trễ đến tối đa',
 }
 const localLabels: Record<string, string> = {
   fromDate: 'Từ ngày', toDate: 'Đến ngày', airportClauses: 'Điều kiện sân bay & tuyến',
@@ -66,11 +67,17 @@ const formatFilterValue = (key: string, rawValue: unknown): string => {
     const text = String(value)
     if (key === 'dateFrom' || key === 'dateTo' || key === 'fromDate' || key === 'toDate') return formatDateDisplay(text)
     if (key === 'months') return `Tháng ${Number(value)}`
+    if (key === 'seasons') return ({ Winter: 'Mùa đông', Spring: 'Mùa xuân', Summer: 'Mùa hè', Autumn: 'Mùa thu' }[text] ?? text)
     if (key === 'scheduledTimeBlocks' || key === 'scheduledTimeBlock') return formatTimeBlock(text)
     if (key === 'airportRole') return text === 'origin' ? 'Chỉ chuyến đi' : text === 'destination' ? 'Chỉ chuyến đến' : 'Mọi chuyến liên quan'
     if (key === 'delayedOnly') return 'Có'
     if (key === 'outcome') return outcomeLabels[text] ?? text
-    if (key === 'minimumArrivalDelay' || key === 'maximumArrivalDelay') return `${text} phút`
+    if (key === 'minimumArrivalDelay') return `Từ ${Number(value).toLocaleString('vi-VN')} phút`
+    if (key === 'maximumArrivalDelay') {
+      const numeric = Number(value)
+      const exclusiveCeiling = Math.ceil(numeric)
+      return Math.abs(exclusiveCeiling - numeric) < 0.01 ? `Dưới ${exclusiveCeiling.toLocaleString('vi-VN')} phút` : `Tối đa ${numeric.toLocaleString('vi-VN')} phút`
+    }
     return text
   }).join(', ')
 }

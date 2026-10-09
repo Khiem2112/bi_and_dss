@@ -146,7 +146,6 @@ export function SeasonalBarChart({
           return (
             <g
               key={season.season}
-              data-analysis-unit={`season-${season.season}`}
               className={`season-band-group${isSeasonActive ? ' active' : ''}`}
               opacity={isSeasonDimmed ? 0.4 : 1}
               onContextMenu={(event) => onSeasonContextMenu?.(event, season)}
@@ -179,6 +178,7 @@ export function SeasonalBarChart({
               />
 
               <g
+                data-analysis-unit={`season-${season.season}`}
                 role="button"
                 tabIndex={0}
                 style={{ cursor: 'pointer' }}
@@ -196,13 +196,26 @@ export function SeasonalBarChart({
                   })
                 }}
                 onMouseLeave={() => setActiveTooltip(null)}
+                onFocus={() => {
+                  setActiveTooltip({
+                    x: sCenter,
+                    y: padding.top - 4,
+                    title: `${formatSeason(season.season)} (Tháng ${season.months.map((m) => formatMonth(m.month).replace('Tháng ', '')).join(', ')})`,
+                    rate: season.rate,
+                    gap: season.gap ?? 0,
+                    delayedCount: season.delayedCount,
+                    averageDelay: season.averageDelay,
+                    n: season.n ?? 0,
+                  })
+                }}
+                onBlur={() => setActiveTooltip(null)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     onSelectSeason?.(season.season)
                   }
                 }}
-                aria-label={`Chọn ${formatSeason(season.season)}, tỷ lệ trung bình ${season.rate.toFixed(1)}%`}
+                aria-label={`${formatSeason(season.season)}: tỷ lệ trễ ${season.rate.toFixed(1)}%; ${(season.delayedCount ?? 0).toLocaleString('vi-VN')} chuyến trễ trên ${(season.n ?? 0).toLocaleString('vi-VN')} chuyến đủ điều kiện; độ trễ đến trung bình ${(season.averageDelay ?? 0).toFixed(1)} phút.`}
               >
                 <rect
                   x={sCenter - 48}
@@ -283,7 +296,7 @@ export function SeasonalBarChart({
                         onSelectMonth?.(m.month)
                       }
                     }}
-                    aria-label={`${formatMonth(m.month)}: tỷ lệ trễ ${m.rate.toFixed(1)}%, cỡ mẫu n=${m.n}`}
+                    aria-label={`${formatMonth(m.month)}: tỷ lệ trễ ${m.rate.toFixed(1)}%; ${(m.delayedCount ?? 0).toLocaleString('vi-VN')} chuyến trễ trên ${m.n.toLocaleString('vi-VN')} chuyến đủ điều kiện; độ trễ đến trung bình ${(m.averageDelay ?? 0).toFixed(1)} phút.`}
                   >
                     <rect
                       x={bX}
