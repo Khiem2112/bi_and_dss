@@ -19,7 +19,7 @@ interface CreateAnalysisContextInput {
 }
 
 export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnalysisContext {
-  const first = <T,>(values: readonly T[]): T | undefined => values.length === 1 ? values[0] : undefined
+  const distanceFilter = input.globalFilters.distanceFilter
   return {
     sourceComponentId: input.sourceComponentId,
     sourceUnitId: input.sourceUnitId,
@@ -30,12 +30,15 @@ export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnal
     filters: {
       dateFrom: input.globalFilters.fromDate,
       dateTo: input.globalFilters.toDate,
-      origin: first(input.globalFilters.origin),
-      destination: first(input.globalFilters.destination),
-      route: first(input.globalFilters.route),
+      airportClauses: input.globalFilters.airportClauses.length
+        ? input.globalFilters.airportClauses.map((clause) => ({ ...clause }))
+        : undefined,
       dayOfWeeks: input.globalFilters.dayOfWeek.length ? [...input.globalFilters.dayOfWeek] : undefined,
       scheduledTimeBlocks: input.globalFilters.scheduledTimeBlock.length ? [...input.globalFilters.scheduledTimeBlock] : undefined,
-      distanceGroups: input.globalFilters.distanceGroup.length ? [...input.globalFilters.distanceGroup] : undefined,
+      distanceGroups: distanceFilter?.mode === 'groups' && distanceFilter.groups.length ? [...distanceFilter.groups] : undefined,
+      distanceRange: distanceFilter?.mode === 'range'
+        ? { minMiles: distanceFilter.minMiles, maxMiles: distanceFilter.maxMiles }
+        : undefined,
       ...input.filters,
     },
     metricSnapshot: { ...input.metrics },

@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import type {
+  AirportClause,
+  DistanceFilter,
+  DistanceRange,
   FlightInvestigationFilters,
   FlightRecord,
   FlightSortDirection,
@@ -10,7 +13,11 @@ import type {
 import { useFlightInvestigation } from '../hooks/dashboardHooks'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
 import { OverlayFrame } from './OverlayFrame'
-import { formatDateDisplay, formatTimeBlock } from '../domain/formatters'
+import { formatAirportClauseGroup, formatDateDisplay, formatTimeBlock } from '../domain/formatters'
+import { AirportClauseBuilder } from '../components/filters/AirportClauseBuilder'
+import { AIRPORT_OPTIONS } from '../components/filters/airportOptions'
+import { DistanceFilterBuilder } from '../components/filters/DistanceFilterBuilder'
+import { formatDistanceFilter, formatDistanceRange } from '../domain/distanceFilter'
 
 interface FlightInvestigationModalProps {
   context: WnAnalysisContext
@@ -36,12 +43,13 @@ const timeBlocks = [
 
 const sourceLabels: Record<string, string> = {
   dateFrom: 'Từ ngày', dateTo: 'Đến ngày', months: 'Tháng', dayOfWeeks: 'Thứ', scheduledTimeBlocks: 'Khung giờ',
-  origin: 'Sân bay đi', destination: 'Sân bay đến', route: 'Đường bay', airport: 'Sân bay', airportRole: 'Vai trò sân bay',
-  distanceGroups: 'Nhóm khoảng cách', delayedOnly: 'Chỉ chuyến trễ',
+  airportClauses: 'Điều kiện sân bay & tuyến',
+  route: 'Đường bay', airport: 'Sân bay và phạm vi', airportRole: 'Vai trò sân bay',
+  distanceGroups: 'Nhóm cự ly chuẩn', distanceRange: 'Khoảng cự ly', delayedOnly: 'Chỉ chuyến trễ',
 }
 const localLabels: Record<string, string> = {
-  fromDate: 'Từ ngày', toDate: 'Đến ngày', origin: 'Sân bay đi', destination: 'Sân bay đến', route: 'Đường bay',
-  dayOfWeek: 'Thứ', scheduledTimeBlock: 'Khung giờ', distanceGroup: 'Nhóm khoảng cách', outcome: 'Trạng thái',
+  fromDate: 'Từ ngày', toDate: 'Đến ngày', airportClauses: 'Điều kiện sân bay & tuyến',
+  dayOfWeek: 'Thứ', scheduledTimeBlock: 'Khung giờ', distanceFilter: 'Điều kiện cự ly', outcome: 'Trạng thái',
   flightNumber: 'Số hiệu chuyến', minimumArrivalDelay: 'Trễ đến tối thiểu', maximumArrivalDelay: 'Trễ đến tối đa',
 }
 
@@ -50,13 +58,16 @@ const outcomeLabels: Record<string, string> = {
 }
 
 const formatFilterValue = (key: string, rawValue: unknown): string => {
+  if (key === 'airportClauses' && Array.isArray(rawValue)) return formatAirportClauseGroup(rawValue as AirportClause[])
+  if (key === 'distanceFilter') return formatDistanceFilter(rawValue as DistanceFilter)
+  if (key === 'distanceRange') return formatDistanceRange(rawValue as DistanceRange)
   const values = Array.isArray(rawValue) ? rawValue : [rawValue]
   return values.map((value) => {
     const text = String(value)
     if (key === 'dateFrom' || key === 'dateTo' || key === 'fromDate' || key === 'toDate') return formatDateDisplay(text)
     if (key === 'months') return `Tháng ${Number(value)}`
     if (key === 'scheduledTimeBlocks' || key === 'scheduledTimeBlock') return formatTimeBlock(text)
-    if (key === 'airportRole') return text === 'origin' ? 'Sân bay đi' : text === 'destination' ? 'Sân bay đến' : 'Cả hai vai trò'
+    if (key === 'airportRole') return text === 'origin' ? 'Chỉ chuyến đi' : text === 'destination' ? 'Chỉ chuyến đến' : 'Mọi chuyến liên quan'
     if (key === 'delayedOnly') return 'Có'
     if (key === 'outcome') return outcomeLabels[text] ?? text
     if (key === 'minimumArrivalDelay' || key === 'maximumArrivalDelay') return `${text} phút`
@@ -95,6 +106,12 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
   const [sort, setSort] = useState<{ field: FlightSortField; direction: FlightSortDirection }>({ field: 'arrivalDelay', direction: 'desc' })
   const [page, setPage] = useState(1)
   const [selectedFlight, setSelectedFlight] = useState<FlightRecord | null>(null)
+  const sourceAirportCodes = sourceFilters.airport
+    ? (Array.isArray(sourceFilters.airport) ? sourceFilters.airport : [sourceFilters.airport])
+    : []
+  const hasSourceAirport = sourceAirportCodes.length > 0
+  const hasSourceRoute = Boolean(sourceFilters.route)
+  const sourceAirportScope = formatFilterValue('airportRole', sourceFilters.airportRole ?? 'either')
 
   const request = useMemo(() => ({
     context,
@@ -119,13 +136,19 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
   }
   const removeSourceFilter = (key: keyof WnAnalysisFilters) => {
     pushSnapshot()
-    setSourceFilters((current) => ({ ...current, [key]: undefined }))
+    setSourceFilters((current) => key === 'airport'
+      ? { ...current, airport: undefined, airportRole: undefined }
+      : { ...current, [key]: undefined })
     setPage(1)
   }
   const removeLocalFilter = (key: keyof FlightInvestigationFilters) => {
     pushSnapshot()
-    setLocalFilters((current) => ({ ...current, [key]: key === 'outcome' ? 'all' : undefined }))
-    setDraft((current) => ({ ...current, [key]: key === 'outcome' ? 'all' : undefined }))
+    const clear = (current: FlightInvestigationFilters): FlightInvestigationFilters => ({
+      ...current,
+      [key]: key === 'outcome' ? 'all' : undefined,
+    })
+    setLocalFilters(clear)
+    setDraft(clear)
     setPage(1)
   }
   const goBackOneLevel = () => {
@@ -152,8 +175,10 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
     setPage(1)
   }
 
-  const sourceChips = Object.entries(sourceFilters).filter(([, value]) => value !== undefined && value !== false && (!Array.isArray(value) || value.length > 0))
-  const localChips = Object.entries(localFilters).filter(([, value]) => value !== undefined && value !== '' && value !== 'all')
+  const sourceChips = Object.entries(sourceFilters)
+    .filter(([key, value]) => key !== 'airportRole' && value !== undefined && value !== false && (!Array.isArray(value) || value.length > 0))
+  const localChips = Object.entries(localFilters)
+    .filter(([, value]) => value !== undefined && value !== '' && value !== 'all' && (!Array.isArray(value) || value.length > 0))
 
   return (
     <OverlayFrame
@@ -169,10 +194,34 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
     >
       <Card id="FI-C02" title="Thanh lọc điều tra" subtitle="Áp dụng cục bộ trên ảnh chụp ngữ cảnh nguồn; mọi thay đổi cập nhật KPI và bảng">
         <div className="investigation-filter-grid">
+          {hasSourceAirport && (
+            <div className="investigation-scope-note" role="note">
+              <strong>Ngữ cảnh sân bay nguồn: {sourceAirportCodes.join(', ')} · {sourceAirportScope}</strong>
+              <span>Nhóm điều kiện thêm bên dưới kết hợp VÀ với ngữ cảnh nguồn; các dòng bên trong nhóm kết hợp HOẶC.</span>
+            </div>
+          )}
+          {!hasSourceAirport && hasSourceRoute && (
+            <div className="investigation-scope-note" role="note">
+              <strong>Ngữ cảnh đường bay nguồn: {sourceFilters.route}</strong>
+              <span>Nhóm điều kiện thêm bên dưới kết hợp VÀ với đường bay nguồn.</span>
+            </div>
+          )}
+          {!hasSourceAirport && !hasSourceRoute && (
+            <div className="investigation-scope-note" role="note">
+              <strong>Điều kiện thu hẹp cục bộ</strong>
+              <span>Các dòng sân bay và tuyến kết hợp HOẶC; cả nhóm kết hợp VÀ với ảnh chụp ngữ cảnh nguồn.</span>
+            </div>
+          )}
           <label><span>Từ ngày</span><input type="date" value={draft.fromDate ?? ''} onChange={(event) => setDraft((current) => ({ ...current, fromDate: event.target.value || undefined }))} /></label>
           <label><span>Đến ngày</span><input type="date" value={draft.toDate ?? ''} onChange={(event) => setDraft((current) => ({ ...current, toDate: event.target.value || undefined }))} /></label>
-          <label><span>Sân bay đi</span><input value={draft.origin ?? ''} maxLength={3} placeholder="Ví dụ: ATL" onChange={(event) => setDraft((current) => ({ ...current, origin: event.target.value.toUpperCase() || undefined }))} /></label>
-          <label><span>Sân bay đến</span><input value={draft.destination ?? ''} maxLength={3} placeholder="Ví dụ: BWI" onChange={(event) => setDraft((current) => ({ ...current, destination: event.target.value.toUpperCase() || undefined }))} /></label>
+          <div className="investigation-clause-field">
+            <span>Điều kiện sân bay &amp; tuyến</span>
+            <AirportClauseBuilder value={draft.airportClauses ?? []} onChange={(airportClauses) => setDraft((current) => ({ ...current, airportClauses }))} airports={AIRPORT_OPTIONS} ariaLabel="Điều kiện sân bay và tuyến trong điều tra" compact />
+          </div>
+          <div className="investigation-clause-field">
+            <span>Điều kiện cự ly</span>
+            <DistanceFilterBuilder value={draft.distanceFilter} onChange={(distanceFilter) => setDraft((current) => ({ ...current, distanceFilter: distanceFilter ?? undefined }))} ariaLabel="Điều kiện cự ly trong điều tra" compact />
+          </div>
           <label><span>Thứ trong tuần</span><select value={draft.dayOfWeek ?? ''} onChange={(event) => setDraft((current) => ({ ...current, dayOfWeek: event.target.value || undefined }))}><option value="">Tất cả</option>{dayOptions.map((day) => <option key={day}>{day}</option>)}</select></label>
           <label><span>Khung giờ kế hoạch</span><select value={draft.scheduledTimeBlock ?? ''} onChange={(event) => setDraft((current) => ({ ...current, scheduledTimeBlock: event.target.value || undefined }))}><option value="">Tất cả</option>{timeBlocks.map((block) => <option key={block.value} value={block.value}>{block.label}</option>)}</select></label>
           <label><span>Trạng thái</span><select value={draft.outcome ?? 'all'} onChange={(event) => setDraft((current) => ({ ...current, outcome: event.target.value as FlightInvestigationFilters['outcome'] }))}><option value="all">Tất cả chuyến đủ điều kiện</option><option value="delayed">Chuyến đến trễ</option><option value="not_delayed">Chuyến không trễ</option></select></label>
@@ -193,7 +242,9 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
             <div className="compact-filter-group">
               <div className="compact-filter-group-title"><span className="filter-origin-dot source" aria-hidden="true" /><strong>Nguồn</strong><small>{sourceChips.length}</small></div>
               <div className="filter-chips">{sourceChips.map(([key, value]) => {
-                const displayValue = formatFilterValue(key, value)
+                const displayValue = key === 'airport'
+                  ? `${formatFilterValue(key, value)} · ${formatFilterValue('airportRole', sourceFilters.airportRole ?? 'either')}`
+                  : formatFilterValue(key, value)
                 return <button className="filter-chip source" type="button" key={key} onClick={() => removeSourceFilter(key as keyof WnAnalysisFilters)} data-tooltip="Điều kiện từ thành phần nguồn. Chọn để bỏ điều kiện này và mở rộng phạm vi." aria-label={`Bỏ điều kiện nguồn ${sourceLabels[key] ?? key}: ${displayValue}`}><span className="filter-chip-label">{sourceLabels[key] ?? key}</span><span className="filter-chip-value">{displayValue}</span><span className="filter-chip-remove" aria-hidden="true">×</span></button>
               })}</div>
             </div>

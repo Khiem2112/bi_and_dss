@@ -37,6 +37,8 @@ import type {
   WnAnalysisFilters,
 } from '../domain/types'
 import { defaultFilters } from '../domain/types'
+import { matchesAirportClauseGroup } from '../domain/airportClauses'
+import { getDistanceGroup, matchesDistanceFilter, matchesDistanceRange } from '../domain/distanceFilter'
 import type { DashboardRepository } from './DashboardRepository'
 
 const MOCK_SAMPLE_MULTIPLIER = 25
@@ -66,11 +68,6 @@ const getSeason = (dateStr: string): string => {
   if (month <= 6) return 'Spring'
   if (month <= 9) return 'Summer'
   return 'Autumn'
-}
-
-const getDistanceGroup = (distance: number): string => {
-  const group = Math.min(11, Math.max(1, Math.floor(distance / 250) + 1))
-  return `G${String(group).padStart(2, '0')}`
 }
 
 const getTimeBlock = (crsDepTime: number): string => {
@@ -170,13 +167,11 @@ export class MockDashboardRepository implements DashboardRepository {
       if (carrier && flight.OP_CARRIER !== carrier) return false
       if (filters.fromDate && flight.FL_DATE < filters.fromDate) return false
       if (filters.toDate && flight.FL_DATE > filters.toDate) return false
-      if (filters.origin && filters.origin.length > 0 && !filters.origin.includes(flight.ORIGIN)) return false
-      if (filters.destination && filters.destination.length > 0 && !filters.destination.includes(flight.DEST)) return false
-      if (filters.route && filters.route.length > 0 && !filters.route.includes(formatRoute(flight))) return false
+      if (!matchesAirportClauseGroup(flight, filters.airportClauses)) return false
       if (filters.season && filters.season.length > 0 && !filters.season.includes(getSeason(flight.FL_DATE))) return false
       if (filters.dayOfWeek && filters.dayOfWeek.length > 0 && !filters.dayOfWeek.includes(getDayOfWeek(flight.FL_DATE))) return false
       if (filters.scheduledTimeBlock && filters.scheduledTimeBlock.length > 0 && !filters.scheduledTimeBlock.includes(getTimeBlock(flight.CRS_DEP_TIME))) return false
-      if (filters.distanceGroup && filters.distanceGroup.length > 0 && !filters.distanceGroup.includes(getDistanceGroup(flight.DISTANCE))) return false
+      if (!matchesDistanceFilter(flight, filters.distanceFilter)) return false
       return true
     })
   }
@@ -188,15 +183,16 @@ export class MockDashboardRepository implements DashboardRepository {
       if (filters.months?.length && !filters.months.includes(Number(flight.FL_DATE.slice(5, 7)))) return false
       if (filters.dayOfWeeks?.length && !filters.dayOfWeeks.includes(getDayOfWeek(flight.FL_DATE))) return false
       if (filters.scheduledTimeBlocks?.length && !filters.scheduledTimeBlocks.includes(getTimeBlock(flight.CRS_DEP_TIME))) return false
-      if (filters.origin && flight.ORIGIN !== filters.origin) return false
-      if (filters.destination && flight.DEST !== filters.destination) return false
+      if (!matchesAirportClauseGroup(flight, filters.airportClauses)) return false
       if (filters.route && formatRoute(flight) !== filters.route) return false
       if (filters.airport) {
-        if (filters.airportRole === 'origin' && flight.ORIGIN !== filters.airport) return false
-        if (filters.airportRole === 'destination' && flight.DEST !== filters.airport) return false
-        if ((!filters.airportRole || filters.airportRole === 'either') && flight.ORIGIN !== filters.airport && flight.DEST !== filters.airport) return false
+        const airports = Array.isArray(filters.airport) ? filters.airport : [filters.airport]
+        if (filters.airportRole === 'origin' && !airports.includes(flight.ORIGIN)) return false
+        if (filters.airportRole === 'destination' && !airports.includes(flight.DEST)) return false
+        if ((!filters.airportRole || filters.airportRole === 'either') && !airports.includes(flight.ORIGIN) && !airports.includes(flight.DEST)) return false
       }
       if (filters.distanceGroups?.length && !filters.distanceGroups.includes(getDistanceGroup(flight.DISTANCE))) return false
+      if (!matchesDistanceRange(flight.DISTANCE, filters.distanceRange)) return false
       if (filters.delayedOnly && !isDelayed(flight)) return false
       return true
     })
@@ -695,8 +691,6 @@ export class MockDashboardRepository implements DashboardRepository {
 
     const routeMap = new Map<string, FlightRecord[]>()
     for (const f of eligible) {
-      if (filters.origin.length > 0 && !filters.origin.includes(f.ORIGIN)) continue
-      if (filters.destination.length > 0 && !filters.destination.includes(f.DEST)) continue
       const route = `${f.ORIGIN} → ${f.DEST}`
       const list = routeMap.get(route) ?? []
       list.push(f)
@@ -1197,8 +1191,7 @@ export class MockDashboardRepository implements DashboardRepository {
     }).sort((left, right) => right.expectedCoverageRate - left.expectedCoverageRate).slice(0, 6)
 
     const hasComparableEntity = Boolean(
-      request.context.filters.route || request.context.filters.airport ||
-      request.context.filters.origin || request.context.filters.destination ||
+      request.context.filters.route || request.context.filters.airport || request.context.filters.airportClauses?.length ||
       request.context.grain === 'route' || request.context.grain === 'airport' || request.context.grain === 'time_cell',
     )
     if (!hasComparableEntity) {
@@ -1326,12 +1319,10 @@ export class MockDashboardRepository implements DashboardRepository {
     filtered = filtered.filter((flight) => {
       if (local.fromDate && flight.FL_DATE < local.fromDate) return false
       if (local.toDate && flight.FL_DATE > local.toDate) return false
-      if (local.origin && flight.ORIGIN !== local.origin.trim().toUpperCase()) return false
-      if (local.destination && flight.DEST !== local.destination.trim().toUpperCase()) return false
-      if (local.route && formatRoute(flight) !== local.route) return false
+      if (!matchesAirportClauseGroup(flight, local.airportClauses)) return false
       if (local.dayOfWeek && getDayOfWeek(flight.FL_DATE) !== local.dayOfWeek) return false
       if (local.scheduledTimeBlock && getTimeBlock(flight.CRS_DEP_TIME) !== local.scheduledTimeBlock) return false
-      if (local.distanceGroup && getDistanceGroup(flight.DISTANCE) !== local.distanceGroup) return false
+      if (!matchesDistanceFilter(flight, local.distanceFilter)) return false
       if (local.outcome === 'delayed' && !isDelayed(flight)) return false
       if (local.outcome === 'not_delayed' && isDelayed(flight)) return false
       if (local.flightNumber && !String(flight.OP_CARRIER_FL_NUM).includes(local.flightNumber.trim())) return false

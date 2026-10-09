@@ -1,4 +1,16 @@
-import type { SampleFlag } from './types'
+import type { AirportClause, SampleFlag } from './types'
+
+export function formatAirportClause(clause: AirportClause): string {
+  if (clause.mode === 'route') return `${clause.origin} → ${clause.destination}`
+  if (clause.mode === 'origin') return `Sân bay đi = ${clause.airport}`
+  if (clause.mode === 'destination') return `Sân bay đến = ${clause.airport}`
+  return `Sân bay = ${clause.airport} · mọi vai trò`
+}
+
+export function formatAirportClauseGroup(clauses: readonly AirportClause[]): string {
+  if (clauses.length === 0) return 'Tất cả sân bay và đường bay'
+  return clauses.map(formatAirportClause).join(' HOẶC ')
+}
 
 export function formatDateDisplay(dateStr?: string): string {
   if (!dateStr) return ''

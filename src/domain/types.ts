@@ -24,25 +24,21 @@ export interface DashboardMetadata {
 export interface GlobalFilters {
   fromDate: string
   toDate: string
-  origin: string[]
-  destination: string[]
-  route: string[]
+  airportClauses: AirportClause[]
   season: string[]
   dayOfWeek: string[]
   scheduledTimeBlock: string[]
-  distanceGroup: string[]
+  distanceFilter: DistanceFilter | null
 }
 
 export const defaultFilters: GlobalFilters = {
   fromDate: '2018-01-01',
   toDate: '2018-12-31',
-  origin: [],
-  destination: [],
-  route: [],
+  airportClauses: [],
   season: [],
   dayOfWeek: [],
   scheduledTimeBlock: [],
-  distanceGroup: [],
+  distanceFilter: null,
 }
 
 export interface DelayMetricBundle {
@@ -390,18 +386,35 @@ export type AnalysisGrain = 'network' | 'airport' | 'route' | 'time_period' | 't
 
 export type ComparisonIntent = 'rate' | 'trend' | 'airport' | 'time_pattern' | 'future_history'
 
+export type AirportRole = 'origin' | 'destination' | 'either'
+
+export type AirportClause =
+  | { id: string; mode: 'route'; origin: string; destination: string }
+  | { id: string; mode: 'origin'; airport: string }
+  | { id: string; mode: 'destination'; airport: string }
+  | { id: string; mode: 'airport'; airport: string }
+
+export interface DistanceRange {
+  minMiles: number
+  maxMiles: number
+}
+
+export type DistanceFilter =
+  | { mode: 'groups'; groups: string[] }
+  | ({ mode: 'range' } & DistanceRange)
+
 export interface WnAnalysisFilters {
   dateFrom?: string
   dateTo?: string
   months?: number[]
   dayOfWeeks?: string[]
   scheduledTimeBlocks?: string[]
-  origin?: string
-  destination?: string
+  airportClauses?: AirportClause[]
   route?: string
-  airport?: string
-  airportRole?: 'origin' | 'destination' | 'either'
+  airport?: string | string[]
+  airportRole?: AirportRole
   distanceGroups?: string[]
+  distanceRange?: DistanceRange
   delayedOnly?: boolean
 }
 
@@ -481,12 +494,10 @@ export type FlightSortDirection = 'asc' | 'desc'
 export interface FlightInvestigationFilters {
   fromDate?: string
   toDate?: string
-  origin?: string
-  destination?: string
-  route?: string
+  airportClauses?: AirportClause[]
   dayOfWeek?: string
   scheduledTimeBlock?: string
-  distanceGroup?: string
+  distanceFilter?: DistanceFilter
   outcome?: 'all' | 'delayed' | 'not_delayed'
   flightNumber?: string
   minimumArrivalDelay?: number

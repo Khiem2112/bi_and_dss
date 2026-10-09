@@ -44,6 +44,7 @@ export type MultiSelectComboboxProps = {
   readonly renderBadge?: (item: MultiSelectItem, onRemove: () => void) => ReactNode
   readonly emptyMessage?: string
   readonly countLabel?: (count: number) => string
+  readonly selectionMode?: 'multiple' | 'single'
 }
 
 export function MultiSelectCombobox({
@@ -68,6 +69,7 @@ export function MultiSelectCombobox({
   renderBadge,
   emptyMessage = 'Không tìm thấy tùy chọn',
   countLabel,
+  selectionMode = 'multiple',
 }: MultiSelectComboboxProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,13 +113,19 @@ export function MultiSelectCombobox({
 
   const handleToggle = useCallback(
     (itemValue: string) => {
+      if (selectionMode === 'single') {
+        onChange([itemValue])
+        setIsOpen(false)
+        requestAnimationFrame(() => buttonRef.current?.focus())
+        return
+      }
       const isSelected = values.includes(itemValue)
       const nextValues = isSelected
         ? values.filter((v) => v !== itemValue)
         : [...values, itemValue]
       onChange(nextValues)
     },
-    [onChange, values],
+    [onChange, selectionMode, values],
   )
 
   const handleClearAll = useCallback(
@@ -287,7 +295,7 @@ export function MultiSelectCombobox({
       ref={menuRef}
       id={listboxId}
       role="listbox"
-      aria-multiselectable="true"
+      aria-multiselectable={selectionMode === 'multiple' ? true : undefined}
       data-combobox-portal="true"
       onPointerDown={(e) => e.stopPropagation()}
       style={
@@ -369,6 +377,7 @@ export function MultiSelectCombobox({
                     <span
                       className={cn(
                         'ui-combobox-checkbox',
+                        selectionMode === 'single' && 'ui-combobox-checkbox-single',
                         isSelected && 'ui-combobox-checkbox-checked',
                       )}
                       aria-hidden="true"
@@ -436,12 +445,23 @@ export function MultiSelectCombobox({
         aria-controls={listboxId}
         aria-activedescendant={isOpen && !searchable && filteredOptions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
         aria-label={ariaLabel ?? label ?? placeholder}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => setIsOpen((prev) => {
+          if (!prev) {
+            const selectedIndex = filteredOptions.findIndex((option) => values.includes(option.value))
+            setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0)
+          }
+          return !prev
+        })}
         onKeyDown={(event) => {
+          if (isOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape'].includes(event.key)) {
+            handleMenuKeyDown(event)
+            return
+          }
           if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
           event.preventDefault()
           setIsOpen(true)
-          setActiveIndex(event.key === 'ArrowDown' ? 0 : Math.max(0, filteredOptions.length - 1))
+          const selectedIndex = filteredOptions.findIndex((option) => values.includes(option.value))
+          setActiveIndex(selectedIndex >= 0 ? selectedIndex : event.key === 'ArrowDown' ? 0 : Math.max(0, filteredOptions.length - 1))
         }}
         className={cn(
           'ui-combobox-trigger',
