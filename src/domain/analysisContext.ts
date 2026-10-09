@@ -7,19 +7,22 @@ import type {
   WnAnalysisFilters,
 } from './types'
 
-interface CreateAnalysisContextInput {
+import { useFilterStore } from '../stores/filterStore'
+
+export interface CreateAnalysisContextInput {
   sourceComponentId: string
   sourceUnitId: string
   sourceLabelVi: string
   grain: AnalysisGrain
   comparisonIntent: ComparisonIntent
-  globalFilters: GlobalFilters
+  globalFilters?: GlobalFilters
   metrics: DelayMetricBundle
   filters?: Partial<WnAnalysisFilters>
 }
 
 export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnalysisContext {
-  const distanceFilter = input.globalFilters.distanceFilter
+  const activeGlobalFilters = input.globalFilters ?? useFilterStore.getState().filters
+  const distanceFilter = activeGlobalFilters.distanceFilter
   return {
     sourceComponentId: input.sourceComponentId,
     sourceUnitId: input.sourceUnitId,
@@ -28,13 +31,13 @@ export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnal
     grain: input.grain,
     comparisonIntent: input.comparisonIntent,
     filters: {
-      dateFrom: input.globalFilters.fromDate,
-      dateTo: input.globalFilters.toDate,
-      airportClauses: input.globalFilters.airportClauses.length
-        ? input.globalFilters.airportClauses.map((clause) => ({ ...clause }))
+      dateFrom: activeGlobalFilters.fromDate,
+      dateTo: activeGlobalFilters.toDate,
+      airportClauses: activeGlobalFilters.airportClauses.length
+        ? activeGlobalFilters.airportClauses.map((clause) => ({ ...clause }))
         : undefined,
-      dayOfWeeks: input.globalFilters.dayOfWeek.length ? [...input.globalFilters.dayOfWeek] : undefined,
-      scheduledTimeBlocks: input.globalFilters.scheduledTimeBlock.length ? [...input.globalFilters.scheduledTimeBlock] : undefined,
+      dayOfWeeks: activeGlobalFilters.dayOfWeek.length ? [...activeGlobalFilters.dayOfWeek] : undefined,
+      scheduledTimeBlocks: activeGlobalFilters.scheduledTimeBlock.length ? [...activeGlobalFilters.scheduledTimeBlock] : undefined,
       distanceGroups: distanceFilter?.mode === 'groups' && distanceFilter.groups.length ? [...distanceFilter.groups] : undefined,
       distanceRange: distanceFilter?.mode === 'range'
         ? { minMiles: distanceFilter.minMiles, maxMiles: distanceFilter.maxMiles }
@@ -45,6 +48,7 @@ export function createAnalysisContext(input: CreateAnalysisContextInput): WnAnal
     openedAt: new Date().toISOString(),
   }
 }
+
 
 export function bundleFromEvidence(input: {
   eligible?: number

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { GlobalFilterBar } from './components/filters/GlobalFilterBar'
-import { defaultFilters, type GlobalFilters, type PageId, type WnAnalysisContext } from './domain/types'
+import { type PageId, type WnAnalysisContext } from './domain/types'
 import { bundleFromEvidence, createAnalysisContext } from './domain/analysisContext'
 import { OverviewPage } from './pages/OverviewPage'
 import { SpatialPage } from './pages/SpatialPage'
@@ -15,7 +15,10 @@ import { PredictionExplanationDrawer } from './overlays/PredictionExplanationDra
 import { MethodologyModal } from './overlays/MethodologyModal'
 import { FlightInvestigationModal } from './overlays/FlightInvestigationModal'
 
-type OverlayRoute =
+import { useFilterStore } from './stores/filterStore'
+import { useOverlayStore } from './stores/overlayStore'
+
+export type OverlayRoute =
   | { kind: 'comparison'; context: WnAnalysisContext }
   | { kind: 'flight-investigation'; context: WnAnalysisContext; carrierScope: 'WN' | 'peer_group'; frozenPeerCarriers: string[] }
   | { kind: 'evidence'; entity: string }
@@ -23,10 +26,7 @@ type OverlayRoute =
   | { kind: 'explanation'; id: string }
   | { kind: 'methodology' }
 
-interface OverlayState {
-  active: OverlayRoute | null
-  backStack: OverlayRoute[]
-}
+
 
 const isPage = (value: string): value is PageId => ['overview', 'spatial', 'temporal', 'prediction'].includes(value)
 
@@ -35,9 +35,23 @@ export default function App() {
   const routerNavigate = useNavigate()
   const routePage = location.pathname.replace(/^\//, '')
   const page: PageId = isPage(routePage) ? routePage : 'overview'
-  const [filters, setFilters] = useState<GlobalFilters>(defaultFilters)
+
+  const filters = useFilterStore((state) => state.filters)
+  const setFilters = useFilterStore((state) => state.setFilters)
   const [selectedEntity, setSelectedEntity] = useState('DAL → ATL')
-  const [overlayState, setOverlayState] = useState<OverlayState>({ active: null, backStack: [] })
+
+  const overlayState = useOverlayStore((state) => state.overlayState)
+  const {
+    openOverlay,
+    closeOverlays,
+    goBackOverlay,
+    openEvidence,
+    openCause,
+    openComparison,
+    openInvestigation,
+    updateComparisonContext,
+  } = useOverlayStore()
+
   const [toast, setToast] = useState('')
 
   const showToast = useCallback((message: string) => setToast(message), [])
@@ -52,25 +66,6 @@ export default function App() {
     routerNavigate(`/${nextPage}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
-
-  const openOverlay = (route: OverlayRoute, preserveActive = false) => setOverlayState((current) => ({
-    active: route,
-    backStack: preserveActive && current.active ? [...current.backStack, current.active] : [],
-  }))
-  const closeOverlays = () => setOverlayState({ active: null, backStack: [] })
-  const goBackOverlay = () => setOverlayState((current) => {
-    const previous = current.backStack[current.backStack.length - 1] ?? null
-    return { active: previous, backStack: current.backStack.slice(0, -1) }
-  })
-  const openEvidence = (entity: string) => openOverlay({ kind: 'evidence', entity }, Boolean(overlayState.active))
-  const openCause = (entity: string) => openOverlay({ kind: 'cause', entity }, Boolean(overlayState.active))
-  const openComparison = (context: WnAnalysisContext) => openOverlay({ kind: 'comparison', context }, Boolean(overlayState.active))
-  const openInvestigation = (context: WnAnalysisContext, frozenPeerCarriers: string[] = [], carrierScope: 'WN' | 'peer_group' = 'WN') =>
-    openOverlay({ kind: 'flight-investigation', context, frozenPeerCarriers, carrierScope }, Boolean(overlayState.active))
-  const updateComparisonContext = (context: WnAnalysisContext) => setOverlayState((current) => ({
-    ...current,
-    active: current.active?.kind === 'comparison' ? { kind: 'comparison', context } : current.active,
-  }))
 
   const fallbackContext = (entity: string) => createAnalysisContext({
     sourceComponentId: 'SD', sourceUnitId: entity, sourceLabelVi: entity,

@@ -11,16 +11,19 @@ import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
 import { AnalysisActions } from '../components/ui/AnalysisActions'
 import { useAnalysisContextMenu } from '../components/ui/useAnalysisContextMenu'
 
+import { useFilterStore } from '../stores/filterStore'
+import { useOverlayStore } from '../stores/overlayStore'
+
 interface TemporalPageProps {
-  filters: GlobalFilters
+  filters?: GlobalFilters
   selectedEntity: string
   onNavigate: (page: PageId) => void
   onSelectEntity: (entity: string) => void
-  onOpenComparison: (context: WnAnalysisContext) => void
-  onOpenInvestigation: (context: WnAnalysisContext) => void
-  onOpenEvidence: (entity: string) => void
-  onOpenCause: (entity: string) => void
-  onOpenMethodology: () => void
+  onOpenComparison?: (context: WnAnalysisContext) => void
+  onOpenInvestigation?: (context: WnAnalysisContext) => void
+  onOpenEvidence?: (entity: string) => void
+  onOpenCause?: (entity: string) => void
+  onOpenMethodology?: () => void
   onToast: (message: string) => void
 }
 
@@ -38,7 +41,7 @@ const heatLevel = (gap: number | null) => {
 }
 
 export function TemporalPage({
-  filters,
+  filters: propFilters,
   selectedEntity,
   onNavigate,
   onSelectEntity,
@@ -48,6 +51,10 @@ export function TemporalPage({
   onOpenMethodology,
   onToast,
 }: TemporalPageProps) {
+  const globalFilters = useFilterStore((state) => state.filters)
+  const filters = propFilters ?? globalFilters
+  const storeOpenCause = useOverlayStore((state) => state.openCause)
+  const handleOpenCause = onOpenCause ?? storeOpenCause
   const routeContext = selectedEntity.includes('→') ? selectedEntity : 'DAL → ATL'
   const [selectedCell, setSelectedCell] = useState('Thứ Sáu · Evening')
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>()
@@ -80,7 +87,7 @@ export function TemporalPage({
     openAnalysisContextMenu(e, context, {
       entitySubtitle: entityType === 'Route' ? 'Đường bay trong thời đoạn' : 'Sân bay trong thời đoạn',
       extraItems: [
-        { label: 'Bối cảnh nguyên nhân ghi nhận', onClick: () => onOpenCause(entity) },
+        { label: 'Bối cảnh nguyên nhân ghi nhận', onClick: () => handleOpenCause(entity) },
         { label: 'Phân tích không gian & bản đồ', onClick: () => { onSelectEntity(entity); onNavigate('spatial') } },
       ],
     })

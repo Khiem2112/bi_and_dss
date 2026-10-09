@@ -1,10 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { WnAnalysisContext } from '../../domain/types'
+import {
+  useOverlayStore,
+  resolveTargetToContext,
+  type AnalysisTargetInput,
+} from '../../stores/overlayStore'
 
 interface AnalysisActionsProps {
-  context: WnAnalysisContext
-  onOpenComparison: (context: WnAnalysisContext) => void
-  onOpenInvestigation: (context: WnAnalysisContext) => void
+  context: AnalysisTargetInput
+  onOpenComparison?: (context: WnAnalysisContext) => void
+  onOpenInvestigation?: (context: WnAnalysisContext) => void
   compact?: boolean
   predictive?: boolean
 }
@@ -21,6 +26,10 @@ export function AnalysisActions({
   const firstItemRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [contextPosition, setContextPosition] = useState<{ x: number; y: number } | null>(null)
+
+  const resolvedContext = useMemo(() => resolveTargetToContext(context), [context])
+  const storeOpenComparison = useOverlayStore((state) => state.openComparison)
+  const storeOpenInvestigation = useOverlayStore((state) => state.openInvestigation)
 
   useEffect(() => {
     if (!open) return
@@ -48,8 +57,13 @@ export function AnalysisActions({
   const invoke = (kind: 'comparison' | 'investigation') => {
     setOpen(false)
     setContextPosition(null)
-    if (kind === 'comparison') onOpenComparison(context)
-    else onOpenInvestigation(context)
+    if (kind === 'comparison') {
+      if (onOpenComparison) onOpenComparison(resolvedContext)
+      else storeOpenComparison(resolvedContext)
+    } else {
+      if (onOpenInvestigation) onOpenInvestigation(resolvedContext)
+      else storeOpenInvestigation(resolvedContext)
+    }
   }
 
   return (

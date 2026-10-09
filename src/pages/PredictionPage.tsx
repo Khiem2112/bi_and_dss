@@ -54,19 +54,28 @@ const futureFlightColumns: readonly DashboardTableColumn<FutureFlight>[] = [
   },
 ]
 
+import { useFilterStore } from '../stores/filterStore'
+import { useOverlayStore } from '../stores/overlayStore'
+
 interface PredictionPageProps {
   selectedEntity: string
   globalFilters?: GlobalFilters
-  onOpenComparison: (context: WnAnalysisContext) => void
-  onOpenInvestigation: (context: WnAnalysisContext) => void
-  onOpenEvidence: (entity: string) => void
-  onOpenExplanation: (id: string) => void
+  onOpenComparison?: (context: WnAnalysisContext) => void
+  onOpenInvestigation?: (context: WnAnalysisContext) => void
+  onOpenEvidence?: (entity: string) => void
+  onOpenExplanation?: (id: string) => void
   onSelectEntity: (entity: string) => void
-  onOpenMethodology: () => void
+  onOpenMethodology?: () => void
   onToast: (message: string) => void
 }
 
-export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison, onOpenInvestigation, onOpenExplanation, onSelectEntity, onOpenMethodology, onToast }: PredictionPageProps) {
+export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilters, onOpenComparison, onOpenInvestigation, onOpenExplanation, onSelectEntity, onOpenMethodology, onToast }: PredictionPageProps) {
+  const storeFilters = useFilterStore((state) => state.filters)
+  const globalFilters = propGlobalFilters ?? storeFilters
+  const storeOpenExplanation = useOverlayStore((state) => state.openExplanation)
+  const storeOpenInvestigation = useOverlayStore((state) => state.openInvestigation)
+  const handleOpenExplanation = onOpenExplanation ?? storeOpenExplanation
+  const handleOpenInvestigation = onOpenInvestigation ?? storeOpenInvestigation
   const [filters, setFilters] = useState<PredictionFilters>({ window: '2019-01-01 → 2019-01-07' })
   const [selectedFlight, setSelectedFlight] = useState('WN1842-20190102')
   const [selectedAggregate, setSelectedAggregate] = useState(selectedEntity.includes('→') ? selectedEntity : 'DAL → ATL')
@@ -158,8 +167,8 @@ export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison
             />
           )}
           <div className="inline-actions">
-            <button className="btn btn-primary" type="button" disabled={!selectedFlightRecord} onClick={() => selectedFlightRecord && onOpenExplanation(selectedFlightRecord.id)}>Giải thích dự báo</button>
-            <button className="btn btn-secondary" type="button" disabled={!selectedFlightRecord} onClick={() => selectedFlightRecord && onOpenInvestigation(contextForFlight(selectedFlightRecord))}>Điều tra lịch sử hỗ trợ</button>
+            <button className="btn btn-primary" type="button" disabled={!selectedFlightRecord} onClick={() => selectedFlightRecord && handleOpenExplanation(selectedFlightRecord.id)}>Giải thích dự báo</button>
+            <button className="btn btn-secondary" type="button" disabled={!selectedFlightRecord} onClick={() => selectedFlightRecord && handleOpenInvestigation(contextForFlight(selectedFlightRecord))}>Điều tra lịch sử hỗ trợ</button>
           </div>
         </Card>
 
@@ -235,7 +244,7 @@ export function PredictionPage({ selectedEntity, globalFilters, onOpenComparison
           extraAction={
             <div className="inline-actions">
               {selectedRisk && <AnalysisActions context={contextForRisk(selectedRisk)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive />}
-              <button className="btn btn-secondary" type="button" disabled={!selectedRisk} onClick={() => selectedRisk && onOpenExplanation(selectedRisk.id)}>Giải thích phân đoạn</button>
+              <button className="btn btn-secondary" type="button" disabled={!selectedRisk} onClick={() => selectedRisk && handleOpenExplanation(selectedRisk.id)}>Giải thích phân đoạn</button>
             </div>
           }
         />

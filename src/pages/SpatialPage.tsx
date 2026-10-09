@@ -18,19 +18,26 @@ import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '.
 import { AnalysisActions } from '../components/ui/AnalysisActions'
 import { useAnalysisContextMenu } from '../components/ui/useAnalysisContextMenu'
 
+import { useFilterStore } from '../stores/filterStore'
+import { useOverlayStore } from '../stores/overlayStore'
+
 interface SpatialPageProps {
-  filters: GlobalFilters
-  initialEntity: string
+  filters?: GlobalFilters
+  initialEntity?: string
   onNavigate: (page: PageId) => void
-  onOpenComparison: (context: WnAnalysisContext) => void
-  onOpenInvestigation: (context: WnAnalysisContext) => void
-  onOpenEvidence: (entity: string) => void
-  onOpenCause: (entity: string) => void
+  onOpenComparison?: (context: WnAnalysisContext) => void
+  onOpenInvestigation?: (context: WnAnalysisContext) => void
+  onOpenEvidence?: (entity: string) => void
+  onOpenCause?: (entity: string) => void
   onSelectEntity: (entity: string) => void
   onToast: (message: string) => void
 }
 
-export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenInvestigation, onOpenCause, onSelectEntity, onToast }: SpatialPageProps) {
+export function SpatialPage({ filters: propFilters, onNavigate, onOpenComparison, onOpenInvestigation, onOpenCause, onSelectEntity, onToast }: SpatialPageProps) {
+  const globalFilters = useFilterStore((state) => state.filters)
+  const filters = propFilters ?? globalFilters
+  const storeOpenCause = useOverlayStore((state) => state.openCause)
+  const handleOpenCause = onOpenCause ?? storeOpenCause
   const [localState, setLocalState] = useState<SpatialState>({ grain: 'destination', metric: 'gap' })
   const [selectedAirportCode, setSelectedAirportCode] = useState<string | undefined>()
   const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
@@ -110,7 +117,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenInves
         },
         {
           label: 'Bối cảnh nguyên nhân ghi nhận',
-          onClick: () => onOpenCause(entity),
+          onClick: () => handleOpenCause(entity),
         },
       ],
     })

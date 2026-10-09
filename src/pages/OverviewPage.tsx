@@ -12,14 +12,17 @@ import { AnalysisActions } from '../components/ui/AnalysisActions'
 import { useAnalysisContextMenu } from '../components/ui/useAnalysisContextMenu'
 import type { Granularity } from '../components/charts/UnifiedTrendChart'
 
+import { useFilterStore } from '../stores/filterStore'
+import { useOverlayStore } from '../stores/overlayStore'
+
 interface OverviewPageProps {
-  filters: GlobalFilters
+  filters?: GlobalFilters
   onNavigate: (page: PageId) => void
   onSelectEntity: (entity: string) => void
-  onOpenComparison: (context: WnAnalysisContext) => void
-  onOpenInvestigation: (context: WnAnalysisContext) => void
-  onOpenEvidence: (entity: string) => void
-  onOpenMethodology: () => void
+  onOpenComparison?: (context: WnAnalysisContext) => void
+  onOpenInvestigation?: (context: WnAnalysisContext) => void
+  onOpenEvidence?: (entity: string) => void
+  onOpenMethodology?: () => void
   onToast: (message: string) => void
 }
 
@@ -39,7 +42,7 @@ function formatDuration(minutes?: number): string {
 }
 
 export function OverviewPage({
-  filters,
+  filters: propFilters,
   onSelectEntity,
   onOpenComparison,
   onOpenInvestigation,
@@ -47,6 +50,10 @@ export function OverviewPage({
   onOpenMethodology,
   onToast,
 }: OverviewPageProps) {
+  const globalFilters = useFilterStore((state) => state.filters)
+  const filters = propFilters ?? globalFilters
+  const storeOpenEvidence = useOverlayStore((state) => state.openEvidence)
+  const handleOpenEvidence = onOpenEvidence ?? storeOpenEvidence
   const query = useOverview(filters)
   const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>()
@@ -353,7 +360,7 @@ export function OverviewPage({
             className="btn btn-secondary full-width"
             type="button"
             style={{ marginTop: '12px' }}
-            onClick={() => onOpenEvidence(overview.candidates[0]?.entity ?? 'DAL → ATL')}
+            onClick={() => handleOpenEvidence(overview.candidates[0]?.entity ?? 'DAL → ATL')}
           >
             Mở bằng chứng phân đoạn
           </button>
