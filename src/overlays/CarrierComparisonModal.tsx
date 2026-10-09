@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import type { DelayMetricBundle, WnAnalysisContext } from '../domain/types'
 import { usePeerBenchmark } from '../hooks/dashboardHooks'
@@ -9,7 +9,6 @@ interface CarrierComparisonModalProps {
   context: WnAnalysisContext
   onClose: () => void
   onBack?: () => void
-  onContextChange: (context: WnAnalysisContext) => void
   onOpenInvestigation: (context: WnAnalysisContext, carriers: string[], carrierScope: 'WN' | 'peer_group') => void
 }
 
@@ -41,8 +40,8 @@ const viewId: Record<WnAnalysisContext['comparisonIntent'], string> = {
   time_pattern: 'CM-V-TIME', future_history: 'CM-V-FUTURE',
 }
 
-export function CarrierComparisonModal({ context, onClose, onBack, onContextChange, onOpenInvestigation }: CarrierComparisonModalProps) {
-  const [workingContext, setWorkingContext] = useState(context)
+export function CarrierComparisonModal({ context, onClose, onBack, onOpenInvestigation }: CarrierComparisonModalProps) {
+  const workingContext = context
   const request = useMemo(() => ({
     context: workingContext,
     maxPeers: 2 as const,
@@ -75,39 +74,11 @@ export function CarrierComparisonModal({ context, onClose, onBack, onContextChan
       <div className="comparison-context-strip">
         <IllustrativeLabel compact />
         <span className="context-chip" tabIndex={0} data-tooltip="Ngữ cảnh được đóng băng khi mở cửa sổ; thay đổi bộ lọc nền không tự cập nhật kết quả.">Ngữ cảnh đã đóng băng</span>
+        <span className="context-chip" tabIndex={0} data-tooltip="Kết quả giữ nguyên lát cắt từ component nguồn. Tuyến chỉ được dùng bên trong để ghép các chuyến tương đương của WN và hãng đối sánh.">Bám theo ngữ cảnh nguồn</span>
         <span className="context-chip" tabIndex={0} data-tooltip="Ngưỡng độ phủ 20% chỉ phục vụ hành vi minh họa và chưa được phê duyệt cho môi trường thật.">Ngưỡng minh họa 20%</span>
       </div>
 
-      {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải dữ liệu đối sánh'} onRetry={query.refetch} /> : query.isLoading || !result ? <LoadingState rows={8} /> : result.status === 'incomplete_context' ? (
-        <Card id="CM-C02" title="Hoàn thiện ngữ cảnh so sánh" subtitle="Mốc toàn mạng không đảm bảo tính tương đương; hãy chọn một tuyến có dữ liệu chung">
-          <EmptyState title="Cần chọn tuyến hoặc sân bay" detail={result.unavailableReason ?? 'Ngữ cảnh hiện tại chưa đủ chi tiết để tạo mức tham chiếu hợp lệ.'} />
-          <div className="comparison-suggestions">
-            {result.suggestions.map((suggestion) => (
-              <button
-                className="comparison-suggestion"
-                type="button"
-                key={suggestion.id}
-                onClick={() => setWorkingContext((current) => {
-                  const next: WnAnalysisContext = {
-                    ...current,
-                    sourceUnitId: suggestion.id,
-                    sourceLabelVi: suggestion.label,
-                    grain: 'route',
-                    comparisonIntent: 'rate',
-                    filters: { ...current.filters, route: suggestion.id },
-                    openedAt: new Date().toISOString(),
-                  }
-                  onContextChange(next)
-                  return next
-                })}
-              >
-                <strong>{suggestion.label}</strong>
-                <span>Độ phủ dự kiến {formatPercent(suggestion.expectedCoverageRate * 100)}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      ) : result.status === 'insufficient_comparability' ? (
+      {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải dữ liệu đối sánh'} onRetry={query.refetch} /> : query.isLoading || !result ? <LoadingState rows={8} /> : result.status === 'insufficient_comparability' ? (
         <Card id="CM-C02" title="Chưa đủ dữ liệu đối sánh" subtitle="Không thay thế bằng 0 hoặc mức trung bình toàn mạng">
           <EmptyState title="Không có nhóm hãng đạt độ phủ" detail={result.unavailableReason ?? 'Hãy mở rộng thời gian hoặc chuyển sang điều tra các chuyến WN.'} />
           <p className="interpretation-note">Có {result.benchmark.candidateCarrierCount} hãng ứng viên; tập hãng được chọn theo độ phủ dữ liệu chung, không theo kết quả trễ.</p>

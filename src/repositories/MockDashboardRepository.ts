@@ -1175,44 +1175,21 @@ export class MockDashboardRepository implements DashboardRepository {
     const candidateCarriers = Array.from(new Set(contextFlights.map((flight) => flight.OP_CARRIER)))
       .filter((carrier) => carrier !== 'WN')
 
+    const contextFilters = request.context.filters
     const cellKey = (flight: FlightRecord) => [
       formatRoute(flight),
       flight.FL_DATE.slice(0, 7),
-      getDayOfWeek(flight.FL_DATE),
-      getTimeBlock(flight.CRS_DEP_TIME),
-      getDistanceGroup(flight.DISTANCE),
+      // A selected single value has already been applied to every context flight.
+      // Preserve the mix only when the source context deliberately includes several values.
+      ...(contextFilters.dayOfWeeks && contextFilters.dayOfWeeks.length > 1 ? [getDayOfWeek(flight.FL_DATE)] : []),
+      ...(contextFilters.scheduledTimeBlocks && contextFilters.scheduledTimeBlocks.length > 1 ? [getTimeBlock(flight.CRS_DEP_TIME)] : []),
+      ...(contextFilters.distanceRange || (contextFilters.distanceGroups && contextFilters.distanceGroups.length > 1)
+        ? [getDistanceGroup(flight.DISTANCE)]
+        : []),
     ].join('|')
 
-    const routeSuggestions = Array.from(new Set(wnSource.map(formatRoute))).map((route) => {
-      const routeWn = wnSource.filter((flight) => formatRoute(flight) === route)
-      const peerCells = new Set(contextFlights.filter((flight) => flight.OP_CARRIER !== 'WN' && formatRoute(flight) === route).map(cellKey))
-      const covered = routeWn.filter((flight) => peerCells.has(cellKey(flight))).length
-      return { id: route, label: route, grain: 'route' as const, expectedCoverageRate: routeWn.length ? covered / routeWn.length : 0 }
-    }).sort((left, right) => right.expectedCoverageRate - left.expectedCoverageRate).slice(0, 6)
-
-    const hasComparableEntity = Boolean(
-      request.context.filters.route || request.context.filters.airport || request.context.filters.airportClauses?.length ||
-      request.context.grain === 'route' || request.context.grain === 'airport' || request.context.grain === 'time_cell',
-    )
-    if (!hasComparableEntity) {
-      return {
-        metadata: this.createMetadata('DỮ LIỆU MINH HỌA — CẦN HOÀN THIỆN NGỮ CẢNH ĐỐI SÁNH', contextFlights.length),
-        status: 'incomplete_context',
-        context: request.context,
-        wn: calculateBundle(wnSource),
-        peerObserved: calculateBundle([]),
-        peerBenchmarkRate: null,
-        peerBenchmarkAverageDelayMinutes: null,
-        rateGap: null,
-        benchmark: {
-          selectedCarriers: [], candidateCarrierCount: candidateCarriers.length, comparableCellCount: 0,
-          wnCoverageRate: 0, selectionRuleVersion: request.selectionRuleVersion,
-          weightingRuleVersion: request.weightingRuleVersion,
-        },
-        series: [], suggestions: routeSuggestions,
-        unavailableReason: 'Cần chọn tuyến hoặc sân bay trước khi tạo mức tham chiếu tương đương.',
-      }
-    }
+    // The source component owns the question. Route is retained inside the cell key
+    // for a controlled peer match; it is never a prerequisite the user must add.
 
     const wnCellKeys = new Set(wnSource.map(cellKey))
     const candidates = candidateCarriers.map((carrier) => {
@@ -1251,7 +1228,7 @@ export class MockDashboardRepository implements DashboardRepository {
           wnCoverageRate: 0, selectionRuleVersion: request.selectionRuleVersion,
           weightingRuleVersion: request.weightingRuleVersion, fallbackReason: 'insufficient_comparability',
         },
-        series: [], suggestions: routeSuggestions,
+        series: [],
         unavailableReason: 'Không có hãng nào đạt ngưỡng độ phủ minh họa trong ngữ cảnh hiện tại.',
       }
     }
@@ -1306,7 +1283,7 @@ export class MockDashboardRepository implements DashboardRepository {
         wnCoverageRate: finalCoverage, selectionRuleVersion: request.selectionRuleVersion,
         weightingRuleVersion: request.weightingRuleVersion, fallbackReason,
       },
-      series, suggestions: routeSuggestions,
+      series,
     }
   }
 

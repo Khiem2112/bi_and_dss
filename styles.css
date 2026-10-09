@@ -5625,32 +5625,6 @@ button:disabled {
   color: #cbd5e1;
 }
 
-.comparison-suggestions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.comparison-suggestion {
-  display: grid;
-  gap: 3px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  text-align: left;
-  cursor: pointer;
-}
-
-.comparison-suggestion:hover,
-.comparison-suggestion:focus-visible {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-  outline: 2px solid var(--blue-border);
-  outline-offset: 1px;
-}
-
 .focused-rate-view {
   display: grid;
   gap: 12px;
@@ -6059,8 +6033,7 @@ button:disabled {
 
 @media (max-width: 1200px) {
   .investigation-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .benchmark-summary-grid,
-  .comparison-suggestions { grid-template-columns: 1fr; }
+  .benchmark-summary-grid { grid-template-columns: 1fr; }
   .peer-metadata-grid,
   .investigation-summary-grid,
   .flight-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

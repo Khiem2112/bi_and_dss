@@ -55,15 +55,16 @@ export function TemporalPage({
   const filters = propFilters ?? globalFilters
   const storeOpenCause = useOverlayStore((state) => state.openCause)
   const handleOpenCause = onOpenCause ?? storeOpenCause
-  const routeContext = selectedEntity.includes('→') ? selectedEntity : 'DAL → ATL'
+  const initialRoute = selectedEntity.includes('→') ? selectedEntity : undefined
   const [selectedCell, setSelectedCell] = useState('Thứ Sáu · Evening')
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>()
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>()
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>()
-  const [selectedRoute, setSelectedRoute] = useState<string | undefined>(routeContext)
+  const [selectedRoute, setSelectedRoute] = useState<string | undefined>(initialRoute)
   const [selectedAirportCode, setSelectedAirportCode] = useState<string | undefined>()
   const [seasonalViewMode, setSeasonalViewMode] = useState<'seasonal' | 'trend'>('seasonal')
   const [evidenceTableMode, setEvidenceTableMode] = useState<'route' | 'airport'>('route')
+  const activeEntity = selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN'
 
   const { analysisContextMenu, openAnalysisContextMenu } = useAnalysisContextMenu(onOpenComparison, onOpenInvestigation)
 
@@ -98,7 +99,7 @@ export function TemporalPage({
     setSelectedMonth(undefined)
     setSelectedPeriod(undefined)
     setSelectedCell('Thứ Sáu · Evening')
-    setSelectedRoute(routeContext)
+    setSelectedRoute(initialRoute)
     setSelectedAirportCode(undefined)
     onToast('Đã đặt lại các lựa chọn thời gian cục bộ.')
   }
@@ -111,7 +112,7 @@ export function TemporalPage({
     selectedSeason ||
       selectedMonth ||
       selectedPeriod ||
-      (selectedRoute && selectedRoute !== routeContext) ||
+      (selectedRoute && selectedRoute !== initialRoute) ||
       selectedAirportCode ||
       selectedCell !== 'Thứ Sáu · Evening',
   )
@@ -163,18 +164,18 @@ export function TemporalPage({
   }
 
   const contextForSeason = (season: SeasonSummary) => {
-    const base = contextFor(selectedRoute ?? routeContext, 'P3-C02', 'trend', undefined, undefined, { months: seasonMonths[season.season] })
-    return { ...base, sourceUnitId: season.season, sourceLabelVi: `${formatSeason(season.season)} · ${selectedRoute ?? routeContext}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: season.n, delayed: season.delayedCount, rate: season.rate, averageDelay: season.averageDelay }) }
+    const base = contextFor(activeEntity, 'P3-C02', 'trend', undefined, undefined, { months: seasonMonths[season.season] })
+    return { ...base, sourceUnitId: season.season, sourceLabelVi: `${formatSeason(season.season)} · ${activeEntity}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: season.n, delayed: season.delayedCount, rate: season.rate, averageDelay: season.averageDelay }) }
   }
 
   const contextForMonth = (season: SeasonSummary, month: SeasonSummary['months'][number]) => {
-    const base = contextFor(selectedRoute ?? routeContext, 'P3-C02', 'trend', undefined, undefined, { months: [monthNumbers[month.month]] })
-    return { ...base, sourceUnitId: month.month, sourceLabelVi: `${formatMonth(month.month)} · ${formatSeason(season.season)} · ${selectedRoute ?? routeContext}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: month.n, delayed: month.delayedCount, rate: month.rate, averageDelay: month.averageDelay }) }
+    const base = contextFor(activeEntity, 'P3-C02', 'trend', undefined, undefined, { months: [monthNumbers[month.month]] })
+    return { ...base, sourceUnitId: month.month, sourceLabelVi: `${formatMonth(month.month)} · ${formatSeason(season.season)} · ${activeEntity}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: month.n, delayed: month.delayedCount, rate: month.rate, averageDelay: month.averageDelay }) }
   }
 
   const contextForTrendPoint = (point: TrendPoint) => {
-    const base = contextFor(selectedRoute ?? routeContext, 'P3-C02', 'trend', undefined, undefined, filtersForTrendPeriod(point.period, 'month'))
-    return { ...base, sourceUnitId: point.period, sourceLabelVi: `Tháng ${point.period.slice(5)}/${point.period.slice(0, 4)} · ${selectedRoute ?? routeContext}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: point.n, delayed: point.delayedCount, rate: point.value, averageDelay: point.averageDelay }) }
+    const base = contextFor(activeEntity, 'P3-C02', 'trend', undefined, undefined, filtersForTrendPeriod(point.period, 'month'))
+    return { ...base, sourceUnitId: point.period, sourceLabelVi: `Tháng ${point.period.slice(5)}/${point.period.slice(0, 4)} · ${activeEntity}`, grain: 'time_period' as const, metricSnapshot: bundleFromEvidence({ eligible: point.n, delayed: point.delayedCount, rate: point.value, averageDelay: point.averageDelay }) }
   }
 
   return (
@@ -199,7 +200,7 @@ export function TemporalPage({
 
       <div className="context-banner" data-component-id="P3-C01">
         <div>
-          <div className="card-title-group"><h2>{selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN'} · Ngữ cảnh thời gian</h2><ComponentHelpButton componentId="P3-C01" title="Ngữ cảnh thời gian" /></div>
+          <div className="card-title-group"><h2>{activeEntity} · Ngữ cảnh thời gian</h2><ComponentHelpButton componentId="P3-C01" title="Ngữ cảnh thời gian" /></div>
           <div className="context-list">
             <span className="context-chip" tabIndex={0} data-tooltip="Mức chuẩn theo ngữ cảnh thời gian đang chọn">BL-T</span>
             <span className="context-chip" tabIndex={0} data-tooltip="Ô ngày trong tuần – khung giờ đang chọn">{formatTemporalCell(selectedCell)}</span>
@@ -223,7 +224,7 @@ export function TemporalPage({
           }
           action={
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <AnalysisActions context={contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P3-C02', 'trend')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />
+              <AnalysisActions context={contextFor(activeEntity, 'P3-C02', 'trend')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />
               {selectedPeriod && (
                 <button
                   type="button"
@@ -255,7 +256,7 @@ export function TemporalPage({
               </div>
             </div>
           }
-          onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P3-C02', 'trend'), { entitySubtitle: 'Phân tích thời gian' })}
+          onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(activeEntity, 'P3-C02', 'trend'), { entitySubtitle: 'Phân tích thời gian' })}
         >
           {query.isLoading || !query.data ? (
             <LoadingState rows={6} />
@@ -330,8 +331,8 @@ export function TemporalPage({
           id="P3-C03"
           title="Thứ trong tuần × Khung giờ kế hoạch"
           subtitle={`Màu ô = Chênh lệch BL-T · Số liệu = Tỷ lệ đến trễ thực tế · Ngữ cảnh: ${activeTimeLabel}`}
-          action={<AnalysisActions context={contextFor(selectedRoute ?? routeContext, 'P3-C03', 'time_pattern', selectedCell)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />}
-          onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? routeContext, 'P3-C03', 'time_pattern', selectedCell), { entitySubtitle: 'Ô thời gian đang chọn' })}
+          action={<AnalysisActions context={contextFor(activeEntity, 'P3-C03', 'time_pattern', selectedCell)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />}
+          onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(activeEntity, 'P3-C03', 'time_pattern', selectedCell), { entitySubtitle: 'Ô thời gian đang chọn' })}
         >
           {query.isLoading || !query.data ? (
             <LoadingState rows={7} />
@@ -368,7 +369,7 @@ export function TemporalPage({
                         setSelectedCell(id)
                         onToast(`Đã chọn ${formatTemporalCell(id)}; bảng số liệu bên dưới đã được cập nhật.`)
                       }}
-                      onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? routeContext, 'P3-C03', 'time_pattern', id), { entitySubtitle: 'Ô thứ × khung giờ' })}
+                      onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(activeEntity, 'P3-C03', 'time_pattern', id), { entitySubtitle: 'Ô thứ × khung giờ' })}
                     >
                       <strong>{cell && cell.n > 0 ? `${cell.rate.toFixed(1)}%` : '—'}</strong>
                       <small>{cell && cell.n > 0 ? `n=${cell.n.toLocaleString('vi-VN')}` : 'Không có dữ liệu'}</small>
@@ -420,7 +421,7 @@ export function TemporalPage({
               onSelectEntity(code)
               onToast(`Đã chọn sân bay ${code}.`)
             }}
-            onCardContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? selectedAirportCode ?? routeContext, 'P3-C04', 'time_pattern', selectedCell), { entitySubtitle: evidenceTableMode === 'route' ? 'Bảng tuyến bay' : 'Bảng sân bay' })}
+            onCardContextMenu={(event) => openAnalysisContextMenu(event, contextFor(activeEntity, 'P3-C04', 'time_pattern', selectedCell), { entitySubtitle: evidenceTableMode === 'route' ? 'Bảng tuyến bay' : 'Bảng sân bay' })}
             onOpenContextMenu={openContextMenu}
             extraAction={
               selectedRoute ? (

@@ -38,7 +38,7 @@ export default function App() {
 
   const filters = useFilterStore((state) => state.filters)
   const setFilters = useFilterStore((state) => state.setFilters)
-  const [selectedEntity, setSelectedEntity] = useState('DAL → ATL')
+  const [selectedEntity, setSelectedEntity] = useState('Mạng lưới WN')
 
   const overlayState = useOverlayStore((state) => state.overlayState)
   const {
@@ -49,7 +49,6 @@ export default function App() {
     openCause,
     openComparison,
     openInvestigation,
-    updateComparisonContext,
   } = useOverlayStore()
 
   const [toast, setToast] = useState('')
@@ -95,7 +94,6 @@ export default function App() {
           context={overlay.context}
           onClose={closeOverlays}
           onBack={overlayState.backStack.length ? goBackOverlay : undefined}
-          onContextChange={updateComparisonContext}
           onOpenInvestigation={(context, carriers, carrierScope) => openInvestigation(context, carriers, carrierScope)}
         />
       )}

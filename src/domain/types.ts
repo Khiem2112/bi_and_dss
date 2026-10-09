@@ -450,7 +450,7 @@ export interface PeerBenchmarkRequest {
   weightingRuleVersion: string
 }
 
-export type PeerBenchmarkStatus = 'ready' | 'one_peer' | 'incomplete_context' | 'insufficient_comparability'
+export type PeerBenchmarkStatus = 'ready' | 'one_peer' | 'insufficient_comparability'
 
 export interface PeerBenchmarkSeriesPoint {
   key: string
@@ -473,7 +473,6 @@ export interface PeerBenchmarkResult {
   rateGap: number | null
   benchmark: PeerBenchmarkMetadata
   series: PeerBenchmarkSeriesPoint[]
-  suggestions: Array<{ id: string; label: string; grain: 'route' | 'airport'; expectedCoverageRate: number }>
   unavailableReason?: string
 }
 

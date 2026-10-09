@@ -60,7 +60,6 @@ interface OverlayStoreState {
   openOverlay: (route: OverlayRoute, preserveActive?: boolean) => void
   closeOverlays: () => void
   goBackOverlay: () => void
-  updateComparisonContext: (context: WnAnalysisContext) => void
   openComparison: (target: AnalysisTargetInput) => void
   openInvestigation: (
     target: AnalysisTargetInput,
@@ -102,17 +101,6 @@ export const useOverlayStore = create<OverlayStoreState>((set) => ({
         },
       }
     })
-  },
-
-  updateComparisonContext: (context) => {
-    set((current) => ({
-      overlayState: {
-        ...current.overlayState,
-        active: current.overlayState.active?.kind === 'comparison'
-          ? { kind: 'comparison', context }
-          : current.overlayState.active,
-      },
-    }))
   },
 
   openComparison: (target) => {
