@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { MouseEventHandler, ReactNode } from 'react'
 import { formatSampleFlag } from '../../domain/formatters'
 import { ComponentHelpButton } from './ComponentHelpButton'
 
@@ -8,12 +8,13 @@ interface CardProps {
   subtitle?: string
   action?: ReactNode
   className?: string
+  onContextMenu?: MouseEventHandler<HTMLElement>
   children: ReactNode
 }
 
-export function Card({ id, title, subtitle, action, className = '', children }: CardProps) {
+export function Card({ id, title, subtitle, action, className = '', onContextMenu, children }: CardProps) {
   return (
-    <article className={`card ${className}`.trim()} data-component-id={id}>
+    <article className={`card ${className}`.trim()} data-component-id={id} onContextMenu={onContextMenu}>
       <div className="card-header">
         <div>
           <div className="card-title-group">

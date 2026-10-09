@@ -20,6 +20,7 @@ export interface RouteAirportEvidenceTableProps {
   onModeChange?: (mode: 'route' | 'airport') => void
   onSelectRoute: (route: string) => void
   onSelectAirport: (code: string) => void
+  onCardContextMenu?: React.MouseEventHandler<HTMLElement>
   onOpenContextMenu: (
     e: React.MouseEvent,
     entity: string,
@@ -106,6 +107,7 @@ export function RouteAirportEvidenceTable({
   onModeChange,
   onSelectRoute,
   onSelectAirport,
+  onCardContextMenu,
   onOpenContextMenu,
   extraAction,
 }: RouteAirportEvidenceTableProps) {
@@ -213,7 +215,7 @@ export function RouteAirportEvidenceTable({
   const resolvedSubtitle = subtitle ?? (
     currentMode === 'route'
       ? 'Tất cả tuyến theo bộ lọc · sắp xếp theo chênh lệch chuẩn'
-      : 'Hiển thị đồng thời điểm đi và đến · hover để xem chi tiết đầy đủ'
+      : 'Hiển thị đồng thời điểm đi và đến · đưa con trỏ vào để xem chi tiết đầy đủ'
   )
 
   const AirportSortTh = ({ colKey, label }: { colKey: TableSortKey; label: string }) => (
@@ -244,6 +246,7 @@ export function RouteAirportEvidenceTable({
       className="spatial-evidence-card"
       title={resolvedTitle}
       subtitle={resolvedSubtitle}
+      onContextMenu={onCardContextMenu}
       action={
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {extraAction}

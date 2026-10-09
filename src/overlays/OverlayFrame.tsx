@@ -11,9 +11,11 @@ interface OverlayFrameProps {
   children: ReactNode
   footer?: ReactNode
   wide?: boolean
+  onBack?: () => void
+  backLabel?: string
 }
 
-export function OverlayFrame({ mode, componentId, title, subtitle, onClose, children, footer, wide = false }: OverlayFrameProps) {
+export function OverlayFrame({ mode, componentId, title, subtitle, onClose, children, footer, wide = false, onBack, backLabel = 'Quay lại' }: OverlayFrameProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
 
@@ -56,6 +58,7 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
         ref={panelRef}
       >
         <header className="overlay-header">
+          {onBack && <button className="overlay-back-button" type="button" onClick={onBack} aria-label={backLabel}>← {backLabel}</button>}
           <div>
             <span className="component-id">{componentId}</span>
             <div className="card-title-group">

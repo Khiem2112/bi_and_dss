@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { EvidenceRecord, GlobalFilters, PageId } from '../domain/types'
+import type { EvidenceRecord, GlobalFilters, GranularTrendSeries, PageId, WnAnalysisContext } from '../domain/types'
+import { bundleFromEvidence, createAnalysisContext, filtersForTrendPeriod } from '../domain/analysisContext'
 import { formatEntityType } from '../domain/formatters'
 import { useOverview } from '../hooks/dashboardHooks'
 import { AirportMap } from '../components/charts/AirportMap'
@@ -7,11 +8,16 @@ import { UnifiedTrendChart } from '../components/charts/UnifiedTrendChart'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
 import { Tooltip } from '../components/atoms/Tooltip/Tooltip'
 import { ComponentHelpButton } from '../components/ui/ComponentHelpButton'
+import { AnalysisActions } from '../components/ui/AnalysisActions'
+import { useAnalysisContextMenu } from '../components/ui/useAnalysisContextMenu'
+import type { Granularity } from '../components/charts/UnifiedTrendChart'
 
 interface OverviewPageProps {
   filters: GlobalFilters
   onNavigate: (page: PageId) => void
   onSelectEntity: (entity: string) => void
+  onOpenComparison: (context: WnAnalysisContext) => void
+  onOpenInvestigation: (context: WnAnalysisContext) => void
   onOpenEvidence: (entity: string) => void
   onOpenMethodology: () => void
   onToast: (message: string) => void
@@ -35,16 +41,21 @@ function formatDuration(minutes?: number): string {
 export function OverviewPage({
   filters,
   onSelectEntity,
+  onOpenComparison,
+  onOpenInvestigation,
   onOpenEvidence,
   onOpenMethodology,
   onToast,
 }: OverviewPageProps) {
   const query = useOverview(filters)
   const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>()
+  const { analysisContextMenu, openAnalysisContextMenu } = useAnalysisContextMenu(onOpenComparison, onOpenInvestigation)
 
   if (query.isError) return <ErrorState message={query.error?.message ?? 'Lỗi không xác định'} onRetry={query.refetch} />
 
   const handleSelectCandidate = (candidate: EvidenceRecord) => {
+    setSelectedCandidateId(candidate.id)
     onSelectEntity(candidate.entity)
     if (candidate.entity.includes('→')) {
       const parts = candidate.entity.split('→').map((s) => s.trim())
@@ -91,6 +102,47 @@ export function OverviewPage({
   }
 
   const overview = query.data
+  const networkMetrics = overview.kpis[0]?.metrics ?? bundleFromEvidence({ unavailableReason: 'Không có chuyến bay đủ điều kiện' })
+  const networkContext = (sourceComponentId: string, sourceLabelVi: string, intent: WnAnalysisContext['comparisonIntent'] = 'rate') => createAnalysisContext({
+    sourceComponentId,
+    sourceUnitId: sourceComponentId,
+    sourceLabelVi,
+    grain: 'network',
+    comparisonIntent: intent,
+    globalFilters: filters,
+    metrics: networkMetrics,
+  })
+  const airportContext = (airport: typeof overview.destinations[number]) => createAnalysisContext({
+    sourceComponentId: 'P1-C08',
+    sourceUnitId: airport.id,
+    sourceLabelVi: `Sân bay đến ${airport.code}`,
+    grain: 'airport',
+    comparisonIntent: 'airport',
+    globalFilters: filters,
+    metrics: bundleFromEvidence({ eligible: airport.eligibleCount ?? airport.n, delayed: airport.delayedCount, rate: airport.rate, averageDelay: airport.averageDelay }),
+    filters: { airport: airport.code, airportRole: 'destination' },
+  })
+  const candidateContext = (candidate: EvidenceRecord) => createAnalysisContext({
+    sourceComponentId: 'P1-C09',
+    sourceUnitId: candidate.id,
+    sourceLabelVi: candidate.entity,
+    grain: candidate.entity.includes('→') ? 'route' : 'airport',
+    comparisonIntent: candidate.entity.includes('→') ? 'rate' : 'airport',
+    globalFilters: filters,
+    metrics: bundleFromEvidence({ eligible: candidate.eligibleCount ?? candidate.n, delayed: candidate.delayedCount, rate: candidate.rate, averageDelay: candidate.averageDelay }),
+    filters: candidate.entity.includes('→') ? { route: candidate.entity } : { airport: candidate.code, airportRole: 'either' },
+  })
+  const trendPointContext = (point: GranularTrendSeries, granularity: Granularity) => createAnalysisContext({
+    sourceComponentId: point.isFuture ? 'P1-C07' : 'P1-C06',
+    sourceUnitId: point.period,
+    sourceLabelVi: `${point.isFuture ? 'Lịch sử hỗ trợ dự báo' : 'Xu hướng WN'} · ${point.label}`,
+    grain: 'time_period',
+    comparisonIntent: point.isFuture ? 'future_history' : 'trend',
+    globalFilters: filters,
+    metrics: bundleFromEvidence({ eligible: point.eligibleCount ?? point.wnN, delayed: point.delayedCount, rate: point.wn, averageDelay: point.averageDelay }),
+    filters: point.isFuture ? undefined : filtersForTrendPeriod(point.period, granularity),
+  })
+  const selectedCandidate = overview.candidates.find((candidate) => candidate.id === selectedCandidateId) ?? overview.candidates[0]
   const eligibleKpi = overview.kpis.find((k) => k.id === 'P1-C02')?.value ?? '83.936'
   const delayedKpi = overview.kpis.find((k) => k.id === 'P1-C03')?.value ?? '15.444'
   const rateKpi = overview.kpis.find((k) => k.id === 'P1-C04')?.value ?? '18,4%'
@@ -136,7 +188,7 @@ export function OverviewPage({
           )
 
           return (
-            <div className="card kpi-card kpi-card-clean kpi-tooltip-wrapper" data-component-id={kpi.id} key={kpi.id}>
+            <div className="card kpi-card kpi-card-clean kpi-tooltip-wrapper" data-component-id={kpi.id} key={kpi.id} onContextMenu={(event) => openAnalysisContextMenu(event, networkContext(kpi.id, kpi.label), { entitySubtitle: 'KPI mạng lưới' })}>
               <div className="kpi-label card-title-group">
                 <span>{kpi.label}</span>
                 <ComponentHelpButton componentId={kpi.id} title={kpi.label} />
@@ -152,6 +204,7 @@ export function OverviewPage({
                   <div className="kpi-value">{kpi.value}</div>
                 </button>
               </Tooltip>
+              <AnalysisActions context={networkContext(kpi.id, kpi.label)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />
             </div>
           )
         })}
@@ -162,7 +215,8 @@ export function OverviewPage({
           id="P1-C06"
           title="Xu hướng trễ chuyến mạng lưới & Dự báo mô hình"
           subtitle="Tích hợp xu hướng tỷ lệ trễ đa hãng (đường) cùng độ trễ đến trung bình mỗi chuyến (cột) và mô hình dự báo tương lai"
-          action={<IllustrativeLabel compact />}
+          action={<><IllustrativeLabel compact /><AnalysisActions context={networkContext('P1-C06', 'Xu hướng trễ chuyến mạng lưới', 'trend')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact /></>}
+          onContextMenu={(event) => openAnalysisContextMenu(event, networkContext('P1-C06', 'Xu hướng trễ chuyến mạng lưới', 'trend'), { entitySubtitle: 'Xu hướng mạng lưới' })}
         >
           <UnifiedTrendChart
             data={overview.unifiedTrends}
@@ -170,7 +224,15 @@ export function OverviewPage({
               onToast(`Đã chọn chu kỳ ${period}; ngữ cảnh sẵn sàng chuyển tiếp sang P2/P3.`)
             }
             onToast={onToast}
+            onPointContextMenu={(event, point, granularity) => openAnalysisContextMenu(event, trendPointContext(point, granularity), { entitySubtitle: point.isFuture ? 'Mốc dự báo' : 'Mốc thời gian' })}
           />
+          <div className="prediction-trend-callout" data-component-id="P1-C07" onContextMenu={(event) => openAnalysisContextMenu(event, networkContext('P1-C07', 'Xu hướng ước tính của mô hình', 'future_history'), { entitySubtitle: 'Lịch sử hỗ trợ dự báo' })}>
+            <div>
+              <div className="card-title-group"><h3>Xu hướng ước tính của mô hình</h3><ComponentHelpButton componentId="P1-C07" title="Xu hướng ước tính của mô hình" /></div>
+              <p>Đường dự báo minh họa được tách khỏi tỷ lệ trễ lịch sử; khi mở phân tích, hệ thống chỉ dùng tập lịch sử hỗ trợ.</p>
+            </div>
+            <AnalysisActions context={networkContext('P1-C07', 'Xu hướng ước tính của mô hình', 'future_history')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive />
+          </div>
         </Card>
       )}
 
@@ -179,7 +241,11 @@ export function OverviewPage({
           id="P1-C08"
           title="Bản đồ điểm nóng sân bay & Thống kê tuyến bay"
           subtitle="Rà chuột lên sân bay để xem tooltip chỉ số · Chọn 2 sân bay để xem thống kê tuyến theo bộ lọc hiện tại"
-          action={<IllustrativeLabel compact />}
+          action={<><IllustrativeLabel compact /><AnalysisActions context={createAnalysisContext({ sourceComponentId: 'P1-C08', sourceUnitId: selectedAirportCodes[0] ?? 'network', sourceLabelVi: selectedAirportCodes[0] ? `Sân bay ${selectedAirportCodes[0]}` : 'Bản đồ điểm nóng sân bay đến', grain: selectedAirportCodes[0] ? 'airport' : 'network', comparisonIntent: 'airport', globalFilters: filters, metrics: selectedAirportCodes[0] ? bundleFromEvidence({ eligible: overview.destinations.find((item) => item.code === selectedAirportCodes[0])?.eligibleCount, delayed: overview.destinations.find((item) => item.code === selectedAirportCodes[0])?.delayedCount, rate: overview.destinations.find((item) => item.code === selectedAirportCodes[0])?.rate, averageDelay: overview.destinations.find((item) => item.code === selectedAirportCodes[0])?.averageDelay }) : networkMetrics, filters: selectedAirportCodes[0] ? { airport: selectedAirportCodes[0], airportRole: 'destination' } : undefined })} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact /></>}
+          onContextMenu={(event) => {
+            const airport = overview.destinations.find((item) => item.code === selectedAirportCodes[0])
+            openAnalysisContextMenu(event, airport ? airportContext(airport) : networkContext('P1-C08', 'Bản đồ điểm nóng sân bay đến', 'airport'), { entitySubtitle: airport ? 'Sân bay đến' : 'Bản đồ sân bay' })
+          }}
         >
           <AirportMap
             airports={overview.destinations}
@@ -198,6 +264,7 @@ export function OverviewPage({
               setSelectedAirportCodes([])
               onToast('Đã xóa tuyến đo.')
             }}
+            onAirportContextMenu={(event, airport) => openAnalysisContextMenu(event, airportContext(airport), { entitySubtitle: 'Sân bay đến' })}
           />
         </Card>
 
@@ -205,6 +272,8 @@ export function OverviewPage({
           id="P1-C09"
           title="Đối tượng cần kiểm tra"
           subtitle="Xếp hạng các tuyến bay trọng yếu có chênh lệch tỷ lệ trễ so với mức chuẩn mạng lưới"
+          action={selectedCandidate ? <AnalysisActions context={candidateContext(selectedCandidate)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact /> : undefined}
+          onContextMenu={selectedCandidate ? (event) => openAnalysisContextMenu(event, candidateContext(selectedCandidate), { entitySubtitle: 'Đối tượng đang chọn' }) : undefined}
         >
           {overview.candidates.length === 0 ? (
             <EmptyState title="Không có đối tượng phù hợp" detail="Hãy đặt lại bộ lọc để mở rộng phạm vi dữ liệu." />
@@ -230,6 +299,7 @@ export function OverviewPage({
                     className={`candidate-row-full ${isSelectedRoute ? 'active-candidate' : ''}`}
                     key={candidate.id}
                     onClick={() => handleSelectCandidate(candidate)}
+                    onContextMenu={(event) => openAnalysisContextMenu(event, candidateContext(candidate), { entitySubtitle: isRoute ? 'Đường bay' : 'Sân bay' })}
                     aria-label={`Chọn tuyến ${candidate.entity}: Tỷ lệ trễ ${candidate.rate.toFixed(1).replace('.', ',')}%, Số chuyến trễ ${delayedCountText}/${eligibleCountText}, Độ trễ TB ${candidate.averageDelay.toFixed(1).replace('.', ',')} phút, Chênh lệch ${gap > 0 ? '+' : ''}${gap.toFixed(1).replace('.', ',')}%`}
                   >
                     <div className="candidate-main-header">
@@ -289,6 +359,7 @@ export function OverviewPage({
           </button>
         </Card>
       </div>
+      {analysisContextMenu}
     </section>
   )
 }

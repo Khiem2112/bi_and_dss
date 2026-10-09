@@ -7,6 +7,7 @@ interface LineChartProps {
   valueLabel?: string
   selectedPeriod?: string
   onSelect?: (point: TrendPoint) => void
+  onPointContextMenu?: (event: React.MouseEvent<SVGGElement>, point: TrendPoint) => void
 }
 
 const width = 800
@@ -19,6 +20,7 @@ export function LineChart({
   valueLabel = 'Tỷ lệ đến trễ',
   selectedPeriod,
   onSelect,
+  onPointContextMenu,
 }: LineChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<{ point: TrendPoint; x: number; y: number } | null>(null)
 
@@ -89,11 +91,13 @@ export function LineChart({
           return (
             <g
               key={point.period}
+              data-analysis-unit={`line-${point.period}`}
               tabIndex={0}
               role="button"
               style={{ cursor: 'pointer' }}
               aria-label={`${point.period}: ${point.value.toFixed(1)}%, n ${point.n}`}
               onClick={() => onSelect?.(point)}
+              onContextMenu={(event) => onPointContextMenu?.(event, point)}
               onMouseEnter={() => setHoveredPoint({ point, x: cx, y: cy })}
               onMouseLeave={() => setHoveredPoint(null)}
               onFocus={() => setHoveredPoint({ point, x: cx, y: cy })}

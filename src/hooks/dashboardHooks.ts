@@ -1,7 +1,8 @@
 import type {
-  ComparisonContext,
   EntityTrendFilters,
+  FlightInvestigationRequest,
   GlobalFilters,
+  PeerBenchmarkRequest,
   PredictionFilters,
   SpatialState,
   TemporalContext,
@@ -30,12 +31,20 @@ export const useTemporalPatterns = (filters: GlobalFilters, context: TemporalCon
     [JSON.stringify(filters), JSON.stringify(context)],
   )
 
-export const useCarrierComparison = (context: ComparisonContext, peers: string[], enabled = true, filters?: GlobalFilters) =>
+export const usePeerBenchmark = (request: PeerBenchmarkRequest, enabled = true) =>
   useRepositoryQuery(
     () => enabled
-      ? dashboardRepository.getCarrierComparison(context, peers, filters)
+      ? dashboardRepository.getPeerBenchmark(request)
       : Promise.reject(new Error('Ngữ cảnh so sánh chưa sẵn sàng')),
-    [JSON.stringify(context), peers.join(','), enabled, JSON.stringify(filters)],
+    [JSON.stringify(request), enabled],
+  )
+
+export const useFlightInvestigation = (request: FlightInvestigationRequest, enabled = true) =>
+  useRepositoryQuery(
+    () => enabled
+      ? dashboardRepository.getFlightInvestigation(request)
+      : Promise.reject(new Error('Ngữ cảnh điều tra chưa sẵn sàng')),
+    [JSON.stringify(request), enabled],
   )
 
 export const useFutureFlights = (filters: PredictionFilters, globalFilters?: GlobalFilters) =>

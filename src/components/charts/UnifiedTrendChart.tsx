@@ -7,13 +7,14 @@ interface UnifiedTrendChartProps {
   data: GranularTrendsData
   onSelectPeriod?: (period: string) => void
   onToast?: (message: string) => void
+  onPointContextMenu?: (event: React.MouseEvent<SVGRectElement>, point: GranularTrendSeries, granularity: Granularity) => void
 }
 
 const chartWidth = 920
 const chartHeight = 350
 const chartPadding = { top: 38, right: 64, bottom: 42, left: 54 }
 
-export function UnifiedTrendChart({ data, onSelectPeriod, onToast }: UnifiedTrendChartProps) {
+export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContextMenu }: UnifiedTrendChartProps) {
   const [granularity, setGranularity] = useState<Granularity>('month')
   const [showWn, setShowWn] = useState(true)
   const [showDl, setShowDl] = useState(true)
@@ -633,6 +634,7 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast }: UnifiedTren
             return (
               <rect
                 key={`hit-${pt.period}`}
+                data-analysis-unit={`trend-${pt.period}`}
                 x={colX}
                 y={chartPadding.top}
                 width={geometry.colWidth}
@@ -645,6 +647,7 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast }: UnifiedTren
                 onMouseEnter={() => setActivePeriodIndex(idx)}
                 onFocus={() => setActivePeriodIndex(idx)}
                 onClick={() => handlePeriodClick(pt)}
+                onContextMenu={(event) => onPointContextMenu?.(event, pt, granularity)}
               />
             )
           })}

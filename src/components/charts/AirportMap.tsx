@@ -252,6 +252,7 @@ export function AirportMap({
           return (
             <g
               key={airport.id}
+              data-analysis-unit={`airport-${airport.code}`}
               className={`map-point ${isSelected ? 'is-selected' : ''}`}
               tabIndex={0}
               role="button"

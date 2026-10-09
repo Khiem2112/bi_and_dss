@@ -26,7 +26,10 @@ export interface GlobalFilters {
   toDate: string
   origin: string[]
   destination: string[]
+  route: string[]
   season: string[]
+  dayOfWeek: string[]
+  scheduledTimeBlock: string[]
   distanceGroup: string[]
 }
 
@@ -35,8 +38,19 @@ export const defaultFilters: GlobalFilters = {
   toDate: '2018-12-31',
   origin: [],
   destination: [],
+  route: [],
   season: [],
+  dayOfWeek: [],
+  scheduledTimeBlock: [],
   distanceGroup: [],
+}
+
+export interface DelayMetricBundle {
+  eligibleFlights: number
+  delayedFlights: number
+  delayRate: number | null
+  averageArrivalDelayMinutes: number | null
+  unavailableReason?: string
 }
 
 export interface KpiValue {
@@ -44,6 +58,7 @@ export interface KpiValue {
   label: string
   value: string
   context: string
+  metrics: DelayMetricBundle
 }
 
 export interface TrendPoint {
@@ -371,9 +386,143 @@ export interface PredictionFilters {
   timeBlock?: string
 }
 
-export interface ComparisonContext {
-  entity: string
-  variant: 'CM-R' | 'CM-A' | 'CM-T' | 'CM-F'
+export type AnalysisGrain = 'network' | 'airport' | 'route' | 'time_period' | 'time_cell' | 'future_flight'
+
+export type ComparisonIntent = 'rate' | 'trend' | 'airport' | 'time_pattern' | 'future_history'
+
+export interface WnAnalysisFilters {
+  dateFrom?: string
+  dateTo?: string
+  months?: number[]
+  dayOfWeeks?: string[]
+  scheduledTimeBlocks?: string[]
+  origin?: string
+  destination?: string
+  route?: string
+  airport?: string
+  airportRole?: 'origin' | 'destination' | 'either'
+  distanceGroups?: string[]
+  delayedOnly?: boolean
+}
+
+export interface WnAnalysisContext {
+  sourceComponentId: string
+  sourceUnitId: string
+  sourceLabelVi: string
+  carrier: 'WN'
+  grain: AnalysisGrain
+  comparisonIntent: ComparisonIntent
+  filters: WnAnalysisFilters
+  metricSnapshot: DelayMetricBundle
+  openedAt: string
+}
+
+export type ComparisonContext = WnAnalysisContext
+
+export interface PeerBenchmarkMetadata {
+  selectedCarriers: string[]
+  candidateCarrierCount: number
+  comparableCellCount: number
+  wnCoverageRate: number
+  selectionRuleVersion: string
+  weightingRuleVersion: string
+  fallbackReason?: 'second_peer_reduced_coverage' | 'insufficient_comparability'
+}
+
+export interface PeerBenchmarkRequest {
+  context: WnAnalysisContext
+  maxPeers: 2
+  minimumCoverageRate: number
+  selectionRuleVersion: string
+  weightingRuleVersion: string
+}
+
+export type PeerBenchmarkStatus = 'ready' | 'one_peer' | 'incomplete_context' | 'insufficient_comparability'
+
+export interface PeerBenchmarkSeriesPoint {
+  key: string
+  label: string
+  wn: DelayMetricBundle
+  peerObserved: DelayMetricBundle
+  peerBenchmarkRate: number | null
+  peerBenchmarkAverageDelayMinutes: number | null
+  wnCoverageRate: number
+}
+
+export interface PeerBenchmarkResult {
+  metadata: DashboardMetadata
+  status: PeerBenchmarkStatus
+  context: WnAnalysisContext
+  wn: DelayMetricBundle
+  peerObserved: DelayMetricBundle
+  peerBenchmarkRate: number | null
+  peerBenchmarkAverageDelayMinutes: number | null
+  rateGap: number | null
+  benchmark: PeerBenchmarkMetadata
+  series: PeerBenchmarkSeriesPoint[]
+  suggestions: Array<{ id: string; label: string; grain: 'route' | 'airport'; expectedCoverageRate: number }>
+  unavailableReason?: string
+}
+
+export type FlightSortField =
+  | 'flightDate'
+  | 'carrier'
+  | 'flightNumber'
+  | 'route'
+  | 'scheduledDeparture'
+  | 'scheduledArrival'
+  | 'departureDelay'
+  | 'arrivalDelay'
+  | 'status'
+  | 'distance'
+
+export type FlightSortDirection = 'asc' | 'desc'
+
+export interface FlightInvestigationFilters {
+  fromDate?: string
+  toDate?: string
+  origin?: string
+  destination?: string
+  route?: string
+  dayOfWeek?: string
+  scheduledTimeBlock?: string
+  distanceGroup?: string
+  outcome?: 'all' | 'delayed' | 'not_delayed'
+  flightNumber?: string
+  minimumArrivalDelay?: number
+  maximumArrivalDelay?: number
+}
+
+export interface FlightInvestigationRequest {
+  context: WnAnalysisContext
+  sourceFilters: WnAnalysisFilters
+  localFilters: FlightInvestigationFilters
+  searchText: string
+  sort: { field: FlightSortField; direction: FlightSortDirection }
+  page: number
+  pageSize: number
+  carrierScope: 'WN' | 'peer_group'
+  frozenPeerCarriers?: string[]
+}
+
+export interface AppliedFilter {
+  key: string
+  label: string
+  value: string
+  provenance: 'source' | 'investigation'
+  locked?: boolean
+}
+
+export interface FlightInvestigationResult {
+  metadata: DashboardMetadata
+  metrics: DelayMetricBundle
+  rows: FlightRecord[]
+  totalRows: number
+  filteredRecordCount: number
+  estimatedPopulationRows: number
+  countScale: number
+  appliedFilters: AppliedFilter[]
+  sourceDataVersion: string
 }
 
 export interface FlightRecord {

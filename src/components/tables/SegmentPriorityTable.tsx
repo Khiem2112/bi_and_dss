@@ -27,6 +27,8 @@ export interface SegmentPriorityTableProps {
   mode?: 'route' | 'airport' | 'all'
   onModeChange?: (mode: 'route' | 'airport' | 'all') => void
   onSelectEntity: (risk: RiskAggregate) => void
+  onCardContextMenu?: React.MouseEventHandler<HTMLElement>
+  onRowContextMenu?: (event: React.MouseEvent<HTMLTableRowElement>, risk: RiskAggregate) => void
   extraAction?: ReactNode
 }
 
@@ -106,6 +108,8 @@ export function SegmentPriorityTable({
   mode: controlledMode,
   onModeChange,
   onSelectEntity,
+  onCardContextMenu,
+  onRowContextMenu,
   extraAction,
 }: SegmentPriorityTableProps) {
   const [internalMode, setInternalMode] = useState<'route' | 'airport' | 'all'>(defaultMode)
@@ -224,8 +228,10 @@ export function SegmentPriorityTable({
     return (
       <Fragment key={item.id}>
         <tr
+          data-analysis-unit={`priority-${item.id}`}
           className={`${isChild ? 'route-child-row' : ''} selectable${isSelected ? ' selected' : ''}`}
           onClick={() => onSelectEntity(item)}
+          onContextMenu={(event) => onRowContextMenu?.(event, item)}
         >
           <td className="route-name" style={isChild ? { paddingLeft: '1.75rem' } : undefined}>
             <div className="table-entity-with-actions">
@@ -355,6 +361,7 @@ export function SegmentPriorityTable({
       id={id}
       title={title}
       subtitle={subtitle}
+      onContextMenu={onCardContextMenu}
       action={
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           {extraAction}

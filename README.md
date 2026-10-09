@@ -1,15 +1,15 @@
-# Flight Delay BI & DSS Dashboard Demo
+# Demo bảng điều khiển BI & DSS về chậm chuyến
 
-Vite + React + TypeScript implementation derived from `../dashboard_design_v2.md`.
+Ứng dụng Vite + React + TypeScript triển khai theo `../dashboard_design_v3.md`.
 
-## Run locally
+## Chạy tại máy
 
 ```powershell
 npm install
 npm run dev
 ```
 
-Production check:
+Kiểm tra trước khi bàn giao:
 
 ```powershell
 npm run build
@@ -17,23 +17,32 @@ npm run lint
 npm test
 ```
 
-`npm test` chạy các contract test cho KPI eligibility/delay, sample scaling, global filters, zero-result, table search/sort, component help và quy tắc không fallback âm thầm.
+`npm test` chạy các phép thử hợp đồng cho tập chuyến đủ điều kiện/chuyến trễ, hệ số mẫu, bộ lọc toàn cục, trạng thái rỗng, tìm kiếm/sắp xếp bảng, trợ giúp thành phần, nhóm hãng đối sánh động và điều tra chuyến bay.
 
-## Architecture
+Browser QA dùng Chrome có cổng DevTools đang mở và biến môi trường `DASHBOARD_CDP_PORT`:
 
-```text
-Page/component → domain hook → DashboardRepository → MockDashboardRepository
-                                                └→ ApiDashboardRepository (placeholder)
+```powershell
+node scripts/browser-qa.mjs
 ```
 
-- Components never import mock JSON or call endpoints directly.
-- Page navigation uses React Router (`HashRouter`) with `/overview`, `/spatial`, `/temporal`, and `/prediction` routes.
-- Mock payloads live in `public/mock-data/` and carry illustrative/schema/rule metadata.
-- Swap repository composition in `src/repositories/index.ts` when a governed API is ready.
-- `styles.css` is the original demo stylesheet with an appended React v2 layer.
+## Kiến trúc
 
-## Decision-safety note
+```text
+Trang/thành phần → hook miền nghiệp vụ → DashboardRepository → MockDashboardRepository
+                                                      └→ ApiDashboardRepository (khung thay thế)
+```
 
-All displayed values are illustrative. Sample thresholds, verified airport geography, calibrated model output, and the priority rule remain unapproved; the UI therefore keeps hotspot/priority states uncalibrated or locked.
+- Thành phần giao diện không nhập JSON mô phỏng hoặc gọi điểm cuối trực tiếp.
+- Điều hướng dùng React Router (`HashRouter`) với các tuyến `/overview`, `/spatial`, `/temporal` và `/prediction`.
+- Dữ liệu mô phỏng nằm trong `public/mock-data/`; hệ số mẫu cố định là 25 và chỉ áp dụng cho số đếm.
+- `WnAnalysisContext` giữ nguyên bộ lọc, hạt dữ liệu, ý định so sánh và bộ chỉ số khi mở phân tích đối sánh hoặc điều tra chuyến.
+- Nhóm hãng đối sánh được chọn động, tối đa hai hãng, có độ phủ, phiên bản quy tắc và trạng thái không đủ dữ liệu.
+- Điều tra chuyến hỗ trợ bộ lọc nguồn/cục bộ, lịch sử đi sâu, tìm kiếm toàn cột, sắp xếp mọi cột và phân trang mà không nhân bản ghi.
+- Thay cấu hình repository trong `src/repositories/index.ts` khi API đã được quản trị sẵn sàng.
+- Tham chiếu thiết kế trực quan: Airtable trong thư viện `design-md`; màu sắc được điều chỉnh theo ngữ nghĩa WN và chuẩn truy cập của dự án.
 
-Implementation evidence, browser screenshots and report-safe limitations are recorded in [`../dashboard_readiness_report.md`](../dashboard_readiness_report.md).
+## Rào chắn quyết định
+
+Mọi giá trị hiển thị đều mang tính minh họa. Ngưỡng mẫu, ngưỡng độ phủ đối sánh, phiên bản quy tắc ô/trọng số, dữ liệu địa lý sân bay, mô hình đã hiệu chỉnh, công thức ưu tiên và ngân sách độ trễ API cho bảng điều tra vẫn chưa được phê duyệt. Giao diện công khai các giới hạn này và không dùng kết quả để ra quyết định vận hành thật.
+
+Bằng chứng triển khai v3, kết quả kiểm thử và ảnh chụp trình duyệt được ghi trong [`qa/implementation-v3.md`](qa/implementation-v3.md).

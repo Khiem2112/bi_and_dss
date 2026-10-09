@@ -2324,6 +2324,12 @@ button:disabled {
   color: var(--coral-dark);
 }
 
+.ui-combobox-option-active:not(.ui-combobox-option-disabled) {
+  background: var(--coral-light);
+  color: var(--coral-dark);
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.18);
+}
+
 .ui-combobox-option-selected {
   background: rgba(225, 29, 72, 0.08);
   font-weight: 600;
@@ -4846,5 +4852,555 @@ button:disabled {
 
 .table-inline-actions {
   flex: 0 0 auto;
+}
+
+/* Dashboard Design v3 · Airtable-inspired operational density
+   Reuse: white canvas, dark ink, hairline borders, compact 4px rhythm.
+   Adapt: retain governed coral analytical accent and existing dashboard hierarchy.
+   Reject: marketing hero bands, decorative signature cards, and pricing pill dialect. */
+.analysis-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.analysis-actions-menu {
+  position: absolute;
+  z-index: 420;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 270px;
+  padding: 6px;
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.analysis-actions-menu.is-context {
+  right: auto;
+  max-width: calc(100vw - 24px);
+}
+
+.analysis-actions-context {
+  display: block;
+  padding: 7px 10px 6px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-actions-menu button {
+  width: 100%;
+  display: block;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analysis-actions-menu button:hover,
+.analysis-actions-menu button:focus-visible {
+  color: var(--ink);
+  background: var(--surface-sunken);
+  outline: none;
+}
+
+.analysis-actions-menu button:active {
+  background: var(--line-soft);
+}
+
+.overlay-header:has(.overlay-back-button) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.overlay-back-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.overlay-back-button:hover,
+.overlay-back-button:focus-visible {
+  border-color: var(--ink);
+  color: var(--ink);
+  outline: 2px solid var(--blue-border);
+  outline-offset: 2px;
+}
+
+.comparison-context-strip,
+.inline-badges,
+.investigation-history-actions,
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.comparison-context-strip {
+  margin-bottom: 14px;
+}
+
+.benchmark-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.benchmark-metric,
+.peer-metadata-grid > div,
+.investigation-summary-grid > div,
+.flight-detail-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.benchmark-metric.accent {
+  border-color: var(--coral-border);
+  background: var(--coral-light);
+}
+
+.benchmark-metric > span,
+.peer-metadata-grid span,
+.investigation-summary-grid span,
+.flight-detail-grid span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.benchmark-metric > strong {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.benchmark-standardized {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.benchmark-standardized > span,
+.benchmark-standardized > small {
+  color: #cbd5e1;
+}
+
+.comparison-suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.comparison-suggestion {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.comparison-suggestion:hover,
+.comparison-suggestion:focus-visible {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  outline: 2px solid var(--blue-border);
+  outline-offset: 1px;
+}
+
+.focused-rate-view {
+  display: grid;
+  gap: 12px;
+}
+
+.focused-rate-bar {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.focused-rate-bar::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: var(--rate);
+  background: var(--line);
+}
+
+.focused-rate-bar.wn::before { background: var(--coral-border); }
+.focused-rate-bar.peer::before { background: var(--blue-border); }
+
+.focused-trend {
+  display: grid;
+  gap: 8px;
+}
+
+.focused-trend-row {
+  display: grid;
+  grid-template-columns: 110px minmax(180px, 1fr) 130px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.focused-trend-track {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.focused-trend-track i,
+.focused-trend-track b {
+  position: absolute;
+  left: 0;
+  height: 7px;
+  border-radius: 0 4px 4px 0;
+}
+
+.focused-trend-track i { top: 1px; background: var(--coral); }
+.focused-trend-track b { bottom: 1px; background: var(--blue); }
+
+.peer-metadata-grid,
+.investigation-summary-grid,
+.flight-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.peer-metadata-grid strong,
+.investigation-summary-grid strong,
+.flight-detail-grid strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.interpretation-note {
+  padding: 12px;
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+}
+
+.investigation-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.investigation-filter-grid label {
+  display: grid;
+  gap: 4px;
+}
+
+.investigation-filter-grid label > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.investigation-filter-grid input,
+.investigation-filter-grid select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.investigation-filter-grid input:hover,
+.investigation-filter-grid select:hover {
+  border-color: var(--muted);
+}
+
+.investigation-filter-grid input:focus-visible,
+.investigation-filter-grid select:focus-visible {
+  border-color: var(--blue);
+  outline: 2px solid var(--blue-border);
+  outline-offset: 1px;
+}
+
+.investigation-context-compact {
+  display: grid;
+  gap: 8px;
+}
+
+.investigation-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-chip-groups {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.filter-chip-groups.compact {
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.compact-filter-group {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.compact-filter-group-title {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.compact-filter-group-title strong {
+  color: var(--ink-secondary);
+  font-size: 11px;
+}
+
+.compact-filter-group-title small {
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--line-soft);
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.filter-origin-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.filter-origin-dot.source { background: var(--coral); }
+.filter-origin-dot.local { background: var(--blue); }
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  max-width: 270px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-size: 10.5px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.filter-chip-label {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.filter-chip-value {
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip-remove {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.filter-chip.source { border-left: 2px solid var(--coral); }
+.filter-chip.local { border-left: 2px solid var(--blue); }
+.filter-chip:hover { border-color: var(--line-dark); background: var(--surface); }
+.filter-chip:focus-visible { outline: 2px solid var(--blue-border); outline-offset: 2px; }
+
+.muted-copy {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.flight-table-wrap {
+  max-height: 430px;
+}
+
+.flight-table-wrap table {
+  min-width: 1380px;
+}
+
+.flight-table-wrap tbody tr {
+  cursor: pointer;
+}
+
+.flight-table-wrap tbody tr.selected {
+  background: var(--blue-soft);
+  box-shadow: inset 3px 0 var(--blue);
+}
+
+.status-text {
+  display: block;
+  font-weight: 700;
+}
+
+.status-text.delayed { color: var(--coral-dark); }
+.status-text.on-time { color: var(--green-dark); }
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.geographic-risk-list {
+  display: grid;
+  gap: 8px;
+}
+
+.geographic-risk-list > button {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(120px, 2fr) 60px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.geographic-risk-list > button:hover,
+.geographic-risk-list > button:focus-visible,
+.geographic-risk-list > button.selected {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  outline: none;
+}
+
+.geographic-risk-list .bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+}
+
+.risk-evidence-plot {
+  position: relative;
+  min-height: 290px;
+  border-left: 1px solid var(--line-dark);
+  border-bottom: 1px solid var(--line-dark);
+  background-image: linear-gradient(to right, var(--line-soft) 1px, transparent 1px), linear-gradient(to top, var(--line-soft) 1px, transparent 1px);
+  background-size: 20% 25%;
+}
+
+.risk-evidence-plot > button {
+  position: absolute;
+  left: var(--plot-x);
+  bottom: var(--plot-y);
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, 50%);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--ink-secondary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px var(--line-dark);
+  cursor: pointer;
+}
+
+.risk-evidence-plot > button:hover,
+.risk-evidence-plot > button:focus-visible,
+.risk-evidence-plot > button.selected {
+  z-index: 2;
+  background: var(--coral);
+  outline: 3px solid var(--coral-border);
+  outline-offset: 2px;
+}
+
+.plot-axis {
+  position: absolute;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plot-axis.x { right: 4px; bottom: -21px; }
+.plot-axis.y { left: 6px; top: 4px; }
+
+.prediction-trend-callout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius-md);
+  background: var(--amber-soft);
+}
+
+.prediction-trend-callout h3,
+.prediction-trend-callout p { margin: 0; }
+.prediction-trend-callout p { color: var(--ink-secondary); font-size: 12px; }
+
+@media (max-width: 1200px) {
+  .investigation-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .benchmark-summary-grid,
+  .comparison-suggestions { grid-template-columns: 1fr; }
+  .peer-metadata-grid,
+  .investigation-summary-grid,
+  .flight-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

@@ -15,7 +15,7 @@ type TabId = typeof tabs[number]['id']
 export function MethodologyModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<TabId>('KPI')
   return (
-    <OverlayFrame mode="modal" componentId={`MD-${tab.toUpperCase()}`} title="Phương pháp luận & Rào chắn quyết định" subtitle="Các định nghĩa chuẩn mực chi phối toàn bộ dashboard" onClose={onClose} wide>
+    <OverlayFrame mode="modal" componentId={`MD-${tab.toUpperCase()}`} title="Phương pháp luận & Rào chắn quyết định" subtitle="Các định nghĩa chuẩn mực chi phối toàn bộ bảng điều khiển" onClose={onClose} wide>
       <div className="method-tabs" role="tablist">
         {tabs.map((item) => <button className={tab === item.id ? 'active' : ''} type="button" role="tab" aria-selected={tab === item.id} key={item.id} onClick={() => setTab(item.id)}>{item.label}</button>)}
       </div>
@@ -59,7 +59,7 @@ export function MethodologyModal({ onClose }: { onClose: () => void }) {
         {tab === 'Priority' && (
           <>
             <h3>Ranh giới quyết định của con người</h3>
-            <p>Dashboard chỉ hỗ trợ: Ưu tiên xem xét / Theo dõi / Chưa đủ bằng chứng. Quy tắc ưu tiên, xử lý đồng hạng và ngưỡng kích hoạt chưa được phê duyệt nên nhãn Mức ưu tiên bị khóa.</p>
+            <p>Bảng điều khiển chỉ hỗ trợ: Ưu tiên xem xét / Theo dõi / Chưa đủ bằng chứng. Quy tắc ưu tiên, xử lý đồng hạng và ngưỡng kích hoạt chưa được phê duyệt nên nhãn Mức ưu tiên bị khóa.</p>
           </>
         )}
         {tab === 'Distance' && (

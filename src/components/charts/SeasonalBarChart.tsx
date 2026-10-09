@@ -9,6 +9,8 @@ export interface SeasonalBarChartProps {
   onSelectSeason?: (season: string) => void
   onSelectMonth?: (month: string) => void
   onClearSelection?: () => void
+  onSeasonContextMenu?: (event: React.MouseEvent<SVGGElement>, season: SeasonSummary) => void
+  onMonthContextMenu?: (event: React.MouseEvent<SVGGElement>, season: SeasonSummary, month: SeasonSummary['months'][number]) => void
 }
 
 const width = 800
@@ -49,6 +51,8 @@ export function SeasonalBarChart({
   onSelectSeason,
   onSelectMonth,
   onClearSelection,
+  onSeasonContextMenu,
+  onMonthContextMenu,
 }: SeasonalBarChartProps) {
   const [activeTooltip, setActiveTooltip] = useState<{
     x: number
@@ -142,8 +146,10 @@ export function SeasonalBarChart({
           return (
             <g
               key={season.season}
+              data-analysis-unit={`season-${season.season}`}
               className={`season-band-group${isSeasonActive ? ' active' : ''}`}
               opacity={isSeasonDimmed ? 0.4 : 1}
+              onContextMenu={(event) => onSeasonContextMenu?.(event, season)}
             >
               <rect
                 x={sX + 3}
@@ -234,6 +240,7 @@ export function SeasonalBarChart({
                 return (
                   <g
                     key={m.month}
+                    data-analysis-unit={`month-${m.month}`}
                     role="button"
                     tabIndex={0}
                     style={{ cursor: 'pointer' }}
@@ -242,6 +249,7 @@ export function SeasonalBarChart({
                       e.stopPropagation()
                       onSelectMonth?.(m.month)
                     }}
+                    onContextMenu={(event) => onMonthContextMenu?.(event, season, m)}
                     onMouseEnter={(e) => {
                       e.stopPropagation()
                       setActiveTooltip({

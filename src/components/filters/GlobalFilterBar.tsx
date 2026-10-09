@@ -35,6 +35,27 @@ const SEASON_OPTIONS: readonly MultiSelectItem[] = [
   { value: 'Autumn', label: 'Mùa thu', subLabel: 'Tháng 10–12' },
 ]
 
+const ROUTE_OPTIONS: readonly MultiSelectItem[] = [
+  { value: 'ATL → BWI', label: 'ATL → BWI', subLabel: 'Đường bay theo chiều' },
+  { value: 'BWI → ATL', label: 'BWI → ATL', subLabel: 'Đường bay theo chiều' },
+  { value: 'DAL → ATL', label: 'DAL → ATL', subLabel: 'Đường bay theo chiều' },
+  { value: 'BWI → MCO', label: 'BWI → MCO', subLabel: 'Đường bay theo chiều' },
+  { value: 'MDW → DEN', label: 'MDW → DEN', subLabel: 'Đường bay theo chiều' },
+  { value: 'HOU → DEN', label: 'HOU → DEN', subLabel: 'Đường bay theo chiều' },
+  { value: 'PHX → LAS', label: 'PHX → LAS', subLabel: 'Đường bay theo chiều' },
+]
+
+const DAY_OPTIONS: readonly MultiSelectItem[] = [
+  'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật',
+].map((value) => ({ value, label: value }))
+
+const TIME_BLOCK_OPTIONS: readonly MultiSelectItem[] = [
+  { value: 'Early Morning', label: 'Sáng sớm', subLabel: 'Trước 06:00' },
+  { value: 'Morning', label: 'Buổi sáng', subLabel: '06:00–11:59' },
+  { value: 'Afternoon', label: 'Buổi chiều', subLabel: '12:00–17:59' },
+  { value: 'Evening', label: 'Buổi tối', subLabel: 'Từ 18:00' },
+]
+
 const DISTANCE_GROUP_OPTIONS: readonly MultiSelectItem[] = [
   { value: 'G01', label: 'G01', subLabel: '0–249 dặm' },
   { value: 'G02', label: 'G02', subLabel: '250–499 dặm' },
@@ -58,7 +79,10 @@ export function GlobalFilterBar({ filters, onApply }: GlobalFilterBarProps) {
   const activeCount = useMemo(() => [
     (Array.isArray(filters.origin) ? filters.origin.length > 0 : Boolean(filters.origin && filters.origin !== 'all')),
     (Array.isArray(filters.destination) ? filters.destination.length > 0 : Boolean(filters.destination && filters.destination !== 'all')),
+    filters.route.length > 0,
     (Array.isArray(filters.season) ? filters.season.length > 0 : Boolean(filters.season && filters.season !== 'all')),
+    filters.dayOfWeek.length > 0,
+    filters.scheduledTimeBlock.length > 0,
     (Array.isArray(filters.distanceGroup) ? filters.distanceGroup.length > 0 : Boolean(filters.distanceGroup && filters.distanceGroup !== 'all')),
   ].filter(Boolean).length, [filters])
 
@@ -152,6 +176,51 @@ export function GlobalFilterBar({ filters, onApply }: GlobalFilterBarProps) {
               emptyMessage="Không tìm thấy mùa"
               countLabel={(count) => `${count} mùa đã chọn`}
               ariaLabel="Mùa phân tích"
+              clearable
+            />
+          </div>
+
+          <div className="filter-field-v2">
+            <span>Đường bay theo chiều</span>
+            <MultiSelectCombobox
+              items={ROUTE_OPTIONS}
+              values={draft.route}
+              onChange={(values) => update('route', values)}
+              placeholder="Tất cả đường bay"
+              searchPlaceholder="Tìm đường bay..."
+              emptyMessage="Không tìm thấy đường bay"
+              countLabel={(count) => `${count} đường bay`}
+              ariaLabel="Đường bay theo chiều"
+              clearable
+            />
+          </div>
+
+          <div className="filter-field-v2">
+            <span>Thứ trong tuần</span>
+            <MultiSelectCombobox
+              items={DAY_OPTIONS}
+              values={draft.dayOfWeek}
+              onChange={(values) => update('dayOfWeek', values)}
+              placeholder="Tất cả các thứ"
+              searchPlaceholder="Tìm thứ..."
+              emptyMessage="Không tìm thấy lựa chọn"
+              countLabel={(count) => `${count} thứ đã chọn`}
+              ariaLabel="Thứ trong tuần"
+              clearable
+            />
+          </div>
+
+          <div className="filter-field-v2">
+            <span>Khung giờ khởi hành theo lịch</span>
+            <MultiSelectCombobox
+              items={TIME_BLOCK_OPTIONS}
+              values={draft.scheduledTimeBlock}
+              onChange={(values) => update('scheduledTimeBlock', values)}
+              placeholder="Tất cả khung giờ"
+              searchPlaceholder="Tìm khung giờ..."
+              emptyMessage="Không tìm thấy khung giờ"
+              countLabel={(count) => `${count} khung giờ`}
+              ariaLabel="Khung giờ khởi hành theo lịch"
               clearable
             />
           </div>

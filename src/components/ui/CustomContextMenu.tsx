@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface ContextMenuItem {
   label: string
@@ -26,16 +27,34 @@ export function CustomContextMenu({
   items,
   onClose,
 }: CustomContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!visible) return
     const handleClose = () => onClose()
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+        return
+      }
+      const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])
+      if (!buttons.length) return
+      const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement)
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const direction = e.key === 'ArrowDown' ? 1 : -1
+        buttons[(currentIndex + direction + buttons.length) % buttons.length]?.focus()
+      } else if (e.key === 'Home' || e.key === 'End') {
+        e.preventDefault()
+        buttons[e.key === 'Home' ? 0 : buttons.length - 1]?.focus()
+      }
     }
 
     window.addEventListener('click', handleClose)
     window.addEventListener('contextmenu', handleClose)
     window.addEventListener('keydown', handleKeyDown)
+    window.setTimeout(() => menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus(), 0)
     return () => {
       window.removeEventListener('click', handleClose)
       window.removeEventListener('contextmenu', handleClose)
@@ -45,11 +64,12 @@ export function CustomContextMenu({
 
   if (!visible) return null
 
-  const safeX = Math.min(x, window.innerWidth - 260)
-  const safeY = Math.min(y, window.innerHeight - 300)
+  const safeX = Math.max(8, Math.min(x, window.innerWidth - 260))
+  const safeY = Math.max(8, Math.min(y, window.innerHeight - 300))
 
-  return (
+  return createPortal(
     <div
+      ref={menuRef}
       className="custom-context-menu"
       style={{ left: `${safeX}px`, top: `${safeY}px` }}
       role="menu"
@@ -81,6 +101,7 @@ export function CustomContextMenu({
           </button>
         )
       })}
-    </div>
+    </div>,
+    document.body,
   )
 }

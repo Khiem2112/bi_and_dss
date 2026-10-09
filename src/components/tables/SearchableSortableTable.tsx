@@ -20,6 +20,7 @@ interface SearchableSortableTableProps<Row> {
   rowId: (row: Row) => string
   selectedRowId?: string
   onSelectRow?: (row: Row) => void
+  onRowContextMenu?: (event: React.MouseEvent<HTMLTableRowElement>, row: Row) => void
   searchPlaceholder?: string
   initialSortBy?: string
   initialSortDirection?: Exclude<SortDirection, 'none'>
@@ -56,6 +57,7 @@ export function SearchableSortableTable<Row>({
   rowId,
   selectedRowId,
   onSelectRow,
+  onRowContextMenu,
   searchPlaceholder = 'Tìm kiếm trong bảng',
   initialSortBy,
   initialSortDirection = 'asc',
@@ -167,9 +169,11 @@ export function SearchableSortableTable<Row>({
                 return (
                   <tr
                     key={id}
+                    data-analysis-unit={`table-row-${id}`}
                     className={`${onSelectRow ? 'selectable' : ''}${selectedRowId === id ? ' selected' : ''}`}
                     tabIndex={onSelectRow ? 0 : undefined}
                     onClick={() => onSelectRow?.(row)}
+                    onContextMenu={(event) => onRowContextMenu?.(event, row)}
                     onKeyDown={(event) => {
                       if (!onSelectRow || (event.key !== 'Enter' && event.key !== ' ')) return
                       event.preventDefault()

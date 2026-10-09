@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { GlobalFilterBar } from './components/filters/GlobalFilterBar'
-import { defaultFilters, type ComparisonContext, type GlobalFilters, type PageId } from './domain/types'
+import { defaultFilters, type GlobalFilters, type PageId, type WnAnalysisContext } from './domain/types'
+import { bundleFromEvidence, createAnalysisContext } from './domain/analysisContext'
 import { OverviewPage } from './pages/OverviewPage'
 import { SpatialPage } from './pages/SpatialPage'
 import { TemporalPage } from './pages/TemporalPage'
@@ -12,14 +13,20 @@ import { SegmentEvidenceDrawer } from './overlays/SegmentEvidenceDrawer'
 import { CauseContextDrawer } from './overlays/CauseContextDrawer'
 import { PredictionExplanationDrawer } from './overlays/PredictionExplanationDrawer'
 import { MethodologyModal } from './overlays/MethodologyModal'
+import { FlightInvestigationModal } from './overlays/FlightInvestigationModal'
 
-type OverlayState =
-  | { kind: 'comparison'; context: ComparisonContext }
+type OverlayRoute =
+  | { kind: 'comparison'; context: WnAnalysisContext }
+  | { kind: 'flight-investigation'; context: WnAnalysisContext; carrierScope: 'WN' | 'peer_group'; frozenPeerCarriers: string[] }
   | { kind: 'evidence'; entity: string }
   | { kind: 'cause'; entity: string }
   | { kind: 'explanation'; id: string }
   | { kind: 'methodology' }
-  | null
+
+interface OverlayState {
+  active: OverlayRoute | null
+  backStack: OverlayRoute[]
+}
 
 const isPage = (value: string): value is PageId => ['overview', 'spatial', 'temporal', 'prediction'].includes(value)
 
@@ -30,7 +37,7 @@ export default function App() {
   const page: PageId = isPage(routePage) ? routePage : 'overview'
   const [filters, setFilters] = useState<GlobalFilters>(defaultFilters)
   const [selectedEntity, setSelectedEntity] = useState('DAL → ATL')
-  const [overlay, setOverlay] = useState<OverlayState>(null)
+  const [overlayState, setOverlayState] = useState<OverlayState>({ active: null, backStack: [] })
   const [toast, setToast] = useState('')
 
   const showToast = useCallback((message: string) => setToast(message), [])
@@ -46,20 +53,44 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const openEvidence = (entity: string) => setOverlay({ kind: 'evidence', entity })
-  const openCause = (entity: string) => setOverlay({ kind: 'cause', entity })
-  const openComparison = (context: ComparisonContext) => setOverlay({ kind: 'comparison', context })
+  const openOverlay = (route: OverlayRoute, preserveActive = false) => setOverlayState((current) => ({
+    active: route,
+    backStack: preserveActive && current.active ? [...current.backStack, current.active] : [],
+  }))
+  const closeOverlays = () => setOverlayState({ active: null, backStack: [] })
+  const goBackOverlay = () => setOverlayState((current) => {
+    const previous = current.backStack[current.backStack.length - 1] ?? null
+    return { active: previous, backStack: current.backStack.slice(0, -1) }
+  })
+  const openEvidence = (entity: string) => openOverlay({ kind: 'evidence', entity }, Boolean(overlayState.active))
+  const openCause = (entity: string) => openOverlay({ kind: 'cause', entity }, Boolean(overlayState.active))
+  const openComparison = (context: WnAnalysisContext) => openOverlay({ kind: 'comparison', context }, Boolean(overlayState.active))
+  const openInvestigation = (context: WnAnalysisContext, frozenPeerCarriers: string[] = [], carrierScope: 'WN' | 'peer_group' = 'WN') =>
+    openOverlay({ kind: 'flight-investigation', context, frozenPeerCarriers, carrierScope }, Boolean(overlayState.active))
+  const updateComparisonContext = (context: WnAnalysisContext) => setOverlayState((current) => ({
+    ...current,
+    active: current.active?.kind === 'comparison' ? { kind: 'comparison', context } : current.active,
+  }))
+
+  const fallbackContext = (entity: string) => createAnalysisContext({
+    sourceComponentId: 'SD', sourceUnitId: entity, sourceLabelVi: entity,
+    grain: entity.includes('→') ? 'route' : 'airport', comparisonIntent: entity.includes('→') ? 'rate' : 'airport',
+    globalFilters: filters, metrics: bundleFromEvidence({ unavailableReason: 'Bộ chỉ số sẽ được lớp dịch vụ đối soát lại theo ngữ cảnh.' }),
+    filters: entity.includes('→') ? { route: entity } : { airport: entity, airportRole: 'either' },
+  })
+
+  const overlay = overlayState.active
 
   return (
     <>
-      <AppShell onOpenMethodology={() => setOverlay({ kind: 'methodology' })}>
+      <AppShell onOpenMethodology={() => openOverlay({ kind: 'methodology' })}>
         {page !== 'prediction' && <GlobalFilterBar filters={filters} onApply={(nextFilters) => { setFilters(nextFilters); showToast('Đã áp dụng phạm vi phân tích; các lựa chọn cục bộ được giữ nguyên.') }} />}
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
-          <Route path="/overview" element={<OverviewPage filters={filters} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenEvidence={openEvidence} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
-          <Route path="/spatial" element={<SpatialPage filters={filters} initialEntity={selectedEntity} onNavigate={navigate} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenCause={openCause} onSelectEntity={setSelectedEntity} onToast={showToast} />} />
-          <Route path="/temporal" element={<TemporalPage filters={filters} selectedEntity={selectedEntity} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenCause={openCause} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
-          <Route path="/prediction" element={<PredictionPage selectedEntity={selectedEntity} globalFilters={filters} onOpenComparison={openComparison} onOpenEvidence={openEvidence} onOpenExplanation={(id) => setOverlay({ kind: 'explanation', id })} onSelectEntity={setSelectedEntity} onOpenMethodology={() => setOverlay({ kind: 'methodology' })} onToast={showToast} />} />
+          <Route path="/overview" element={<OverviewPage filters={filters} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenComparison={openComparison} onOpenInvestigation={openInvestigation} onOpenEvidence={openEvidence} onOpenMethodology={() => openOverlay({ kind: 'methodology' })} onToast={showToast} />} />
+          <Route path="/spatial" element={<SpatialPage filters={filters} initialEntity={selectedEntity} onNavigate={navigate} onOpenComparison={openComparison} onOpenInvestigation={openInvestigation} onOpenEvidence={openEvidence} onOpenCause={openCause} onSelectEntity={setSelectedEntity} onToast={showToast} />} />
+          <Route path="/temporal" element={<TemporalPage filters={filters} selectedEntity={selectedEntity} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenComparison={openComparison} onOpenInvestigation={openInvestigation} onOpenEvidence={openEvidence} onOpenCause={openCause} onOpenMethodology={() => openOverlay({ kind: 'methodology' })} onToast={showToast} />} />
+          <Route path="/prediction" element={<PredictionPage selectedEntity={selectedEntity} globalFilters={filters} onOpenComparison={openComparison} onOpenInvestigation={openInvestigation} onOpenEvidence={openEvidence} onOpenExplanation={(id) => openOverlay({ kind: 'explanation', id })} onSelectEntity={setSelectedEntity} onOpenMethodology={() => openOverlay({ kind: 'methodology' })} onToast={showToast} />} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
         </Routes>
       </AppShell>
@@ -67,26 +98,35 @@ export default function App() {
       {overlay?.kind === 'comparison' && (
         <CarrierComparisonModal
           context={overlay.context}
-          filters={filters}
-          onClose={() => setOverlay(null)}
-          onOpenEvidence={(entity) => setOverlay({ kind: 'evidence', entity })}
-          onToast={showToast}
+          onClose={closeOverlays}
+          onBack={overlayState.backStack.length ? goBackOverlay : undefined}
+          onContextChange={updateComparisonContext}
+          onOpenInvestigation={(context, carriers, carrierScope) => openInvestigation(context, carriers, carrierScope)}
+        />
+      )}
+      {overlay?.kind === 'flight-investigation' && (
+        <FlightInvestigationModal
+          context={overlay.context}
+          carrierScope={overlay.carrierScope}
+          frozenPeerCarriers={overlay.frozenPeerCarriers}
+          onClose={closeOverlays}
+          onBack={overlayState.backStack.length ? goBackOverlay : undefined}
         />
       )}
       {overlay?.kind === 'evidence' && (
         <SegmentEvidenceDrawer
           entity={overlay.entity}
           filters={filters}
-          onClose={() => setOverlay(null)}
-          onOpenComparison={() => setOverlay({ kind: 'comparison', context: { entity: overlay.entity, variant: 'CM-R' } })}
-          onOpenCause={() => setOverlay({ kind: 'cause', entity: overlay.entity })}
+          onClose={closeOverlays}
+          onOpenComparison={() => openComparison(fallbackContext(overlay.entity))}
+          onOpenCause={() => openCause(overlay.entity)}
           onToast={showToast}
         />
       )}
-      {overlay?.kind === 'cause' && <CauseContextDrawer entity={overlay.entity} filters={filters} onClose={() => setOverlay(null)} />}
-      {overlay?.kind === 'explanation' && <PredictionExplanationDrawer id={overlay.id} onClose={() => setOverlay(null)} onOpenEvidence={(entity) => setOverlay({ kind: 'evidence', entity })} />}
+      {overlay?.kind === 'cause' && <CauseContextDrawer entity={overlay.entity} filters={filters} onClose={closeOverlays} />}
+      {overlay?.kind === 'explanation' && <PredictionExplanationDrawer id={overlay.id} onClose={closeOverlays} onOpenEvidence={openEvidence} />}
 
-      {overlay?.kind === 'methodology' && <MethodologyModal onClose={() => setOverlay(null)} />}
+      {overlay?.kind === 'methodology' && <MethodologyModal onClose={closeOverlays} />}
 
       <div className={`toast${toast ? ' show' : ''}`} role="status" aria-live="polite">{toast}</div>
     </>

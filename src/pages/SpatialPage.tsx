@@ -1,42 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import type {
-  ComparisonContext,
   EvidenceRecord,
   EntityTrendFilters,
   GlobalFilters,
+  GranularTrendSeries,
   PageId,
   SpatialState,
+  WnAnalysisContext,
 } from '../domain/types'
+import { bundleFromEvidence, createAnalysisContext, filtersForTrendPeriod } from '../domain/analysisContext'
 import { formatRole } from '../domain/formatters'
 import { useAirportHotspots, useEntityTrend } from '../hooks/dashboardHooks'
 import { AirportMap } from '../components/charts/AirportMap'
-import { UnifiedTrendChart } from '../components/charts/UnifiedTrendChart'
+import { UnifiedTrendChart, type Granularity } from '../components/charts/UnifiedTrendChart'
 import { RouteAirportEvidenceTable } from '../components/tables/RouteAirportEvidenceTable'
-import { CustomContextMenu, type ContextMenuItem } from '../components/ui/CustomContextMenu'
 import { Card, EmptyState, ErrorState, IllustrativeLabel, LoadingState } from '../components/ui/Card'
-
-interface ContextMenuState {
-  visible: boolean
-  x: number
-  y: number
-  entity: string
-  entityType: 'Airport' | 'Route'
-  code?: string
-  role?: 'Origin' | 'Destination'
-}
+import { AnalysisActions } from '../components/ui/AnalysisActions'
+import { useAnalysisContextMenu } from '../components/ui/useAnalysisContextMenu'
 
 interface SpatialPageProps {
   filters: GlobalFilters
   initialEntity: string
   onNavigate: (page: PageId) => void
-  onOpenComparison: (context: ComparisonContext) => void
+  onOpenComparison: (context: WnAnalysisContext) => void
+  onOpenInvestigation: (context: WnAnalysisContext) => void
   onOpenEvidence: (entity: string) => void
   onOpenCause: (entity: string) => void
   onSelectEntity: (entity: string) => void
   onToast: (message: string) => void
 }
 
-export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvidence, onOpenCause, onSelectEntity, onToast }: SpatialPageProps) {
+export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenInvestigation, onOpenCause, onSelectEntity, onToast }: SpatialPageProps) {
   const [localState, setLocalState] = useState<SpatialState>({ grain: 'destination', metric: 'gap' })
   const [selectedAirportCode, setSelectedAirportCode] = useState<string | undefined>()
   const [selectedAirportCodes, setSelectedAirportCodes] = useState<string[]>([])
@@ -73,7 +67,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
     return results.sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0))
   }, [airportsQuery.data])
 
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const { analysisContextMenu, openAnalysisContextMenu } = useAnalysisContextMenu(onOpenComparison, onOpenInvestigation)
 
   useEffect(() => {
     if (routeOnlyMode && selectedRoute) {
@@ -94,16 +88,31 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
     code?: string,
     role?: 'Origin' | 'Destination',
   ) {
-    e.preventDefault()
-    e.stopPropagation()
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      entity,
-      entityType,
-      code,
-      role,
+    const sourceId = entityType === 'Route' ? 'P2-C04' : 'P2-C03'
+    const intent = entityType === 'Route' ? 'rate' : 'airport'
+    const context = contextFor(entity, sourceId, intent, role)
+    openAnalysisContextMenu(e, context, {
+      entitySubtitle: entityType === 'Route' ? 'Đường bay' : 'Sân bay',
+      extraItems: [
+        {
+          label: 'Xem xu hướng chi tiết',
+          onClick: () => {
+            if (entityType === 'Route') selectRoute(entity)
+            else if (code) {
+              if (role) setLocalState((current) => ({ ...current, grain: role === 'Origin' ? 'origin' : 'destination' }))
+              selectAirport(code)
+            }
+          },
+        },
+        {
+          label: 'Phân tích quy luật thời gian',
+          onClick: () => { onSelectEntity(entity); onNavigate('temporal') },
+        },
+        {
+          label: 'Bối cảnh nguyên nhân ghi nhận',
+          onClick: () => onOpenCause(entity),
+        },
+      ],
     })
   }
 
@@ -182,62 +191,39 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
 
   const mapRoutes = useMemo(() => (airportsQuery.data ? Object.values(airportsQuery.data.routesByAirport).flat() : []), [airportsQuery.data])
 
+  function contextFor(entity: string, sourceComponentId: string, intent: WnAnalysisContext['comparisonIntent'], role?: 'Origin' | 'Destination', periodFilters: Partial<WnAnalysisContext['filters']> = {}): WnAnalysisContext {
+    const route = allRoutes.find((item) => item.entity === entity)
+    const airportCode = entity.length === 3 ? entity : airportsQuery.data?.airports.find((item) => item.entity === entity)?.code
+    const airport = airportsQuery.data?.airports.find((item) => item.code === airportCode)
+    const airportGrain = role ? (role === 'Origin' ? 'origin' : 'destination') : localState.grain
+    const airportMetrics = airport && (airportGrain === 'origin' ? airport.originMetrics : airport.destMetrics)
+    const evidence = route ?? airportMetrics ?? airport
+    return createAnalysisContext({
+      sourceComponentId,
+      sourceUnitId: route?.id ?? airport?.id ?? entity,
+      sourceLabelVi: route?.entity ?? airport?.entity ?? entity,
+      grain: route ? 'route' : airport ? 'airport' : 'network',
+      comparisonIntent: intent,
+      globalFilters: filters,
+      metrics: bundleFromEvidence({ eligible: evidence?.eligibleCount ?? evidence?.n, delayed: evidence?.delayedCount, rate: evidence?.rate, averageDelay: evidence?.averageDelay }),
+      filters: { ...(route ? { route: route.entity } : airport ? { airport: airport.code, airportRole: airportGrain } : {}), ...periodFilters },
+    })
+  }
+
+  const trendPointContext = (point: GranularTrendSeries, granularity: Granularity) => {
+    const entity = selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN'
+    const base = contextFor(entity, 'P2-C05', point.isFuture ? 'future_history' : 'trend', undefined, point.isFuture ? {} : filtersForTrendPeriod(point.period, granularity))
+    return {
+      ...base,
+      sourceUnitId: `${base.sourceUnitId}-${point.period}`,
+      sourceLabelVi: `${base.sourceLabelVi} · ${point.label}`,
+      metricSnapshot: bundleFromEvidence({ eligible: point.eligibleCount ?? point.wnN, delayed: point.delayedCount, rate: point.wn, averageDelay: point.averageDelay }),
+    }
+  }
+
   if (airportsQuery.isError) {
     return <ErrorState message={airportsQuery.error?.message ?? 'Lỗi không xác định'} onRetry={() => airportsQuery.refetch()} />
   }
-
-  const contextMenuItems: ContextMenuItem[] = contextMenu
-    ? [
-        {
-          label: 'Xem xu hướng chi tiết',
-          onClick: () => {
-            if (contextMenu.entityType === 'Route') {
-              selectRoute(contextMenu.entity)
-            } else if (contextMenu.code) {
-              if (contextMenu.role) {
-                setLocalState((s) => ({ ...s, grain: contextMenu.role === 'Origin' ? 'origin' : 'destination' }))
-              }
-              selectAirport(contextMenu.code)
-            }
-          },
-        },
-        {
-          label: 'Phân tích quy luật thời gian',
-          onClick: () => {
-            onSelectEntity(contextMenu.entity)
-            onNavigate('temporal')
-          },
-        },
-        {
-          label: 'Mở dự báo & ưu tiên',
-          onClick: () => {
-            onSelectEntity(contextMenu.entity)
-            onNavigate('prediction')
-          },
-        },
-        {
-          label: 'div1',
-          isDivider: true,
-          onClick: () => {},
-        },
-        {
-          label: 'Xem bằng chứng phân đoạn',
-          onClick: () => onOpenEvidence(contextMenu.entity),
-        },
-        {
-          label: 'Bối cảnh nguyên nhân ghi nhận',
-          onClick: () => onOpenCause(contextMenu.entity),
-        },
-        ...(contextMenu.entityType === 'Route'
-          ? [
-              {
-                label: 'So sánh hãng bay trên tuyến',
-                onClick: () => onOpenComparison({ entity: contextMenu.entity, variant: 'CM-R' }),
-              },
-            ]
-          : []),
-      ]
-    : []
 
   return (
     <section className="view active" aria-labelledby="spatial-title">
@@ -266,8 +252,10 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
           action={
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <IllustrativeLabel compact />
+              <AnalysisActions context={contextFor(selectedAirportCode ?? 'Mạng lưới WN', 'P2-C02', 'airport')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />
             </div>
           }
+          onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedAirportCode ?? 'Mạng lưới WN', 'P2-C02', 'airport'), { entitySubtitle: 'Bản đồ sân bay' })}
         >
           {airportsQuery.isLoading || !airportsQuery.data ? (
             <LoadingState rows={6} />
@@ -281,7 +269,7 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
               enableMeasurement
               onSelectPair={handleMapSelectPair}
               onClearPair={handleClearPair}
-              onAirportContextMenu={(e, airport) => openContextMenu(e, airport.entity, 'Airport', airport.code)}
+              onAirportContextMenu={(e, airport) => openContextMenu(e, airport.entity, 'Airport', airport.code, localState.grain === 'origin' ? 'Origin' : 'Destination')}
             />
           )}
         </Card>
@@ -290,9 +278,9 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
           <LoadingState rows={6} />
         ) : (
           <RouteAirportEvidenceTable
-            id="P2-C03"
+            id={routeOnlyMode ? 'P2-C04' : 'P2-C03'}
             title={routeOnlyMode ? 'Bằng chứng tuyến bay' : 'Bằng chứng sân bay'}
-            subtitle={routeOnlyMode ? 'Tất cả tuyến theo filter · sắp theo chênh lệch' : 'Hiển thị đồng thời điểm đi và đến · hover để xem chi tiết đầy đủ'}
+            subtitle={routeOnlyMode ? 'Tất cả tuyến theo bộ lọc · sắp theo chênh lệch' : 'Hiển thị đồng thời điểm đi và đến · đưa con trỏ vào để xem chi tiết đầy đủ'}
             routes={allRoutes}
             airports={airportsQuery.data.airports}
             routesByAirport={airportsQuery.data.routesByAirport}
@@ -309,65 +297,41 @@ export function SpatialPage({ filters, onNavigate, onOpenComparison, onOpenEvide
             }}
             onSelectRoute={selectRoute}
             onSelectAirport={selectAirport}
+            onCardContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', routeOnlyMode ? 'P2-C04' : 'P2-C03', routeOnlyMode ? 'rate' : 'airport'), { entitySubtitle: routeOnlyMode ? 'Bảng tuyến bay' : 'Bảng sân bay' })}
             onOpenContextMenu={openContextMenu}
+            extraAction={(selectedRoute || selectedAirportCode) ? <AnalysisActions context={contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', routeOnlyMode ? 'P2-C04' : 'P2-C03', routeOnlyMode ? 'rate' : 'airport')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact /> : undefined}
           />
         )}
       </div>
 
       {entityTrendFilters && (
-        <Card
-          id="P2-C05"
-          title={trendTitle}
-          subtitle="Xu hướng tháng/tuần/ngày · WN so với DL, AA · Dự báo tháng tiếp theo"
-          action={
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {selectedAirportCode && (
-                <div className="segmented-control segmented-control--compact" aria-label="Vai trò hiển thị xu hướng">
-                  <button
-                    type="button"
-                    className={localState.grain === 'origin' ? 'active' : ''}
-                    onClick={() => setLocalState((s) => ({ ...s, grain: 'origin' }))}
-                  >
-                    Sân bay đi
-                  </button>
-                  <button
-                    type="button"
-                    className={localState.grain === 'destination' ? 'active' : ''}
-                    onClick={() => setLocalState((s) => ({ ...s, grain: 'destination' }))}
-                  >
-                    Sân bay đến
-                  </button>
-                </div>
-              )}
-              {selectedRoute && (
-                <button className="btn btn-secondary" type="button" onClick={() => onOpenComparison({ entity: selectedRoute, variant: 'CM-R' })}>
-                  So sánh hãng bay
-                </button>
-              )}
-            </div>
-          }
-        >
-          {trendQuery.isLoading || !trendQuery.data ? (
-            <LoadingState rows={4} />
-          ) : trendQuery.isError ? (
-            <EmptyState title="Không thể tải xu hướng" detail={trendQuery.error?.message ?? 'Lỗi dữ liệu'} />
-          ) : (
-            <UnifiedTrendChart data={trendQuery.data} onToast={onToast} />
-          )}
-        </Card>
+        <>
+          <Card
+            id="P2-C05"
+            title={trendTitle}
+            subtitle="Xu hướng tháng/tuần/ngày · WN so với DL, AA · Dự báo tháng tiếp theo"
+            action={
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {selectedAirportCode && (
+                  <div className="segmented-control segmented-control--compact" aria-label="Vai trò hiển thị xu hướng">
+                    <button type="button" className={localState.grain === 'origin' ? 'active' : ''} onClick={() => setLocalState((s) => ({ ...s, grain: 'origin' }))}>Sân bay đi</button>
+                    <button type="button" className={localState.grain === 'destination' ? 'active' : ''} onClick={() => setLocalState((s) => ({ ...s, grain: 'destination' }))}>Sân bay đến</button>
+                  </div>
+                )}
+                <AnalysisActions context={contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P2-C05', 'trend')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact />
+              </div>
+            }
+            onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P2-C05', 'trend'), { entitySubtitle: 'Xu hướng thực thể' })}
+          >
+            {trendQuery.isLoading || !trendQuery.data ? <LoadingState rows={4} /> : trendQuery.isError ? <EmptyState title="Không thể tải xu hướng" detail={trendQuery.error?.message ?? 'Lỗi dữ liệu'} /> : <UnifiedTrendChart data={trendQuery.data} onToast={onToast} onPointContextMenu={(event, point, granularity) => openAnalysisContextMenu(event, trendPointContext(point, granularity), { entitySubtitle: point.isFuture ? 'Mốc dự báo' : 'Mốc thời gian' })} />}
+          </Card>
+          <Card id="P2-C06" title="Hành động theo ngữ cảnh" subtitle="Giữ nguyên sân bay hoặc tuyến đang chọn khi chuyển sang đối sánh và điều tra chuyến" action={<AnalysisActions context={contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P2-C06', selectedRoute ? 'rate' : 'airport')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} />} onContextMenu={(event) => openAnalysisContextMenu(event, contextFor(selectedRoute ?? selectedAirportCode ?? 'Mạng lưới WN', 'P2-C06', selectedRoute ? 'rate' : 'airport'), { entitySubtitle: 'Ngữ cảnh đã chọn' })}>
+            <p className="microcopy">Ngữ cảnh hiện tại: <strong>{selectedRoute ?? selectedAirportCode}</strong>. Hai hành động sử dụng cùng ảnh chụp bộ lọc và bộ chỉ số tại thời điểm mở.</p>
+          </Card>
+        </>
       )}
 
-      {contextMenu?.visible && (
-        <CustomContextMenu
-          visible={contextMenu.visible}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          entityTitle={contextMenu.code ?? contextMenu.entity}
-          entitySubtitle={contextMenu.entityType === 'Route' ? 'Tuyến bay' : 'Sân bay'}
-          items={contextMenuItems}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {analysisContextMenu}
     </section>
   )
 }

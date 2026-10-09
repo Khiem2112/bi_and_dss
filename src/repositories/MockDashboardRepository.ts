@@ -2,22 +2,24 @@ import type {
   AirportHotspot,
   AirportHotspotsData,
   AirportLocation,
-  CarrierBreakdown,
-  CarrierComparisonData,
-  CarrierMetric,
   CauseContextData,
-  ComparisonContext,
+  DelayMetricBundle,
   DashboardMetadata,
   EvidenceRecord,
   FlightRecord,
   FutureFlight,
   FutureFlightsData,
+  FlightInvestigationRequest,
+  FlightInvestigationResult,
+  FlightSortField,
   GlobalFilters,
   GranularTrendSeries,
   GranularTrendsData,
   HeatCell,
   KpiValue,
   OverviewData,
+  PeerBenchmarkRequest,
+  PeerBenchmarkResult,
   PredictionExplanationData,
   PredictionFilters,
   RiskAggregate,
@@ -32,6 +34,7 @@ import type {
   TemporalContext,
   TemporalPatternsData,
   TrendPoint,
+  WnAnalysisFilters,
 } from '../domain/types'
 import { defaultFilters } from '../domain/types'
 import type { DashboardRepository } from './DashboardRepository'
@@ -84,11 +87,35 @@ const getDayOfWeek = (dateStr: string): string => {
   return days[dateObj.getUTCDay()]
 }
 
-const CARRIER_NAMES: Record<string, string> = {
-  WN: 'Southwest Airlines',
-  DL: 'Delta Air Lines',
-  AA: 'American Airlines',
+const formatRoute = (flight: FlightRecord): string => `${flight.ORIGIN} → ${flight.DEST}`
+
+const calculateBundle = (records: readonly FlightRecord[]): DelayMetricBundle => {
+  if (records.length === 0) {
+    return {
+      eligibleFlights: 0,
+      delayedFlights: 0,
+      delayRate: null,
+      averageArrivalDelayMinutes: null,
+      unavailableReason: 'Không có chuyến bay đủ điều kiện',
+    }
+  }
+  const delayedFlights = records.filter(isDelayed).length
+  return {
+    eligibleFlights: scaleCount(records.length),
+    delayedFlights: scaleCount(delayedFlights),
+    delayRate: Number(((delayedFlights / records.length) * 100).toFixed(3)),
+    averageArrivalDelayMinutes: Number((records.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / records.length).toFixed(3)),
+  }
 }
+
+const normalizeSearch = (value: string): string => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/Đ/g, 'D')
+  .toLocaleLowerCase('vi')
+  .trim()
+  .replace(/\s+/g, ' ')
 
 const wait = (duration = 180) => new Promise((resolve) => window.setTimeout(resolve, duration))
 
@@ -145,8 +172,32 @@ export class MockDashboardRepository implements DashboardRepository {
       if (filters.toDate && flight.FL_DATE > filters.toDate) return false
       if (filters.origin && filters.origin.length > 0 && !filters.origin.includes(flight.ORIGIN)) return false
       if (filters.destination && filters.destination.length > 0 && !filters.destination.includes(flight.DEST)) return false
+      if (filters.route && filters.route.length > 0 && !filters.route.includes(formatRoute(flight))) return false
       if (filters.season && filters.season.length > 0 && !filters.season.includes(getSeason(flight.FL_DATE))) return false
+      if (filters.dayOfWeek && filters.dayOfWeek.length > 0 && !filters.dayOfWeek.includes(getDayOfWeek(flight.FL_DATE))) return false
+      if (filters.scheduledTimeBlock && filters.scheduledTimeBlock.length > 0 && !filters.scheduledTimeBlock.includes(getTimeBlock(flight.CRS_DEP_TIME))) return false
       if (filters.distanceGroup && filters.distanceGroup.length > 0 && !filters.distanceGroup.includes(getDistanceGroup(flight.DISTANCE))) return false
+      return true
+    })
+  }
+
+  private filterByAnalysisContext(flights: readonly FlightRecord[], filters: WnAnalysisFilters): FlightRecord[] {
+    return flights.filter((flight) => {
+      if (filters.dateFrom && flight.FL_DATE < filters.dateFrom) return false
+      if (filters.dateTo && flight.FL_DATE > filters.dateTo) return false
+      if (filters.months?.length && !filters.months.includes(Number(flight.FL_DATE.slice(5, 7)))) return false
+      if (filters.dayOfWeeks?.length && !filters.dayOfWeeks.includes(getDayOfWeek(flight.FL_DATE))) return false
+      if (filters.scheduledTimeBlocks?.length && !filters.scheduledTimeBlocks.includes(getTimeBlock(flight.CRS_DEP_TIME))) return false
+      if (filters.origin && flight.ORIGIN !== filters.origin) return false
+      if (filters.destination && flight.DEST !== filters.destination) return false
+      if (filters.route && formatRoute(flight) !== filters.route) return false
+      if (filters.airport) {
+        if (filters.airportRole === 'origin' && flight.ORIGIN !== filters.airport) return false
+        if (filters.airportRole === 'destination' && flight.DEST !== filters.airport) return false
+        if ((!filters.airportRole || filters.airportRole === 'either') && flight.ORIGIN !== filters.airport && flight.DEST !== filters.airport) return false
+      }
+      if (filters.distanceGroups?.length && !filters.distanceGroups.includes(getDistanceGroup(flight.DISTANCE))) return false
+      if (filters.delayedOnly && !isDelayed(flight)) return false
       return true
     })
   }
@@ -272,24 +323,28 @@ export class MockDashboardRepository implements DashboardRepository {
         label: 'Chuyến bay đủ điều kiện',
         value: eligibleCount.toLocaleString('vi-VN'),
         context: 'Chuyến bay hoàn thành lịch trình, không hủy và không chuyển hướng',
+        metrics: calculateBundle(eligible),
       },
       {
         id: 'P1-C03',
         label: 'Chuyến bay đến trễ',
         value: delayedCount.toLocaleString('vi-VN'),
         context: 'Đến trễ từ 15 phút trở lên so với lịch bay công bố',
+        metrics: calculateBundle(eligible),
       },
       {
         id: 'P1-C04',
         label: 'Tỷ lệ đến trễ thực tế',
         value: hasEligible ? `${delayRate.toFixed(1).replace('.', ',')}%` : '—',
         context: hasEligible ? 'Tỷ lệ chuyến bay trễ trên tổng số chuyến bay đủ điều kiện' : 'Không có chuyến bay đủ điều kiện',
+        metrics: calculateBundle(eligible),
       },
       {
         id: 'P1-C05',
         label: 'Độ trễ đến trung bình',
         value: hasEligible ? `${avgDelay.toFixed(1).replace('.', ',')} phút` : '—',
         context: hasEligible ? 'Số phút trễ bình quân trên các chuyến bay đủ điều kiện' : 'Không có chuyến bay đủ điều kiện',
+        metrics: calculateBundle(eligible),
       },
     ]
 
@@ -1119,129 +1174,222 @@ export class MockDashboardRepository implements DashboardRepository {
     }
   }
 
-  async getCarrierComparison(context: ComparisonContext, peers: string[], filters?: GlobalFilters): Promise<CarrierComparisonData> {
-    const activeF = filters ?? this.activeFilters
-    const allFlights = await this.loadFlights()
-    const targetFlights = this.filterFlights(allFlights, activeF)
-    const eligibleAll = targetFlights.filter(isEligible)
+  async getPeerBenchmark(request: PeerBenchmarkRequest): Promise<PeerBenchmarkResult> {
+    const allFlights = (await this.loadFlights()).filter(isEligible)
+    const contextFlights = this.filterByAnalysisContext(allFlights, request.context.filters)
+    const wnSource = contextFlights.filter((flight) => flight.OP_CARRIER === 'WN')
+    const candidateCarriers = Array.from(new Set(contextFlights.map((flight) => flight.OP_CARRIER)))
+      .filter((carrier) => carrier !== 'WN')
 
-    let entityFlights = eligibleAll
-    if (context.entity.includes('→')) {
-      entityFlights = eligibleAll.filter((f) => `${f.ORIGIN} → ${f.DEST}` === context.entity)
-    } else if (context.entity.length === 3) {
-      entityFlights = eligibleAll.filter((f) => f.ORIGIN === context.entity || f.DEST === context.entity)
-    }
+    const cellKey = (flight: FlightRecord) => [
+      formatRoute(flight),
+      flight.FL_DATE.slice(0, 7),
+      getDayOfWeek(flight.FL_DATE),
+      getTimeBlock(flight.CRS_DEP_TIME),
+      getDistanceGroup(flight.DISTANCE),
+    ].join('|')
 
-    const targetCarriers = ['WN', ...peers.filter(Boolean).filter((carrier, index, values) => carrier !== 'WN' && values.indexOf(carrier) === index)]
-    const primaryPeer = targetCarriers.find((carrier) => carrier !== 'WN') ?? 'DL'
-    const comparisonCell = (flight: FlightRecord) =>
-      `${flight.ORIGIN} → ${flight.DEST} · ${getDayOfWeek(flight.FL_DATE)} · ${getTimeBlock(flight.CRS_DEP_TIME)}`
+    const routeSuggestions = Array.from(new Set(wnSource.map(formatRoute))).map((route) => {
+      const routeWn = wnSource.filter((flight) => formatRoute(flight) === route)
+      const peerCells = new Set(contextFlights.filter((flight) => flight.OP_CARRIER !== 'WN' && formatRoute(flight) === route).map(cellKey))
+      const covered = routeWn.filter((flight) => peerCells.has(cellKey(flight))).length
+      return { id: route, label: route, grain: 'route' as const, expectedCoverageRate: routeWn.length ? covered / routeWn.length : 0 }
+    }).sort((left, right) => right.expectedCoverageRate - left.expectedCoverageRate).slice(0, 6)
 
-    const flightsByCell = new Map<string, FlightRecord[]>()
-    for (const flight of entityFlights.filter((item) => targetCarriers.includes(item.OP_CARRIER))) {
-      const key = comparisonCell(flight)
-      const items = flightsByCell.get(key) ?? []
-      items.push(flight)
-      flightsByCell.set(key, items)
-    }
-    const sharedCellKeys = new Set(
-      Array.from(flightsByCell.entries())
-        .filter(([, items]) => targetCarriers.every((carrier) => items.some((item) => item.OP_CARRIER === carrier)))
-        .map(([key]) => key),
+    const hasComparableEntity = Boolean(
+      request.context.filters.route || request.context.filters.airport ||
+      request.context.filters.origin || request.context.filters.destination ||
+      request.context.grain === 'route' || request.context.grain === 'airport' || request.context.grain === 'time_cell',
     )
-    const comparableFlights = entityFlights.filter(
-      (flight) => targetCarriers.includes(flight.OP_CARRIER) && sharedCellKeys.has(comparisonCell(flight)),
-    )
-    const carrierMetrics: CarrierMetric[] = []
-    let wnRate = 0
-
-    const wnFlights = comparableFlights.filter((f) => f.OP_CARRIER === 'WN')
-    const wnDelayed = wnFlights.filter(isDelayed)
-    if (wnFlights.length > 0) {
-      wnRate = Number(((wnDelayed.length / wnFlights.length) * 100).toFixed(1))
-    }
-
-    for (const c of targetCarriers) {
-      const cFlights = comparableFlights.filter((f) => f.OP_CARRIER === c)
-      if (cFlights.length === 0) continue
-      const cDelayed = cFlights.filter(isDelayed)
-      const rate = cFlights.length > 0 ? Number(((cDelayed.length / cFlights.length) * 100).toFixed(1)) : 0
-      const avg = cFlights.length > 0
-        ? Number((cFlights.reduce((acc, cur) => acc + (cur.ARR_DELAY || 0), 0) / cFlights.length).toFixed(1))
-        : 0
-      const gapVsWn = c === 'WN' ? null : Number((rate - wnRate).toFixed(1))
-
-      carrierMetrics.push({
-        carrier: c,
-        name: CARRIER_NAMES[c] ?? c,
-        eligible: scaleCount(cFlights.length),
-        delayed: scaleCount(cDelayed.length),
-        rate,
-        averageDelay: avg,
-        gapVsWn,
-        flag: 'Uncalibrated',
-      })
-    }
-
-    const trend: Record<string, TrendPoint[]> = {}
-    for (const c of targetCarriers) {
-      const cFlights = comparableFlights.filter((f) => f.OP_CARRIER === c)
-      const cMonthMap = new Map<string, FlightRecord[]>()
-      for (const f of cFlights) {
-        const m = f.FL_DATE.slice(0, 7)
-        const list = cMonthMap.get(m) ?? []
-        list.push(f)
-        cMonthMap.set(m, list)
+    if (!hasComparableEntity) {
+      return {
+        metadata: this.createMetadata('DỮ LIỆU MINH HỌA — CẦN HOÀN THIỆN NGỮ CẢNH ĐỐI SÁNH', contextFlights.length),
+        status: 'incomplete_context',
+        context: request.context,
+        wn: calculateBundle(wnSource),
+        peerObserved: calculateBundle([]),
+        peerBenchmarkRate: null,
+        peerBenchmarkAverageDelayMinutes: null,
+        rateGap: null,
+        benchmark: {
+          selectedCarriers: [], candidateCarrierCount: candidateCarriers.length, comparableCellCount: 0,
+          wnCoverageRate: 0, selectionRuleVersion: request.selectionRuleVersion,
+          weightingRuleVersion: request.weightingRuleVersion,
+        },
+        series: [], suggestions: routeSuggestions,
+        unavailableReason: 'Cần chọn tuyến hoặc sân bay trước khi tạo mức tham chiếu tương đương.',
       }
-      trend[c] = Array.from(cMonthMap.keys()).sort().map((period) => {
-        const mList = cMonthMap.get(period) ?? []
-        const mDel = mList.filter(isDelayed)
-        const r = mList.length > 0 ? Number(((mDel.length / mList.length) * 100).toFixed(1)) : 0
-        const averageDelay = mList.length > 0
-          ? Number((mList.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / mList.length).toFixed(1))
-          : 0
-        return { period, value: r, n: scaleCount(mList.length), delayedCount: scaleCount(mDel.length), averageDelay }
-      })
     }
 
-    const breakdown: CarrierBreakdown[] = Array.from(sharedCellKeys)
-      .map((cell) => {
-        const items = flightsByCell.get(cell) ?? []
-        const wn = items.filter((flight) => flight.OP_CARRIER === 'WN')
-        const peer = items.filter((flight) => flight.OP_CARRIER === primaryPeer)
-        const wnDelayed = wn.filter(isDelayed)
-        const peerDelayed = peer.filter(isDelayed)
-        return {
-          cell,
-          wnRate: Number(((wnDelayed.length / wn.length) * 100).toFixed(1)),
-          wnDelayed: scaleCount(wnDelayed.length),
-          peerRate: Number(((peerDelayed.length / peer.length) * 100).toFixed(1)),
-          peerDelayed: scaleCount(peerDelayed.length),
-          wnN: scaleCount(wn.length),
-          peerN: scaleCount(peer.length),
-          wnAverageDelay: Number((wn.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / wn.length).toFixed(1)),
-          peerAverageDelay: Number((peer.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / peer.length).toFixed(1)),
-        }
-      })
-      .sort((left, right) => (right.wnN + right.peerN) - (left.wnN + left.peerN))
+    const wnCellKeys = new Set(wnSource.map(cellKey))
+    const candidates = candidateCarriers.map((carrier) => {
+      const peer = contextFlights.filter((flight) => flight.OP_CARRIER === carrier)
+      const peerCellKeys = new Set(peer.map(cellKey))
+      const sharedCells = new Set([...wnCellKeys].filter((key) => peerCellKeys.has(key)))
+      const coveredWn = wnSource.filter((flight) => sharedCells.has(cellKey(flight))).length
+      return { carrier, peer, sharedCells, coverage: wnSource.length ? coveredWn / wnSource.length : 0, eligible: peer.length }
+    }).sort((left, right) =>
+      right.coverage - left.coverage || right.sharedCells.size - left.sharedCells.size || right.eligible - left.eligible || left.carrier.localeCompare(right.carrier),
+    )
 
-    const relevantFlights = entityFlights.filter((flight) => targetCarriers.includes(flight.OP_CARRIER))
-    const included = scaleCount(comparableFlights.length)
-    const excluded = scaleCount(relevantFlights.length - comparableFlights.length)
-    const coverage = relevantFlights.length > 0 ? Number(((comparableFlights.length / relevantFlights.length) * 100).toFixed(1)) : 0
+    let selected = candidates.filter((candidate) => candidate.coverage >= request.minimumCoverageRate).slice(0, request.maxPeers)
+    let fallbackReason: PeerBenchmarkResult['benchmark']['fallbackReason']
+    let finalCellKeys = new Set<string>()
+    const updateFinalCells = () => {
+      finalCellKeys = new Set([...wnCellKeys].filter((key) => selected.every((candidate) => candidate.sharedCells.has(key))))
+    }
+    updateFinalCells()
+    let finalCoverage = wnSource.length ? wnSource.filter((flight) => finalCellKeys.has(cellKey(flight))).length / wnSource.length : 0
+    if (selected.length === 2 && finalCoverage < request.minimumCoverageRate) {
+      selected = selected.slice(0, 1)
+      fallbackReason = 'second_peer_reduced_coverage'
+      updateFinalCells()
+      finalCoverage = wnSource.length ? wnSource.filter((flight) => finalCellKeys.has(cellKey(flight))).length / wnSource.length : 0
+    }
+
+    if (selected.length === 0 || finalCellKeys.size === 0 || finalCoverage < request.minimumCoverageRate) {
+      return {
+        metadata: this.createMetadata('DỮ LIỆU MINH HỌA — CHƯA ĐỦ DỮ LIỆU ĐỐI SÁNH', contextFlights.length),
+        status: 'insufficient_comparability', context: request.context,
+        wn: calculateBundle(wnSource), peerObserved: calculateBundle([]),
+        peerBenchmarkRate: null, peerBenchmarkAverageDelayMinutes: null, rateGap: null,
+        benchmark: {
+          selectedCarriers: [], candidateCarrierCount: candidateCarriers.length, comparableCellCount: 0,
+          wnCoverageRate: 0, selectionRuleVersion: request.selectionRuleVersion,
+          weightingRuleVersion: request.weightingRuleVersion, fallbackReason: 'insufficient_comparability',
+        },
+        series: [], suggestions: routeSuggestions,
+        unavailableReason: 'Không có hãng nào đạt ngưỡng độ phủ minh họa trong ngữ cảnh hiện tại.',
+      }
+    }
+
+    const selectedCarriers = selected.map((candidate) => candidate.carrier)
+    const comparableWn = wnSource.filter((flight) => finalCellKeys.has(cellKey(flight)))
+    const comparablePeers = contextFlights.filter((flight) => selectedCarriers.includes(flight.OP_CARRIER) && finalCellKeys.has(cellKey(flight)))
+    const wnByCell = new Map<string, FlightRecord[]>()
+    const peerByCell = new Map<string, FlightRecord[]>()
+    for (const flight of comparableWn) wnByCell.set(cellKey(flight), [...(wnByCell.get(cellKey(flight)) ?? []), flight])
+    for (const flight of comparablePeers) peerByCell.set(cellKey(flight), [...(peerByCell.get(cellKey(flight)) ?? []), flight])
+
+    let benchmarkRate = 0
+    let benchmarkAverage = 0
+    for (const key of finalCellKeys) {
+      const wnCell = wnByCell.get(key) ?? []
+      const peerCell = peerByCell.get(key) ?? []
+      if (!wnCell.length || !peerCell.length) continue
+      const weight = wnCell.length / comparableWn.length
+      benchmarkRate += weight * (peerCell.filter(isDelayed).length / peerCell.length) * 100
+      benchmarkAverage += weight * (peerCell.reduce((sum, flight) => sum + (flight.ARR_DELAY ?? 0), 0) / peerCell.length)
+    }
+
+    const wnBundle = calculateBundle(comparableWn)
+    const months = Array.from(new Set(comparableWn.map((flight) => flight.FL_DATE.slice(0, 7)))).sort()
+    const series = months.map((period) => {
+      const monthWn = comparableWn.filter((flight) => flight.FL_DATE.startsWith(period))
+      const monthPeers = comparablePeers.filter((flight) => flight.FL_DATE.startsWith(period))
+      const monthPeerBundle = calculateBundle(monthPeers)
+      return {
+        key: period,
+        label: `Tháng ${period.slice(5)}/${period.slice(0, 4)}`,
+        wn: calculateBundle(monthWn),
+        peerObserved: monthPeerBundle,
+        peerBenchmarkRate: monthPeerBundle.delayRate,
+        peerBenchmarkAverageDelayMinutes: monthPeerBundle.averageArrivalDelayMinutes,
+        wnCoverageRate: finalCoverage,
+      }
+    })
 
     return {
-      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — SO SÁNH CHỈ TRONG CÁC Ô ĐỐI SÁNH CHUNG', entityFlights.length),
-      contextId: `cmp-${context.entity.replace(/[^A-Za-z0-9]/g, '-')}-2018`,
-      entity: context.entity,
-      baselineId: 'BL-C',
-      sharedCells: sharedCellKeys.size,
-      includedFlights: included,
-      excludedFlights: excluded,
-      coverage,
-      carriers: carrierMetrics,
-      trend,
-      breakdown,
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — MỨC THAM CHIẾU NHÓM HÃNG ĐỐI SÁNH', comparableWn.length + comparablePeers.length),
+      status: selected.length === 1 ? 'one_peer' : 'ready',
+      context: request.context,
+      wn: wnBundle,
+      peerObserved: calculateBundle(comparablePeers),
+      peerBenchmarkRate: Number(benchmarkRate.toFixed(3)),
+      peerBenchmarkAverageDelayMinutes: Number(benchmarkAverage.toFixed(3)),
+      rateGap: wnBundle.delayRate === null ? null : Number((wnBundle.delayRate - benchmarkRate).toFixed(3)),
+      benchmark: {
+        selectedCarriers, candidateCarrierCount: candidateCarriers.length, comparableCellCount: finalCellKeys.size,
+        wnCoverageRate: finalCoverage, selectionRuleVersion: request.selectionRuleVersion,
+        weightingRuleVersion: request.weightingRuleVersion, fallbackReason,
+      },
+      series, suggestions: routeSuggestions,
+    }
+  }
+
+  async getFlightInvestigation(request: FlightInvestigationRequest): Promise<FlightInvestigationResult> {
+    const allFlights = (await this.loadFlights()).filter(isEligible)
+    const carriers = request.carrierScope === 'WN' ? ['WN'] : (request.frozenPeerCarriers ?? [])
+    let filtered = this.filterByAnalysisContext(allFlights, request.sourceFilters)
+      .filter((flight) => carriers.includes(flight.OP_CARRIER))
+    const local = request.localFilters
+    filtered = filtered.filter((flight) => {
+      if (local.fromDate && flight.FL_DATE < local.fromDate) return false
+      if (local.toDate && flight.FL_DATE > local.toDate) return false
+      if (local.origin && flight.ORIGIN !== local.origin.trim().toUpperCase()) return false
+      if (local.destination && flight.DEST !== local.destination.trim().toUpperCase()) return false
+      if (local.route && formatRoute(flight) !== local.route) return false
+      if (local.dayOfWeek && getDayOfWeek(flight.FL_DATE) !== local.dayOfWeek) return false
+      if (local.scheduledTimeBlock && getTimeBlock(flight.CRS_DEP_TIME) !== local.scheduledTimeBlock) return false
+      if (local.distanceGroup && getDistanceGroup(flight.DISTANCE) !== local.distanceGroup) return false
+      if (local.outcome === 'delayed' && !isDelayed(flight)) return false
+      if (local.outcome === 'not_delayed' && isDelayed(flight)) return false
+      if (local.flightNumber && !String(flight.OP_CARRIER_FL_NUM).includes(local.flightNumber.trim())) return false
+      if (local.minimumArrivalDelay !== undefined && (flight.ARR_DELAY ?? -Infinity) < local.minimumArrivalDelay) return false
+      if (local.maximumArrivalDelay !== undefined && (flight.ARR_DELAY ?? Infinity) > local.maximumArrivalDelay) return false
+      return true
+    })
+    const metrics = calculateBundle(filtered)
+    const queryTerms = normalizeSearch(request.searchText).split(' ').filter(Boolean)
+    const searched = queryTerms.length === 0 ? filtered : filtered.filter((flight) => {
+      const status = isDelayed(flight) ? 'Đến trễ' : 'Không trễ'
+      const dep = String(flight.CRS_DEP_TIME).padStart(4, '0')
+      const arr = String(flight.CRS_ARR_TIME).padStart(4, '0')
+      const index = normalizeSearch([
+        flight.FL_DATE, flight.OP_CARRIER, flight.OP_CARRIER_FL_NUM, formatRoute(flight),
+        dep, `${dep.slice(0, 2)}:${dep.slice(2)}`, arr, `${arr.slice(0, 2)}:${arr.slice(2)}`,
+        flight.DEP_DELAY, flight.ARR_DELAY, status, flight.DISTANCE,
+      ].join(' '))
+      return queryTerms.every((term) => index.includes(term))
+    })
+
+    const sortValue = (flight: FlightRecord, field: FlightSortField): string | number => ({
+      flightDate: flight.FL_DATE,
+      carrier: flight.OP_CARRIER,
+      flightNumber: Number(flight.OP_CARRIER_FL_NUM),
+      route: formatRoute(flight),
+      scheduledDeparture: flight.CRS_DEP_TIME,
+      scheduledArrival: flight.CRS_ARR_TIME,
+      departureDelay: flight.DEP_DELAY ?? Number.POSITIVE_INFINITY,
+      arrivalDelay: flight.ARR_DELAY ?? Number.POSITIVE_INFINITY,
+      status: isDelayed(flight) ? 1 : 0,
+      distance: flight.DISTANCE,
+    })[field]
+    const direction = request.sort.direction === 'asc' ? 1 : -1
+    const sorted = [...searched].sort((left, right) => {
+      const leftValue = sortValue(left, request.sort.field)
+      const rightValue = sortValue(right, request.sort.field)
+      const result = typeof leftValue === 'number' && typeof rightValue === 'number'
+        ? leftValue - rightValue
+        : new Intl.Collator('vi', { numeric: true, sensitivity: 'base' }).compare(String(leftValue), String(rightValue))
+      if (result !== 0) return result * direction
+      return `${left.FL_DATE}-${left.OP_CARRIER}-${left.OP_CARRIER_FL_NUM}`.localeCompare(`${right.FL_DATE}-${right.OP_CARRIER}-${right.OP_CARRIER_FL_NUM}`, 'vi')
+    })
+    const start = Math.max(0, (request.page - 1) * request.pageSize)
+    const appliedFilters = [
+      ...Object.entries(request.sourceFilters).filter(([, value]) => value !== undefined && (!Array.isArray(value) || value.length > 0)).map(([key, value]) => ({ key, label: key, value: Array.isArray(value) ? value.join(', ') : String(value), provenance: 'source' as const, locked: key === 'route' || key === 'airport' })),
+      ...Object.entries(local).filter(([, value]) => value !== undefined && value !== '' && value !== 'all').map(([key, value]) => ({ key, label: key, value: String(value), provenance: 'investigation' as const })),
+    ]
+    return {
+      metadata: this.createMetadata('DỮ LIỆU MINH HỌA — BẢN GHI MẪU ĐANG CÓ', filtered.length),
+      metrics,
+      rows: sorted.slice(start, start + request.pageSize),
+      totalRows: sorted.length,
+      filteredRecordCount: filtered.length,
+      estimatedPopulationRows: scaleCount(filtered.length),
+      countScale: MOCK_SAMPLE_MULTIPLIER,
+      appliedFilters,
+      sourceDataVersion: 'mock-flights-v3',
     }
   }
 

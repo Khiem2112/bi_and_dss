@@ -71,6 +71,7 @@ export function MultiSelectCombobox({
 }: MultiSelectComboboxProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
   const [isMounted, setIsMounted] = useState(false)
   const [coords, setCoords] = useState<{
     top: number
@@ -104,6 +105,10 @@ export function MultiSelectCombobox({
     )
   }, [items, searchQuery])
 
+  useEffect(() => {
+    setActiveIndex((current) => Math.max(0, Math.min(current, filteredOptions.length - 1)))
+  }, [filteredOptions.length])
+
   const handleToggle = useCallback(
     (itemValue: string) => {
       const isSelected = values.includes(itemValue)
@@ -123,6 +128,40 @@ export function MultiSelectCombobox({
     },
     [onChange, onClear],
   )
+
+  const handleMenuKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (filteredOptions.length === 0) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setIsOpen(false)
+        buttonRef.current?.focus()
+      }
+      return
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      setActiveIndex((current) => (current + direction + filteredOptions.length) % filteredOptions.length)
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      setActiveIndex(event.key === 'Home' ? 0 : filteredOptions.length - 1)
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      const option = filteredOptions[activeIndex]
+      if (option && !option.disabled) handleToggle(option.value)
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setIsOpen(false)
+      buttonRef.current?.focus()
+    }
+  }, [activeIndex, filteredOptions, handleToggle])
 
   const updateCoords = useCallback(() => {
     if (!buttonRef.current) return
@@ -216,6 +255,7 @@ export function MultiSelectCombobox({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && isOpen) {
         setIsOpen(false)
+        buttonRef.current?.focus()
       }
     }
     if (isOpen) {
@@ -223,6 +263,11 @@ export function MultiSelectCombobox({
       return () => document.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || filteredOptions.length === 0) return
+    document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex, filteredOptions.length, isOpen, listboxId])
 
   const triggerText = useMemo(() => {
     if (selectedItems.length === 0) {
@@ -269,8 +314,14 @@ export function MultiSelectCombobox({
           <input
             ref={searchInputRef}
             type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listboxId}
+            aria-activedescendant={filteredOptions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
+            aria-label={searchPlaceholder}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={handleMenuKeyDown}
             placeholder={searchPlaceholder}
             className="ui-combobox-search-input"
           />
@@ -283,7 +334,7 @@ export function MultiSelectCombobox({
             {emptyMessage}
           </li>
         ) : (
-          filteredOptions.map((option) => {
+          filteredOptions.map((option, optionIndex) => {
             const isSelected = values.includes(option.value)
             const tooltipText = option.subLabel
               ? `${option.label} (${option.subLabel})`
@@ -296,16 +347,20 @@ export function MultiSelectCombobox({
                 side="top"
               >
                 <li
+                  id={`${listboxId}-option-${optionIndex}`}
                   role="option"
                   aria-selected={isSelected}
+                  aria-disabled={option.disabled || undefined}
                   onPointerDown={(e) => {
                     e.stopPropagation()
                   }}
                   onClick={() => {
                     if (!option.disabled) handleToggle(option.value)
                   }}
+                  onMouseEnter={() => setActiveIndex(optionIndex)}
                   className={cn(
                     'ui-combobox-option',
+                    optionIndex === activeIndex && 'ui-combobox-option-active',
                     isSelected && 'ui-combobox-option-selected',
                     option.disabled && 'ui-combobox-option-disabled',
                   )}
@@ -378,8 +433,16 @@ export function MultiSelectCombobox({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-controls={listboxId}
+        aria-activedescendant={isOpen && !searchable && filteredOptions.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined}
         aria-label={ariaLabel ?? label ?? placeholder}
         onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+          event.preventDefault()
+          setIsOpen(true)
+          setActiveIndex(event.key === 'ArrowDown' ? 0 : Math.max(0, filteredOptions.length - 1))
+        }}
         className={cn(
           'ui-combobox-trigger',
           size === 'sm' ? 'ui-combobox-trigger-sm' : 'ui-combobox-trigger-md',

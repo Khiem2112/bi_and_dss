@@ -33,12 +33,12 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
         <div className="brand">
           <div className="brand-mark">WN</div>
           <div className="brand-copy">
-            <strong>Flight Intelligence</strong>
+            <strong>Phân tích chuyến bay</strong>
             <span>BI & DSS · Bản demo v2</span>
           </div>
         </div>
         <div className="nav-label">Luồng quyết định</div>
-        <nav className="nav-list" aria-label="Điều hướng dashboard">
+        <nav className="nav-list" aria-label="Điều hướng bảng điều khiển">
           {navItems.map((item) => (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
@@ -51,7 +51,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
           ))}
         </nav>
         <div className="sidebar-note">
-          <strong>Đánh giá bởi con người (Human-in-the-loop)</strong>
+          <strong>Đánh giá bởi con người</strong>
           Bảng điều khiển chỉ hỗ trợ <em>ưu tiên xem xét</em>, <em>theo dõi</em> hoặc <em>chưa đủ bằng chứng</em>; không phát lệnh vận hành.
         </div>
       </aside>
