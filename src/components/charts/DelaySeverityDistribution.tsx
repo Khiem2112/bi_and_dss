@@ -71,9 +71,16 @@ export function DelaySeverityDistribution({ bands, selectedId, onSelect, onBandC
         </svg>
         <div className="severity-legend" aria-label="Chú giải mức độ trễ">
           {bands.map((band, index) => (
-            <button key={band.id} type="button" className={band.id === active.id ? 'active' : ''} onClick={() => activate(band)}>
+            <button
+              key={band.id}
+              type="button"
+              className={band.id === active.id ? 'active' : ''}
+              onClick={() => activate(band)}
+              aria-label={`${band.label}: ${band.share.toFixed(1).replace('.', ',')}% số chuyến. Tỷ lệ trễ ${formatPercent(band.metrics.delayRate)}; ${band.metrics.delayedFlights.toLocaleString('vi-VN')} chuyến trễ trên ${band.metrics.eligibleFlights.toLocaleString('vi-VN')} chuyến đủ điều kiện; độ trễ đến trung bình ${formatMinutes(band.metrics.averageArrivalDelayMinutes)}.`}
+              data-tooltip-multiline
+              data-tooltip={`${band.label}\n• Tỷ trọng: ${band.share.toFixed(1).replace('.', ',')}%\n• Tỷ lệ chuyến đến trễ: ${formatPercent(band.metrics.delayRate)}\n• Chuyến đến trễ: ${band.metrics.delayedFlights.toLocaleString('vi-VN')} / ${band.metrics.eligibleFlights.toLocaleString('vi-VN')}\n• Độ trễ đến trung bình: ${formatMinutes(band.metrics.averageArrivalDelayMinutes)}`}
+            >
               <i className="severity-swatch" style={{ background: colors[index % colors.length] }} />
-              <span>{band.label}</span>
               <strong>{band.share.toFixed(1).replace('.', ',')}%</strong>
             </button>
           ))}

@@ -35,55 +35,65 @@ export function YearMonthComparisonChart({ points, selectedPeriod, onSelect, onP
 
   return (
     <div className="year-month-chart">
-      <div className="year-month-legend" aria-label="Chú giải năm">
-        {years.map((year, index) => <span key={year}><i style={{ background: seriesColors[index % seriesColors.length] }} />{year}</span>)}
+      <div className="year-month-chart-header">
+        <div className="combo-chart-titles">
+          <span className="section-title-tag">So sánh lịch sử</span>
+          <strong>Xu hướng tỷ lệ chuyến đến trễ theo tháng, tách theo năm</strong>
+          <small className="chart-sub-note">Mỗi đường là một năm lịch sử; chọn điểm để xem đầy đủ tỷ lệ, số chuyến trễ và độ trễ đến trung bình.</small>
+        </div>
+        <div className="year-month-legend" aria-label="Chú giải năm">
+          {years.map((year, index) => <span key={year}><i style={{ background: seriesColors[index % seriesColors.length] }} />{year}</span>)}
+        </div>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="So sánh tỷ lệ chuyến đến trễ theo tháng giữa các năm">
-        {[0, 10, 20, 30, chartCeil].filter((value, index, values) => value <= chartCeil && values.indexOf(value) === index).map((tick) => (
-          <g key={tick}>
-            <line className="year-month-grid" x1={padding.left} x2={width - padding.right} y1={y(tick)} y2={y(tick)} />
-            <text className="chart-axis-label" x={padding.left - 8} y={y(tick) + 4} textAnchor="end">{tick}%</text>
-          </g>
-        ))}
-        {monthLabels.map((label, index) => <text key={label} className="chart-axis-label" x={x(index + 1)} y={height - 15} textAnchor="middle">{label}</text>)}
-        {years.map((year, yearIndex) => {
-          const yearPoints = points.filter((point) => point.year === year).sort((a, b) => a.month - b.month)
-          const polyline = yearPoints.filter((point) => point.metrics.delayRate !== null).map((point) => `${x(point.month)},${y(point.metrics.delayRate ?? 0)}`).join(' ')
-          const color = seriesColors[yearIndex % seriesColors.length]
-          return (
-            <g key={year}>
-              <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-              {yearPoints.map((point) => {
-                const rate = point.metrics.delayRate
-                if (rate === null) return null
-                const isSelected = point.period === selectedPeriod
-                return (
-                  <g
-                    key={point.period}
-                    data-analysis-unit={`overview-year-month-${point.period}`}
-                    role="button"
-                    tabIndex={0}
-                    className={`year-month-point${isSelected ? ' selected' : ''}`}
-                    aria-label={`${point.label}: tỷ lệ trễ ${formatPercent(rate)}; ${point.metrics.delayedFlights.toLocaleString('vi-VN')} chuyến trễ trên ${point.metrics.eligibleFlights.toLocaleString('vi-VN')} chuyến đủ điều kiện; độ trễ đến trung bình ${formatMinutes(point.metrics.averageArrivalDelayMinutes)}.`}
-                    onMouseEnter={() => setActivePeriod(point.period)}
-                    onFocus={() => activate(point)}
-                    onClick={() => activate(point)}
-                    onContextMenu={(event) => onPointContextMenu?.(event, point)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        activate(point)
-                      }
-                    }}
-                  >
-                    <circle cx={x(point.month)} cy={y(rate)} r={isSelected ? 6 : 4.5} fill={color} />
-                  </g>
-                )
-              })}
+      <div className="year-month-chart-canvas">
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="So sánh tỷ lệ chuyến đến trễ theo tháng giữa các năm">
+          <text className="year-month-axis-title" x={padding.left} y={padding.top - 14}>Tỷ lệ chuyến đến trễ (%)</text>
+          {[0, 10, 20, 30, chartCeil].filter((value, index, values) => value <= chartCeil && values.indexOf(value) === index).map((tick) => (
+            <g key={tick}>
+              <line className="year-month-grid" x1={padding.left} x2={width - padding.right} y1={y(tick)} y2={y(tick)} />
+              <text className="chart-axis-label" x={padding.left - 8} y={y(tick) + 4} textAnchor="end">{tick}%</text>
             </g>
-          )
-        })}
-      </svg>
+          ))}
+          {monthLabels.map((label, index) => <text key={label} className="chart-axis-label" x={x(index + 1)} y={height - 15} textAnchor="middle">{label}</text>)}
+          {years.map((year, yearIndex) => {
+            const yearPoints = points.filter((point) => point.year === year).sort((a, b) => a.month - b.month)
+            const polyline = yearPoints.filter((point) => point.metrics.delayRate !== null).map((point) => `${x(point.month)},${y(point.metrics.delayRate ?? 0)}`).join(' ')
+            const color = seriesColors[yearIndex % seriesColors.length]
+            return (
+              <g key={year}>
+                <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                {yearPoints.map((point) => {
+                  const rate = point.metrics.delayRate
+                  if (rate === null) return null
+                  const isSelected = point.period === selectedPeriod
+                  return (
+                    <g
+                      key={point.period}
+                      data-analysis-unit={`overview-year-month-${point.period}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`year-month-point${isSelected ? ' selected' : ''}`}
+                      aria-label={`${point.label}: tỷ lệ trễ ${formatPercent(rate)}; ${point.metrics.delayedFlights.toLocaleString('vi-VN')} chuyến trễ trên ${point.metrics.eligibleFlights.toLocaleString('vi-VN')} chuyến đủ điều kiện; độ trễ đến trung bình ${formatMinutes(point.metrics.averageArrivalDelayMinutes)}.`}
+                      onMouseEnter={() => setActivePeriod(point.period)}
+                      onFocus={() => activate(point)}
+                      onClick={() => activate(point)}
+                      onContextMenu={(event) => onPointContextMenu?.(event, point)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          activate(point)
+                        }
+                      }}
+                    >
+                      <circle cx={x(point.month)} cy={y(rate)} r={isSelected ? 6 : 4.5} fill={color} />
+                    </g>
+                  )
+                })}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
       <div className="chart-evidence-popover" role="status" aria-live="polite">
         <strong>{active.label}</strong>
         <span>Tỷ lệ chuyến đến trễ: <b>{formatPercent(active.metrics.delayRate)}</b></span>

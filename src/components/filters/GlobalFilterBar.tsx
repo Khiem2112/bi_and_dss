@@ -10,6 +10,7 @@ import { DistanceFilterBuilder } from './DistanceFilterBuilder'
 
 interface GlobalFilterBarProps {
   filters: GlobalFilters
+  defaultCollapsed?: boolean
   onApply: (filters: GlobalFilters) => void
 }
 
@@ -31,9 +32,9 @@ const TIME_BLOCK_OPTIONS: readonly MultiSelectItem[] = [
   { value: 'Evening', label: 'Buổi tối', subLabel: 'Từ 18:00' },
 ]
 
-export function GlobalFilterBar({ filters, onApply }: GlobalFilterBarProps) {
+export function GlobalFilterBar({ filters, defaultCollapsed = false, onApply }: GlobalFilterBarProps) {
   const [draft, setDraft] = useState(filters)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
 
   useEffect(() => setDraft(filters), [filters])
 

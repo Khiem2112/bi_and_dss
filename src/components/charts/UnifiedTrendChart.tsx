@@ -1,20 +1,40 @@
 import { useMemo, useState } from 'react'
-import type { GranularTrendsData, GranularTrendSeries } from '../../domain/types'
+import type { GranularTrendsData, GranularTrendSeries, YearMonthDelayPoint } from '../../domain/types'
+import { YearMonthComparisonChart } from './YearMonthComparisonChart'
 
-export type Granularity = 'month' | 'week' | 'day'
+export type Granularity = 'month' | 'week' | 'day' | 'year'
 
 interface UnifiedTrendChartProps {
   data: GranularTrendsData
+  compact?: boolean
+  yearMonthData?: YearMonthDelayPoint[]
+  selectedYearMonthPeriod?: string
+  onSelectYearMonth?: (point: YearMonthDelayPoint) => void
+  onYearMonthPointContextMenu?: (event: React.MouseEvent<SVGGElement>, point: YearMonthDelayPoint) => void
   onSelectPeriod?: (period: string) => void
+  onGranularityChange?: (granularity: Granularity) => void
   onToast?: (message: string) => void
   onPointContextMenu?: (event: React.MouseEvent<SVGRectElement>, point: GranularTrendSeries, granularity: Granularity) => void
 }
 
 const chartWidth = 920
-const chartHeight = 350
-const chartPadding = { top: 38, right: 64, bottom: 42, left: 54 }
+const defaultChartPadding = { top: 38, right: 64, bottom: 42, left: 54 }
+const compactChartPadding = { top: 30, right: 58, bottom: 34, left: 48 }
 
-export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContextMenu }: UnifiedTrendChartProps) {
+export function UnifiedTrendChart({
+  data,
+  compact = false,
+  yearMonthData,
+  selectedYearMonthPeriod,
+  onSelectYearMonth,
+  onYearMonthPointContextMenu,
+  onSelectPeriod,
+  onGranularityChange,
+  onToast,
+  onPointContextMenu,
+}: UnifiedTrendChartProps) {
+  const chartHeight = compact ? 220 : 350
+  const chartPadding = compact ? compactChartPadding : defaultChartPadding
   const [granularity, setGranularity] = useState<Granularity>('month')
   const [showWn, setShowWn] = useState(true)
   const [showDl, setShowDl] = useState(true)
@@ -25,8 +45,36 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
   const [activePeriodIndex, setActivePeriodIndex] = useState<number | null>(null)
 
   const currentSeries: GranularTrendSeries[] = useMemo(() => {
+    if (granularity === 'year') return []
     return data[granularity] ?? []
   }, [data, granularity])
+
+  const tabList: Granularity[] = ['month', 'week', 'day', 'year']
+  const selectGranularity = (nextTab: Granularity, moveFocus = false) => {
+    setGranularity(nextTab)
+    setActivePeriodIndex(null)
+    onGranularityChange?.(nextTab)
+    if (moveFocus) {
+      window.requestAnimationFrame(() => document.getElementById(`trend-tab-${nextTab}`)?.focus())
+    }
+  }
+  const handleTabKeyDown = (e: React.KeyboardEvent, currentTab: Granularity) => {
+    const currentIndex = tabList.indexOf(currentTab)
+    let nextIndex = -1
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabList.length
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabList.length) % tabList.length
+    } else if (e.key === 'Home') {
+      nextIndex = 0
+    } else if (e.key === 'End') {
+      nextIndex = tabList.length - 1
+    }
+    if (nextIndex >= 0) {
+      e.preventDefault()
+      selectGranularity(tabList[nextIndex], true)
+    }
+  }
 
   const baselineRate = data.baseline
   const baselineAvgDelay = data.baselineAvgDelay ?? 12.3
@@ -90,7 +138,7 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
       futureStartIndex,
       futureDividerX,
     }
-  }, [currentSeries, showWn, showDl, showAa, showForecast, baselineRate, baselineAvgDelay])
+  }, [currentSeries, showWn, showDl, showAa, showForecast, baselineRate, baselineAvgDelay, chartHeight, chartPadding])
 
   const rateGridValues = useMemo(() => {
     const steps = 4
@@ -145,109 +193,146 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
   const activePctX = (activeX / chartWidth) * 100
 
   return (
-    <div className="unified-trend-container">
+    <div className={`unified-trend-container${compact ? ' unified-trend-container--compact' : ''}`}>
       <div className="trend-toolbar">
         <div className="granularity-tabs" role="tablist" aria-label="Chọn chu kỳ hiển thị">
           <button
             type="button"
             role="tab"
+            id="trend-tab-month"
+            aria-controls="trend-view-panel"
             aria-selected={granularity === 'month'}
+            tabIndex={granularity === 'month' ? 0 : -1}
             className={`tab-btn ${granularity === 'month' ? 'active' : ''}`}
-            onClick={() => {
-              setGranularity('month')
-              setActivePeriodIndex(null)
-            }}
+            onClick={() => selectGranularity('month')}
+            onKeyDown={(e) => handleTabKeyDown(e, 'month')}
           >
             Theo tháng
           </button>
           <button
             type="button"
             role="tab"
+            id="trend-tab-week"
+            aria-controls="trend-view-panel"
             aria-selected={granularity === 'week'}
+            tabIndex={granularity === 'week' ? 0 : -1}
             className={`tab-btn ${granularity === 'week' ? 'active' : ''}`}
-            onClick={() => {
-              setGranularity('week')
-              setActivePeriodIndex(null)
-            }}
+            onClick={() => selectGranularity('week')}
+            onKeyDown={(e) => handleTabKeyDown(e, 'week')}
           >
             Theo tuần
           </button>
           <button
             type="button"
             role="tab"
+            id="trend-tab-day"
+            aria-controls="trend-view-panel"
             aria-selected={granularity === 'day'}
+            tabIndex={granularity === 'day' ? 0 : -1}
             className={`tab-btn ${granularity === 'day' ? 'active' : ''}`}
-            onClick={() => {
-              setGranularity('day')
-              setActivePeriodIndex(null)
-            }}
+            onClick={() => selectGranularity('day')}
+            onKeyDown={(e) => handleTabKeyDown(e, 'day')}
           >
             Theo ngày
           </button>
-        </div>
-
-        <div className="trend-toggles" role="group" aria-label="Bật tắt các đường xu hướng và cột dữ liệu">
           <button
             type="button"
-            className={`toggle-chip chip-wn ${showWn ? 'active' : 'inactive'}`}
-            onClick={() => setShowWn(!showWn)}
-            aria-pressed={showWn}
+            role="tab"
+            id="trend-tab-year"
+            aria-controls="trend-view-panel"
+            aria-selected={granularity === 'year'}
+            tabIndex={granularity === 'year' ? 0 : -1}
+            className={`tab-btn ${granularity === 'year' ? 'active' : ''}`}
+            onClick={() => selectGranularity('year')}
+            onKeyDown={(e) => handleTabKeyDown(e, 'year')}
           >
-            <span className="chip-indicator wn-color" />
-            <span>XH trễ của WN</span>
-          </button>
-
-          <button
-            type="button"
-            className={`toggle-chip chip-dl ${showDl ? 'active' : 'inactive'}`}
-            onClick={() => setShowDl(!showDl)}
-            aria-pressed={showDl}
-          >
-            <span className="chip-indicator dl-color" />
-            <span>XH trễ của DL</span>
-          </button>
-
-          <button
-            type="button"
-            className={`toggle-chip chip-aa ${showAa ? 'active' : 'inactive'}`}
-            onClick={() => setShowAa(!showAa)}
-            aria-pressed={showAa}
-          >
-            <span className="chip-indicator aa-color" />
-            <span>XH trễ của AA</span>
-          </button>
-
-          <button
-            type="button"
-            className={`toggle-chip chip-forecast ${showForecast ? 'active' : 'inactive'}`}
-            onClick={() => setShowForecast(!showForecast)}
-            aria-pressed={showForecast}
-          >
-            <span className="chip-indicator forecast-color" />
-            <span>Dự báo xu hướng trễ WN</span>
-          </button>
-
-          <button
-            type="button"
-            className={`toggle-chip chip-bar ${showBars ? 'active' : 'inactive'}`}
-            onClick={() => setShowBars(!showBars)}
-            aria-pressed={showBars}
-          >
-            <span className="chip-indicator bar-color" />
-            <span>Độ trễ TB (Cột)</span>
+            Theo năm
           </button>
         </div>
+
+        {granularity !== 'year' && (
+          <div className="trend-toggles" role="group" aria-label="Bật tắt các đường xu hướng và cột dữ liệu">
+            <button
+              type="button"
+              className={`toggle-chip chip-wn ${showWn ? 'active' : 'inactive'}`}
+              onClick={() => setShowWn(!showWn)}
+              aria-pressed={showWn}
+              aria-label="Bật hoặc tắt xu hướng tỷ lệ trễ của WN"
+            >
+              <span className="chip-indicator wn-color" />
+              <span>WN</span>
+            </button>
+
+            <button
+              type="button"
+              className={`toggle-chip chip-dl ${showDl ? 'active' : 'inactive'}`}
+              onClick={() => setShowDl(!showDl)}
+              aria-pressed={showDl}
+              aria-label="Bật hoặc tắt xu hướng tỷ lệ trễ của DL"
+            >
+              <span className="chip-indicator dl-color" />
+              <span>DL</span>
+            </button>
+
+            <button
+              type="button"
+              className={`toggle-chip chip-aa ${showAa ? 'active' : 'inactive'}`}
+              onClick={() => setShowAa(!showAa)}
+              aria-pressed={showAa}
+              aria-label="Bật hoặc tắt xu hướng tỷ lệ trễ của AA"
+            >
+              <span className="chip-indicator aa-color" />
+              <span>AA</span>
+            </button>
+
+            <button
+              type="button"
+              className={`toggle-chip chip-forecast ${showForecast ? 'active' : 'inactive'}`}
+              onClick={() => setShowForecast(!showForecast)}
+              aria-pressed={showForecast}
+              aria-label="Bật hoặc tắt dự báo minh họa của WN"
+            >
+              <span className="chip-indicator forecast-color" />
+              <span>Dự báo</span>
+            </button>
+
+            <button
+              type="button"
+              className={`toggle-chip chip-bar ${showBars ? 'active' : 'inactive'}`}
+              onClick={() => setShowBars(!showBars)}
+              aria-pressed={showBars}
+              aria-label="Bật hoặc tắt cột độ trễ đến trung bình"
+            >
+              <span className="chip-indicator bar-color" />
+              <span>Độ trễ TB</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="combo-chart-header">
-        <div className="combo-chart-titles">
-          <span className="section-title-tag">Đồ thị tích hợp kết hợp</span>
-          <strong>Xu hướng tỷ lệ trễ (%) &amp; Độ trễ đến trung bình mỗi chuyến (phút)</strong>
-          <small className="chart-sub-note">
-            Trục trái: Tỷ lệ trễ theo hãng (%) · Trục phải: Thời gian trễ bình quân (phút) · Rà chuột lên điểm để xem toàn bộ thông số
-          </small>
+      {granularity === 'year' ? (
+        <div className="year-tab-wrapper" id="trend-view-panel" role="tabpanel" aria-labelledby="trend-tab-year">
+          <YearMonthComparisonChart
+            points={yearMonthData ?? []}
+            selectedPeriod={selectedYearMonthPeriod}
+            onSelect={(pt) => {
+              onSelectYearMonth?.(pt)
+              onSelectPeriod?.(pt.period)
+            }}
+            onPointContextMenu={onYearMonthPointContextMenu}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="trend-view-panel" id="trend-view-panel" role="tabpanel" aria-labelledby={`trend-tab-${granularity}`}>
+          <div className="combo-chart-header">
+            <div className="combo-chart-titles">
+              <span className="section-title-tag">Đồ thị tích hợp kết hợp</span>
+              <strong>Xu hướng tỷ lệ trễ (%) &amp; Độ trễ đến trung bình mỗi chuyến (phút)</strong>
+              <small className="chart-sub-note">
+                Trục trái: Tỷ lệ trễ theo hãng (%) · Trục phải: Thời gian trễ bình quân (phút) · Rà chuột lên điểm để xem toàn bộ thông số
+              </small>
+            </div>
+          </div>
 
       <div className="combo-chart-wrapper">
         <svg
@@ -393,7 +478,7 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
                   fontSize="11"
                   fontWeight="700"
                 >
-                  Baseline mạng lưới: {baselineRate.toFixed(1).replace('.', ',')}% (Tỷ lệ chuẩn)
+                  Mức tham chiếu mạng lưới: {baselineRate.toFixed(1).replace('.', ',')}%
                 </text>
               </g>
             )}
@@ -648,6 +733,12 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
                 onFocus={() => setActivePeriodIndex(idx)}
                 onClick={() => handlePeriodClick(pt)}
                 onContextMenu={(event) => onPointContextMenu?.(event, pt, granularity)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    handlePeriodClick(pt)
+                  }
+                }}
               />
             )
           })}
@@ -746,7 +837,7 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
               <div className="tooltip-divider" />
 
               <div className="tooltip-item-row baseline-row">
-                <span className="tooltip-row-label">Mức chuẩn mạng lưới:</span>
+                <span className="tooltip-row-label">Mức tham chiếu mạng lưới:</span>
                 <span className="tooltip-row-val">
                   <span>{baselineRate.toFixed(1).replace('.', ',')}% tỷ lệ · +{baselineAvgDelay.toFixed(1).replace('.', ',')}p TB</span>
                 </span>
@@ -780,10 +871,12 @@ export function UnifiedTrendChart({ data, onSelectPeriod, onToast, onPointContex
           </span>
           <span className="legend-item">
             <span className="legend-line baseline-line" />
-            Baseline mạng lưới
+            Mức tham chiếu mạng lưới
           </span>
         </div>
       </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -73,8 +73,12 @@ const isoDate = (date: Date) => date.toISOString().slice(0, 10)
 
 export function filtersForTrendPeriod(
   period: string,
-  granularity: 'month' | 'week' | 'day' = 'month',
+  granularity: 'month' | 'week' | 'day' | 'year' = 'month',
 ): Partial<WnAnalysisFilters> {
+  if (granularity === 'year' && /^\d{4}$/.test(period)) {
+    return { dateFrom: `${period}-01-01`, dateTo: `${period}-12-31` }
+  }
+
   if (granularity === 'day' && /^\d{4}-\d{2}-\d{2}$/.test(period)) {
     return { dateFrom: period, dateTo: period }
   }

@@ -1839,6 +1839,11 @@ button:disabled {
   display: flex;
 }
 
+.filterbar-v2.collapsed {
+  padding: 7px 10px;
+  margin-bottom: 12px;
+}
+
 .filter-controls {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -6049,6 +6054,325 @@ button:disabled {
    Airtable reference retained: white surfaces, hairline borders, compact 4px rhythm.
    Adapted: coral/blue analytical semantics and visible keyboard states.
    Rejected: decorative marketing surfaces and oversized editorial spacing. */
+.overview-main-grid {
+  display: grid;
+  /* Mỗi visual chính có một hàng riêng: P1-C06 cần đủ bề ngang để đọc xu hướng,
+     còn P1-C08 vẫn giữ một vùng không gian độc lập cho điều tra trên bản đồ. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.overview-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.year-tab-wrapper {
+  padding: 2px 0 0;
+}
+
+.overview-page .page-heading {
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.overview-page .page-heading h1 {
+  font-size: clamp(21px, 1.8vw, 25px);
+  line-height: 1.15;
+}
+
+.overview-page .page-subtitle {
+  margin-top: 3px;
+  font-size: 11.5px;
+}
+
+.overview-page .grid.cols-4 {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.overview-page .kpi-card-clean {
+  min-height: 92px;
+  padding: 10px 12px;
+}
+
+.overview-page .kpi-card-clean .kpi-value {
+  margin-top: 6px;
+  font-size: clamp(24px, 2vw, 29px);
+}
+
+.overview-page .kpi-card--primary {
+  border-color: var(--coral-border);
+  box-shadow: inset 0 3px 0 var(--coral), var(--shadow-xs);
+}
+
+.overview-page .overview-kpi-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  margin-top: 7px;
+  color: var(--coral-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.overview-page .overview-kpi-error > span:first-child {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--coral-light);
+}
+
+.overview-page .overview-state-card--main {
+  min-height: 377px;
+}
+
+.overview-page .overview-state-card--secondary {
+  min-height: 298px;
+}
+
+.overview-page .overview-state-card .skeleton-stack,
+.overview-page .overview-state-card .state-panel {
+  min-height: calc(100% - 40px);
+}
+
+.overview-main-grid > .card,
+.overview-secondary-grid > .card {
+  height: 100%;
+  padding: 14px;
+}
+
+.overview-main-grid .card-header,
+.overview-secondary-grid .card-header {
+  margin-bottom: 8px;
+}
+
+.overview-main-grid .card-header > div:first-child,
+.overview-secondary-grid .card-header > div:first-child {
+  min-width: 0;
+}
+
+.overview-main-grid .card-title-group,
+.overview-secondary-grid .card-title-group {
+  align-items: flex-start;
+}
+
+.overview-main-grid .card-title-group h2,
+.overview-secondary-grid .card-title-group h2 {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.overview-main-grid > .card:first-child .card-title-group h2 {
+  font-size: 15px;
+}
+
+.overview-main-grid > .card:first-child .card-tools {
+  flex: 0 0 auto;
+}
+
+.overview-main-grid > .card:first-child .overview-card-actions {
+  flex-wrap: nowrap;
+}
+
+.overview-main-grid .card-subtitle,
+.overview-secondary-grid .card-subtitle {
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.overview-secondary-grid .card-subtitle {
+  font-size: 10.5px;
+}
+
+.overview-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.overview-map-card .card-header,
+.overview-secondary-grid .card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.overview-map-card .card-tools,
+.overview-secondary-grid .card-tools {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.overview-main-grid .card-tools > .component-id,
+.overview-secondary-grid .card-tools > .component-id {
+  display: none;
+}
+
+.overview-map-card .overview-card-actions,
+.overview-secondary-grid .overview-card-actions {
+  justify-content: flex-start;
+}
+
+.overview-map-card .airport-map {
+  /* Khớp khung hiển thị của P2-C02; component AirportMap và mọi tooltip/đo tuyến
+     vẫn dùng chung một contract. */
+  min-height: 320px;
+  padding: 6px 2px 0;
+  max-width: none;
+  margin: 0;
+}
+
+.overview-map-card .legend {
+  gap: 5px 10px;
+  font-size: 10px;
+}
+
+.unified-trend-container--compact {
+  gap: 6px;
+}
+
+.unified-trend-container--compact .trend-toolbar {
+  gap: 6px;
+  padding-bottom: 0;
+}
+
+.unified-trend-container--compact .granularity-tabs {
+  padding: 2px;
+}
+
+.unified-trend-container--compact .tab-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.unified-trend-container--compact .trend-toggles {
+  gap: 4px;
+}
+
+.unified-trend-container--compact .toggle-chip {
+  gap: 4px;
+  padding: 4px 7px;
+  font-size: 10.5px;
+}
+
+.unified-trend-container--compact .combo-chart-header,
+.unified-trend-container--compact .trend-footer-legend {
+  display: none;
+}
+
+.unified-trend-container--compact .year-month-chart {
+  gap: 6px;
+}
+
+.unified-trend-container--compact .year-month-chart svg {
+  min-height: 0;
+}
+
+.unified-trend-container--compact .chart-evidence-popover {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  padding: 6px 8px;
+  gap: 4px 8px;
+  font-size: 10.5px;
+}
+
+.overview-main-grid .prediction-trend-callout {
+  gap: 8px;
+  margin-top: 4px;
+  padding: 4px 8px;
+}
+
+.overview-main-grid .prediction-trend-callout h3 {
+  font-size: 12px;
+}
+
+.overview-main-grid .prediction-trend-callout p {
+  font-size: 10.5px;
+}
+
+.overview-secondary-grid .severity-chart,
+.overview-secondary-grid .time-block-chart {
+  gap: 8px;
+}
+
+.overview-secondary-grid .severity-pie-layout {
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+}
+
+.overview-secondary-grid .severity-pie {
+  width: 92px;
+}
+
+.overview-secondary-grid .severity-legend {
+  gap: 2px;
+}
+
+.overview-secondary-grid .severity-legend > button {
+  gap: 5px;
+  padding: 3px 4px;
+  font-size: 9.5px;
+}
+
+.overview-secondary-grid .severity-chart .chart-evidence-popover,
+.overview-secondary-grid .chart-evidence-popover--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  padding: 4px 6px;
+  gap: 2px 6px;
+  font-size: 9.5px;
+}
+
+.overview-secondary-grid .chart-evidence-popover--compact > strong {
+  grid-column: 1 / -1;
+}
+
+.overview-secondary-grid .time-block-bars {
+  gap: 3px;
+}
+
+.overview-secondary-grid .time-block-bars > button {
+  grid-template-columns: 62px minmax(54px, 1fr) 38px;
+  gap: 6px;
+  min-height: 27px;
+  padding: 3px 4px;
+}
+
+.overview-secondary-grid .time-block-label,
+.overview-secondary-grid .time-block-bars > button strong {
+  font-size: 10px;
+}
+
+.overview-secondary-grid .time-block-track {
+  height: 12px;
+}
+
+.overview-seasonal-card {
+  grid-column: 1 / -1;
+  min-height: 360px;
+}
+
+.overview-seasonal-card .seasonal-bar-chart-container {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.overview-seasonal-card .seasonal-bar-chart-container > div:first-child {
+  margin-bottom: 4px !important;
+}
+
 .overview-insight-grid {
   grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr);
   align-items: stretch;
@@ -6281,8 +6605,27 @@ button:disabled {
   gap: 12px;
 }
 
-.year-month-chart svg { width: 100%; min-height: 280px; }
+.year-month-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.year-month-chart-canvas {
+  width: 100%;
+  overflow: visible;
+}
+
+.year-month-chart svg { width: 100%; min-height: 280px; display: block; }
 .year-month-grid { stroke: var(--line-soft); stroke-width: 1; stroke-dasharray: 3 3; }
+.year-month-axis-title {
+  fill: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
 
 .year-month-legend {
   display: flex;
@@ -6333,9 +6676,207 @@ button:disabled {
 }
 
 @media (max-width: 1200px) {
+  .overview-main-grid,
+  .overview-secondary-grid,
   .overview-insight-grid,
   .overview-temporal-grid { grid-template-columns: 1fr; }
   .chart-evidence-popover { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .severity-pie-layout { grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1.2fr); }
+}
+
+/* Overview v5: the spatial scan is paired with its distribution summary; the
+   remaining time scans share one deliberately compact row. */
+.overview-map-severity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(310px, 3fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.overview-map-severity-grid > .card {
+  height: 100%;
+  padding: 14px;
+}
+
+.overview-map-side-rail {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: 0;
+}
+
+.overview-map-side-rail > .card {
+  min-width: 0;
+  padding: 14px;
+}
+
+.overview-map-severity-grid .card-header {
+  margin-bottom: 8px;
+}
+
+.overview-map-severity-grid .card-title-group {
+  align-items: flex-start;
+}
+
+.overview-map-severity-grid .card-title-group h2 {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.overview-map-severity-grid .card-tools > .component-id {
+  display: none;
+}
+
+.overview-map-severity-grid .overview-card-actions {
+  justify-content: flex-start;
+}
+
+.overview-map-severity-grid .overview-map-card .airport-map {
+  min-height: 0;
+}
+
+.overview-map-severity-grid .severity-chart {
+  gap: 8px;
+}
+
+.overview-map-severity-grid .severity-pie-layout {
+  grid-template-columns: minmax(154px, 1fr) 72px;
+  gap: 6px;
+  min-height: 0;
+  align-items: center;
+}
+
+.overview-map-severity-grid .severity-pie {
+  width: min(100%, 190px);
+}
+
+.overview-map-severity-grid .severity-legend {
+  gap: 4px;
+}
+
+.overview-map-severity-grid .severity-legend > button {
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 5px;
+  min-height: 25px;
+  padding: 4px 3px;
+  font-size: 10px;
+}
+
+.overview-map-severity-grid .severity-legend > button strong {
+  text-align: right;
+}
+
+.overview-map-severity-grid .severity-chart .chart-evidence-popover {
+  grid-template-columns: 1fr;
+  gap: 3px;
+  padding: 7px 8px;
+  font-size: 10px;
+}
+
+.overview-secondary-grid {
+  grid-template-columns: minmax(300px, 36fr) minmax(0, 64fr);
+}
+
+.overview-secondary-grid--seasonal {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.overview-seasonal-card {
+  grid-column: auto;
+  min-height: 0;
+}
+
+.overview-time-block-card .time-block-chart {
+  gap: 6px;
+}
+
+.overview-time-block-card .time-block-bars {
+  gap: 2px;
+}
+
+.overview-time-block-card .time-block-bars > button {
+  grid-template-columns: 58px minmax(48px, 1fr) 38px;
+  min-height: 25px;
+  padding: 3px 4px;
+  gap: 5px;
+}
+
+.overview-time-block-card .time-block-label,
+.overview-time-block-card .time-block-bars > button strong {
+  font-size: 10px;
+}
+
+.overview-time-block-card .time-block-track {
+  height: 10px;
+}
+
+.overview-time-block-card .chart-evidence-popover--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 6px;
+  padding: 5px 6px;
+  font-size: 9.5px;
+}
+
+.overview-time-block-card .chart-evidence-popover--compact > strong {
+  grid-column: 1 / -1;
+}
+
+.map-dual-rate-key {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  padding: 0 2px 5px;
+  color: var(--ink-secondary);
+  font-size: 10px;
+}
+
+.map-dual-rate-key strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.map-role-origin { color: #1d4ed8 !important; }
+.map-role-destination { color: #c2410c !important; }
+
+.map-dual-rate-key b {
+  color: var(--line-dark);
+}
+
+.map-dual-rate-key small {
+  color: var(--muted);
+}
+
+.map-dual-rate-marker {
+  display: inline-flex;
+  width: 22px;
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line-dark);
+  border-radius: 999px;
+}
+
+.map-dual-rate-marker i {
+  width: 50%;
+  height: 100%;
+}
+
+.map-dual-rate-marker i:first-child { background: #2563eb; }
+.map-dual-rate-marker i:last-child { background: #f97316; }
+
+@media (max-width: 1200px) {
+  .overview-map-severity-grid,
+  .overview-secondary-grid { grid-template-columns: 1fr; }
+
+  .overview-map-side-rail { grid-template-rows: auto; }
+
+  .overview-map-severity-grid .severity-pie-layout {
+    grid-template-columns: minmax(160px, .8fr) minmax(160px, 1.2fr);
+  }
+
+  .overview-map-severity-grid .severity-legend > button {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
 }
 

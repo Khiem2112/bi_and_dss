@@ -103,7 +103,7 @@ export function AnalysisActions({
             {predictive ? 'Điều tra chuyến lịch sử liên quan' : 'Điều tra chuyến liên quan'}
           </button>
           <button type="button" role="menuitem" onClick={() => invoke('comparison')}>
-            So sánh đối thủ
+            So sánh với nhóm hãng đối sánh
           </button>
         </div>
       )}

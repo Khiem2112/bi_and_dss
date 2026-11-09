@@ -358,14 +358,14 @@ export class MockDashboardRepository implements DashboardRepository {
       {
         id: 'P1-C02',
         label: 'Chuyến bay đủ điều kiện',
-        value: eligibleCount.toLocaleString('vi-VN'),
+        value: hasEligible ? eligibleCount.toLocaleString('vi-VN') : '—',
         context: 'Chuyến bay hoàn thành lịch trình, không hủy và không chuyển hướng',
         metrics: calculateBundle(eligible),
       },
       {
         id: 'P1-C03',
         label: 'Chuyến bay đến trễ',
-        value: delayedCount.toLocaleString('vi-VN'),
+        value: hasEligible ? delayedCount.toLocaleString('vi-VN') : '—',
         context: 'Đến trễ từ 15 phút trở lên so với lịch bay công bố',
         metrics: calculateBundle(eligible),
       },
@@ -598,7 +598,7 @@ export class MockDashboardRepository implements DashboardRepository {
       { id: 'delay-30-59', label: 'Trễ đáng kể', shortLabel: '30–59 phút', minArrivalDelay: 30, maxArrivalDelay: 59.999 },
       { id: 'delay-60-plus', label: 'Trễ nghiêm trọng', shortLabel: 'Từ 60 phút', minArrivalDelay: 60 },
     ]
-    const severityBands = severityDefinitions.map((definition) => {
+    const severityBands: DelaySeverityBand[] = hasEligible ? severityDefinitions.map((definition) => {
       const records = eligible.filter((flight) => {
         const arrivalDelay = flight.ARR_DELAY ?? 0
         if (definition.minArrivalDelay !== undefined && arrivalDelay < definition.minArrivalDelay) return false
@@ -610,7 +610,7 @@ export class MockDashboardRepository implements DashboardRepository {
         share: eligible.length > 0 ? Number(((records.length / eligible.length) * 100).toFixed(3)) : 0,
         metrics: calculateBundle(records),
       }
-    })
+    }) : []
 
     const yearMonthComparison: YearMonthDelayPoint[] = sortedMonths.map((period) => {
       const records = monthMap.get(period) ?? []
@@ -631,11 +631,11 @@ export class MockDashboardRepository implements DashboardRepository {
       { block: 'Afternoon', label: 'Buổi chiều' },
       { block: 'Evening', label: 'Buổi tối' },
     ]
-    const timeBlocks: TimeBlockDelaySummary[] = timeBlockConfig.map(({ block, label }) => ({
+    const timeBlocks: TimeBlockDelaySummary[] = hasEligible ? timeBlockConfig.map(({ block, label }) => ({
       block,
       label,
       metrics: calculateBundle(eligible.filter((flight) => getTimeBlock(flight.CRS_DEP_TIME) === block)),
-    }))
+    })) : []
 
     const seasonConfig = [
       { season: 'Winter', months: [['01', 'Jan'], ['02', 'Feb'], ['03', 'Mar']] as const },
@@ -643,7 +643,7 @@ export class MockDashboardRepository implements DashboardRepository {
       { season: 'Summer', months: [['07', 'Jul'], ['08', 'Aug'], ['09', 'Sep']] as const },
       { season: 'Autumn', months: [['10', 'Oct'], ['11', 'Nov'], ['12', 'Dec']] as const },
     ]
-    const seasons: SeasonSummary[] = seasonConfig.map((definition) => {
+    const seasons: SeasonSummary[] = hasEligible ? seasonConfig.map((definition) => {
       const seasonFlights = eligible.filter((flight) => definition.months.some(([month]) => flight.FL_DATE.slice(5, 7) === month))
       const seasonBundle = calculateBundle(seasonFlights)
       return {
@@ -666,7 +666,7 @@ export class MockDashboardRepository implements DashboardRepository {
           }
         }),
       }
-    })
+    }) : []
 
     return {
       metadata: this.createMetadata('DỮ LIỆU MINH HỌA — KHÔNG PHẢI KẾT QUẢ ĐO LƯỜNG', eligible.length),

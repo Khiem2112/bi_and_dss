@@ -4,10 +4,29 @@
 
 ## Chạy tại máy
 
+### Khởi chạy với dữ liệu thật từ MotherDuck
+
+1. Khởi động Backend Express (kết nối trực tiếp MotherDuck qua 2 biến `MOTHERDUCK_TOKEN` và `MOTHERDUCK_CONNECTION_STRING`):
+
 ```powershell
-npm install
+npm run server
+```
+
+Kiểm tra kết nối và đối soát số liệu nhanh:
+
+```powershell
+npm run server:test
+```
+
+2. Khởi động giao diện Vite:
+
+```powershell
 npm run dev
 ```
+
+Cấu hình nguồn dữ liệu trong `demo/.env`:
+- `VITE_DATA_SOURCE=api`: Sử dụng dữ liệu thật từ kho MotherDuck qua Express.
+- `VITE_DATA_SOURCE=mock`: Sử dụng dữ liệu mô phỏng cục bộ (offline).
 
 Kiểm tra trước khi bàn giao:
 

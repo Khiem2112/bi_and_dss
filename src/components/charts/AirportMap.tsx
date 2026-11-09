@@ -37,20 +37,20 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h} giờ` : `${h} giờ ${m} phút`
 }
 
-function getDelayFill(metrics?: RoleMetrics, fallbackGap: number = 0): string {
-  if (!metrics || metrics.n === 0) return '#64748b'
-  const gap = metrics.gap ?? fallbackGap
-  if (gap >= 5) return '#e11d48'
-  if (gap >= 3) return '#f59e0b'
-  return '#2563eb'
+const originColor = '#2563eb'
+const destinationColor = '#f97316'
+
+function getRoleFill(role: 'origin' | 'destination', metrics?: RoleMetrics): string {
+  if (!metrics || metrics.n === 0) return '#94a3b8'
+  return role === 'origin' ? originColor : destinationColor
 }
 
-function getTooltipRateColor(metrics?: RoleMetrics, fallbackGap: number = 0): string {
-  if (!metrics || metrics.n === 0) return '#cbd5e1'
+function getRoleOpacity(metrics?: RoleMetrics, fallbackGap: number = 0): number {
+  if (!metrics || metrics.n === 0) return 0.42
   const gap = metrics.gap ?? fallbackGap
-  if (gap >= 5) return '#fb7185'
-  if (gap >= 3) return '#fbbf24'
-  return '#60a5fa'
+  if (gap >= 5) return 1
+  if (gap >= 3) return 0.86
+  return 0.7
 }
 
 function getTooltipGapColor(gap: number | null | undefined): string {
@@ -206,6 +206,11 @@ export function AirportMap({
 
   return (
     <div className="airport-map" role="img" aria-label="Bản đồ điểm nóng sân bay và tính toán tuyến">
+      <div className="map-dual-rate-key" role="note" aria-label="Cách đọc hai nửa điểm sân bay">
+        <span className="map-dual-rate-marker" aria-hidden="true"><i /><i /></span>
+        <span><strong className="map-role-origin">Nửa trái: sân bay đi</strong><b>·</b><strong className="map-role-destination">Nửa phải: sân bay đến</strong></span>
+        <small>Màu nhận diện vai trò; sắc đậm biểu thị chênh lệch so với mức tham chiếu lớn hơn.</small>
+      </div>
       <svg viewBox="0 0 920 500">
         <path
           className="map-land"
@@ -242,8 +247,12 @@ export function AirportMap({
           const y = 25 + airport.y * 4.1
           const radius = 9 + Math.sqrt(airport.n) / 10
 
-          const originFill = getDelayFill(airport.originMetrics, airport.role === 'Origin' ? (airport.gap ?? 0) : 0)
-          const destFill = getDelayFill(airport.destMetrics, airport.role === 'Destination' ? (airport.gap ?? 0) : 0)
+          const originFallbackGap = airport.role === 'Origin' ? (airport.gap ?? 0) : 0
+          const destinationFallbackGap = airport.role === 'Destination' ? (airport.gap ?? 0) : 0
+          const originFill = getRoleFill('origin', airport.originMetrics)
+          const destinationFill = getRoleFill('destination', airport.destMetrics)
+          const originOpacity = getRoleOpacity(airport.originMetrics, originFallbackGap)
+          const destinationOpacity = getRoleOpacity(airport.destMetrics, destinationFallbackGap)
 
           const selectedIdx = selectedCodes.indexOf(airport.code)
           const isSelected = selectedIdx !== -1 || selectedId === airport.id
@@ -288,13 +297,13 @@ export function AirportMap({
               <path
                 d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 0 ${x} ${y + radius} Z`}
                 fill={originFill}
-                opacity="0.9"
+                opacity={originOpacity}
               />
               {/* Nửa bên phải: Sân bay đến (Destination) */}
               <path
                 d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 1 ${x} ${y + radius} Z`}
-                fill={destFill}
-                opacity="0.9"
+                fill={destinationFill}
+                opacity={destinationOpacity}
               />
               {/* Đường phân cách 2 nửa và viền ngoài */}
               <line x1={x} y1={y - radius} x2={x} y2={y + radius} stroke="#ffffff" strokeWidth="1" opacity="0.75" />
@@ -367,11 +376,11 @@ export function AirportMap({
             <div className="tooltip-metric-row">
               <span className="metric-label">Tỷ lệ trễ</span>
               <div className="metric-dual-values">
-                <span className="metric-val-origin" style={{ color: getTooltipRateColor(hoveredAirport.originMetrics, 0), fontWeight: 700 }}>
+                <span className="metric-val-origin" style={{ color: originColor, fontWeight: 700 }}>
                   {hoveredAirport.originMetrics ? `${hoveredAirport.originMetrics.rate.toFixed(1).replace('.', ',')}%` : '--'}
                 </span>
                 <span className="metric-v-sep">|</span>
-                <span className="metric-val-dest" style={{ color: getTooltipRateColor(hoveredAirport.destMetrics, 0), fontWeight: 700 }}>
+                <span className="metric-val-dest" style={{ color: destinationColor, fontWeight: 700 }}>
                   {hoveredAirport.destMetrics ? `${hoveredAirport.destMetrics.rate.toFixed(1).replace('.', ',')}%` : '--'}
                 </span>
               </div>
@@ -531,16 +540,15 @@ export function AirportMap({
 
       <div className="legend">
         <span className="legend-item">
-          <span className="legend-dot" style={{ background: '#e11d48' }} />
-          Chênh lệch ≥ 5%
+          <span className="legend-dot" style={{ background: originColor }} />
+          Nửa trái = sân bay đi
         </span>
         <span className="legend-item">
-          <span className="legend-dot amber" />
-          Chênh lệch 3–4,9%
+          <span className="legend-dot" style={{ background: destinationColor }} />
+          Nửa phải = sân bay đến
         </span>
         <span className="legend-item">
-          <span className="legend-dot blue" />
-          Chênh lệch &lt; 3%
+          Sắc đậm = chênh lệch lớn hơn
         </span>
         <span className="legend-item">Kích thước = cỡ mẫu</span>
       </div>

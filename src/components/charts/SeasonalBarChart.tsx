@@ -65,6 +65,10 @@ export function SeasonalBarChart({
     averageDelay?: number
   } | null>(null)
 
+  if (seasons.length === 0) {
+    return <p className="chart-empty">Không có dữ liệu mùa hoặc tháng trong phạm vi phân tích.</p>
+  }
+
   const allMonths = seasons.flatMap((s) => s.months)
   const maxRate = Math.max(35, ...allMonths.map((m) => m.rate), ...seasons.map((s) => s.rate))
   const chartCeil = Math.ceil((maxRate + 5) / 5) * 5
@@ -85,7 +89,7 @@ export function SeasonalBarChart({
     <div className="seasonal-bar-chart-container" style={{ position: 'relative', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', padding: '0 4px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px', color: 'var(--muted)' }}>
-          <span>Gợi ý: Nhấp cột để lọc theo tháng; nhấp tiêu đề mùa để lọc cả mùa</span>
+          <span>Chọn cột tháng hoặc tiêu đề mùa để lọc.</span>
         </div>
         {(selectedSeason || selectedMonth) && (
           <button

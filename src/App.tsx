@@ -78,7 +78,17 @@ export default function App() {
   return (
     <>
       <AppShell onOpenMethodology={() => openOverlay({ kind: 'methodology' })}>
-        {page !== 'prediction' && <GlobalFilterBar filters={filters} onApply={(nextFilters) => { setFilters(nextFilters); showToast('Đã áp dụng phạm vi phân tích; các lựa chọn cục bộ được giữ nguyên.') }} />}
+        {page !== 'prediction' && (
+          <GlobalFilterBar
+            key={page}
+            filters={filters}
+            defaultCollapsed={page === 'overview'}
+            onApply={(nextFilters) => {
+              setFilters(nextFilters)
+              showToast('Đã áp dụng phạm vi phân tích; các lựa chọn cục bộ được giữ nguyên.')
+            }}
+          />
+        )}
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage filters={filters} onNavigate={navigate} onSelectEntity={setSelectedEntity} onOpenComparison={openComparison} onOpenInvestigation={openInvestigation} onOpenEvidence={openEvidence} onOpenMethodology={() => openOverlay({ kind: 'methodology' })} onToast={showToast} />} />
