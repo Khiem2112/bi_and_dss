@@ -28,6 +28,22 @@ Cấu hình nguồn dữ liệu trong `demo/.env`:
 - `VITE_DATA_SOURCE=api`: Sử dụng dữ liệu thật từ kho MotherDuck qua Express.
 - `VITE_DATA_SOURCE=mock`: Sử dụng dữ liệu mô phỏng cục bộ (offline).
 
+## Triển khai trên Vercel (Full-stack UI + Serverless API)
+
+Dự án đã được cấu hình sẵn để triển khai đồng thời cả giao diện Vite và máy chủ Express trên Vercel:
+
+1. **Thiết lập thư mục gốc (Root Directory) trên Vercel**:
+   - Chọn thư mục gốc là `demo` (hoặc để mặc định theo tệp cấu hình `vercel.json` tại thư mục gốc).
+
+2. **Cấu hình biến môi trường trên Vercel Dashboard (Settings → Environment Variables)**:
+   - `MOTHERDUCK_TOKEN`: Mã token truy cập MotherDuck của bạn.
+   - `MOTHERDUCK_CONNECTION_STRING`: `md:my_db` (hoặc tên database tương ứng).
+   - `VITE_DATA_SOURCE`: `api`
+
+3. **Cơ chế điều hướng (Rewrites)**:
+   - Toàn bộ truy vấn `/api/*` được chuyển tiếp đến hàm Serverless Express tại `api/index.js`.
+   - Các tuyến điều hướng SPA khác được chuyển hướng về `index.html`.
+
 Kiểm tra trước khi bàn giao:
 
 ```powershell

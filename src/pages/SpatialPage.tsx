@@ -60,7 +60,7 @@ export function SpatialPage({ filters: propFilters, onNavigate, onOpenComparison
   const trendQuery = useEntityTrend(entityTrendFilters, filters)
 
   const allRoutes = useMemo(() => {
-    if (!airportsQuery.data) return []
+    if (!airportsQuery.data?.routesByAirport) return []
     const seen = new Set<string>()
     const results: EvidenceRecord[] = []
     for (const routes of Object.values(airportsQuery.data.routesByAirport)) {
@@ -196,7 +196,7 @@ export function SpatialPage({ filters: propFilters, onNavigate, onOpenComparison
       ? `Xu hướng trễ — ${selectedAirportCode} vai trò ${formatRole(localState.grain === 'origin' ? 'Origin' : 'Destination')}`
       : 'Xu hướng trễ'
 
-  const mapRoutes = useMemo(() => (airportsQuery.data ? Object.values(airportsQuery.data.routesByAirport).flat() : []), [airportsQuery.data])
+  const mapRoutes = useMemo(() => (airportsQuery.data?.routesByAirport ? Object.values(airportsQuery.data.routesByAirport).flat() : []), [airportsQuery.data])
 
   function contextFor(entity: string, sourceComponentId: string, intent: WnAnalysisContext['comparisonIntent'], role?: 'Origin' | 'Destination', periodFilters: Partial<WnAnalysisContext['filters']> = {}): WnAnalysisContext {
     const route = allRoutes.find((item) => item.entity === entity)

@@ -132,14 +132,14 @@ export function OverviewPage({
   }, [filters])
 
   const mapRoutes = useMemo(
-    () => (airportsQuery.data ? Object.values(airportsQuery.data.routesByAirport).flat() : []),
+    () => (airportsQuery.data?.routesByAirport ? Object.values(airportsQuery.data.routesByAirport).flat() : []),
     [airportsQuery.data],
   )
   const selectedAirport = useMemo(() => {
     if (selectedAirportCodes.length > 0) {
-      return airportsQuery.data?.airports.find((airport) => selectedAirportCodes.includes(airport.code))
+      return airportsQuery.data?.airports?.find((airport) => selectedAirportCodes.includes(airport.code))
     }
-    return airportsQuery.data?.airports[0]
+    return airportsQuery.data?.airports?.[0]
   }, [airportsQuery.data?.airports, selectedAirportCodes])
 
   if (query.isError) {
@@ -240,10 +240,10 @@ export function OverviewPage({
     filters: { seasons: [season.season], months: [{ Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 }[month.month] ?? 1] },
   })
 
-  const selectedSeverity = overview.severityBands.find((band) => band.id === selectedSeverityId) ?? overview.severityBands[0]
-  const selectedYearMonth = overview.yearMonthComparison.find((point) => point.period === selectedYearMonthPeriod) ?? overview.yearMonthComparison[overview.yearMonthComparison.length - 1]
-  const selectedBlock = overview.timeBlocks.find((block) => block.block === selectedTimeBlock) ?? overview.timeBlocks[0]
-  const selectedSeasonSummary = overview.seasons.find((season) => season.season === selectedSeason) ?? overview.seasons[0]
+  const selectedSeverity = overview.severityBands?.find((band) => band.id === selectedSeverityId) ?? overview.severityBands?.[0]
+  const selectedYearMonth = overview.yearMonthComparison?.find((point) => point.period === selectedYearMonthPeriod) ?? overview.yearMonthComparison?.[overview.yearMonthComparison?.length - 1]
+  const selectedBlock = overview.timeBlocks?.find((block) => block.block === selectedTimeBlock) ?? overview.timeBlocks?.[0]
+  const selectedSeasonSummary = overview.seasons?.find((season) => season.season === selectedSeason) ?? overview.seasons?.[0]
   const selectedMonthSummary = selectedSeasonSummary?.months.find((month) => month.month === selectedMonth)
   const selectedSeasonalContext = selectedSeasonSummary
     ? selectedMonthSummary ? monthContext(selectedSeasonSummary, selectedMonthSummary) : seasonContext(selectedSeasonSummary)

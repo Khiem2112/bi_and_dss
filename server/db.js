@@ -14,10 +14,12 @@ const envCandidates = [
   path.resolve(__dirname, '../../.env'),
 ];
 
-for (const p of envCandidates) {
-  const result = dotenv.config({ path: p });
-  if (!result.error && process.env.MOTHERDUCK_TOKEN) {
-    break;
+if (!process.env.MOTHERDUCK_TOKEN) {
+  for (const p of envCandidates) {
+    const result = dotenv.config({ path: p });
+    if (!result.error && process.env.MOTHERDUCK_TOKEN) {
+      break;
+    }
   }
 }
 

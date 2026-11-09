@@ -30,9 +30,17 @@ const runVerification = async () => {
     console.log('- Chuyen du dieu kien:', eligibleKpi?.value);
     console.log('- Chuyen den tre:', delayedKpi?.value);
     console.log('- Ty le tre thuc te:', rateKpi?.value);
+    console.log('- Severity bands:', overviewData.severityBands?.length);
+    console.log('- Time blocks:', overviewData.timeBlocks?.length);
+    console.log('- Seasons:', overviewData.seasons?.length);
+    console.log('- Year month points:', overviewData.yearMonthComparison?.length);
 
     if (eligibleKpi?.metrics.eligibleFlights !== 5163515 || delayedKpi?.metrics.delayedFlights !== 990810) {
       throw new Error(`So lieu doi soat khong khop: expected 5163515, got ${eligibleKpi?.metrics.eligibleFlights}`);
+    }
+
+    if (!overviewData.severityBands || overviewData.severityBands.length !== 5) {
+      throw new Error('Thieu 5 nhom muc do tre severityBands');
     }
 
     // Kiem tra endpoint /spatial/airports
@@ -42,10 +50,11 @@ const runVerification = async () => {
       body: JSON.stringify({ filters: {} }),
     });
     const airportsData = await airportsRes.json();
-    if (airportsData.error) {
-      console.error('Airports endpoint error:', airportsData.error);
+    console.log('So diem nong san bay tim thay:', airportsData.airports?.length);
+    console.log('So san bay co danh sach tuyen bay routesByAirport:', Object.keys(airportsData.routesByAirport || {}).length);
+    if (!airportsData.routesByAirport || Object.keys(airportsData.routesByAirport).length === 0) {
+      throw new Error('Thieu cau truc routesByAirport');
     }
-    console.log('So diem nong san bay tim thay:', airportsData.hotspots?.length);
 
     // Kiem tra endpoint /benchmark
     const benchRes = await fetch(`${baseUrl}/benchmark`, {
@@ -54,7 +63,7 @@ const runVerification = async () => {
       body: JSON.stringify({ request: { route: 'DAL → ATL' } }),
     });
     const benchData = await benchRes.json();
-    console.log('Hang bay doi sanh:', benchData.carriers.map((c) => c.carrier).join(', '));
+    console.log('Doi sanh WN delay rate:', benchData.wn?.delayRate, '- Peer delay rate:', benchData.peerObserved?.delayRate);
 
     // Kiem tra endpoint /investigation
     const invRes = await fetch(`${baseUrl}/investigation`, {
@@ -63,8 +72,8 @@ const runVerification = async () => {
       body: JSON.stringify({ request: { page: 1, pageSize: 5 } }),
     });
     const invData = await invRes.json();
-    console.log('Tong so ban ghi dieu tra chuyen bay:', invData.totalCount);
-    console.log('So chuyen bay tren trang 1:', invData.flights.length);
+    console.log('Tong so ban ghi dieu tra chuyen bay:', invData.totalRows);
+    console.log('So chuyen bay tren trang 1:', invData.rows?.length);
 
     // Kiem tra endpoint /causes
     const causesRes = await fetch(`${baseUrl}/causes`, {
@@ -73,7 +82,7 @@ const runVerification = async () => {
       body: JSON.stringify({ entity: 'Toàn mạng bay WN' }),
     });
     const causesData = await causesRes.json();
-    console.log('So nhom nguyen nhan tre:', causesData.causes.length);
+    console.log('So nhom nguyen nhan tre:', causesData.causes?.length);
 
     console.log('Tat ca cac endpoint API deu hoat dong chinh xac va doi soat 100% voi MotherDuck!');
     process.exit(0);
