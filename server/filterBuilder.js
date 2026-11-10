@@ -66,9 +66,14 @@ export const buildMartBaseWhere = (filters) => {
         clauseConditions.push(`origin = '${clause.airport.replace(/'/g, "''")}'`);
       } else if (clause.mode === 'destination' && clause.airport) {
         clauseConditions.push(`destination = '${clause.airport.replace(/'/g, "''")}'`);
-      } else if (clause.airport) {
-        const ap = clause.airport.replace(/'/g, "''");
-        clauseConditions.push(`(origin = '${ap}' OR destination = '${ap}')`);
+      } else {
+        const aps = (clause.airports && Array.isArray(clause.airports) && clause.airports.length > 0)
+          ? clause.airports
+          : clause.airport ? [clause.airport] : [];
+        if (aps.length > 0) {
+          const escaped = aps.map((a) => `'${a.replace(/'/g, "''")}'`).join(', ');
+          clauseConditions.push(`(origin IN (${escaped}) OR destination IN (${escaped}))`);
+        }
       }
     }
     if (clauseConditions.length > 0) {
@@ -133,9 +138,14 @@ export const buildFlightsCleanedWhere = (filters, searchKeyword = '') => {
           clauseConditions.push(`origin = '${clause.airport.replace(/'/g, "''")}'`);
         } else if (clause.mode === 'destination' && clause.airport) {
           clauseConditions.push(`destination = '${clause.airport.replace(/'/g, "''")}'`);
-        } else if (clause.airport) {
-          const ap = clause.airport.replace(/'/g, "''");
-          clauseConditions.push(`(origin = '${ap}' OR destination = '${ap}')`);
+        } else {
+          const aps = (clause.airports && Array.isArray(clause.airports) && clause.airports.length > 0)
+            ? clause.airports
+            : clause.airport ? [clause.airport] : [];
+          if (aps.length > 0) {
+            const escaped = aps.map((a) => `'${a.replace(/'/g, "''")}'`).join(', ');
+            clauseConditions.push(`(origin IN (${escaped}) OR destination IN (${escaped}))`);
+          }
         }
       }
       if (clauseConditions.length > 0) {
@@ -150,6 +160,64 @@ export const buildFlightsCleanedWhere = (filters, searchKeyword = '') => {
     conditions.push(
       `(origin LIKE '%${kw}%' OR destination LIKE '%${kw}%' OR flight_number LIKE '%${kw}%' OR carrier LIKE '%${kw}%')`
     );
+  }
+
+  return conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+};
+
+// Xay dung menh de WHERE cho bang fact_prediction
+export const buildFactPredictionWhere = (predictionFilters, globalFilters, prefix = 'p.') => {
+  const conditions = [];
+
+  if (predictionFilters?.window) {
+    if (predictionFilters.window.includes('2018-01-18') || predictionFilters.window.includes('20180118')) {
+      conditions.push(`${prefix}DateKey = 20180118`);
+    } else if (predictionFilters.window.includes('2018-02-07') || predictionFilters.window.includes('20180207')) {
+      conditions.push(`${prefix}DateKey = 20180207`);
+    }
+  }
+
+  if (predictionFilters?.timeBlock) {
+    conditions.push(`${prefix}time_block = '${predictionFilters.timeBlock.replace(/'/g, "''")}'`);
+  }
+
+  if (predictionFilters?.route) {
+    const cleanRoute = predictionFilters.route.replace(' → ', '_').replace(/'/g, "''");
+    conditions.push(`(${prefix}route_key = '${cleanRoute}' OR ${prefix}origin || ' → ' || ${prefix}destination = '${predictionFilters.route.replace(/'/g, "''")}')`);
+  }
+
+  if (globalFilters) {
+    if (Array.isArray(globalFilters.scheduledTimeBlock) && globalFilters.scheduledTimeBlock.length > 0 && !predictionFilters?.timeBlock) {
+      const escaped = globalFilters.scheduledTimeBlock.map((t) => `'${t.replace(/'/g, "''")}'`).join(', ');
+      conditions.push(`${prefix}time_block IN (${escaped})`);
+    }
+
+    if (Array.isArray(globalFilters.airportClauses) && globalFilters.airportClauses.length > 0) {
+      const clauseConditions = [];
+      for (const clause of globalFilters.airportClauses) {
+        if (!clause) continue;
+        if (clause.mode === 'route' && clause.origin && clause.destination) {
+          clauseConditions.push(
+            `(${prefix}origin = '${clause.origin.replace(/'/g, "''")}' AND ${prefix}destination = '${clause.destination.replace(/'/g, "''")}')`
+          );
+        } else if (clause.mode === 'origin' && clause.airport) {
+          clauseConditions.push(`${prefix}origin = '${clause.airport.replace(/'/g, "''")}'`);
+        } else if (clause.mode === 'destination' && clause.airport) {
+          clauseConditions.push(`${prefix}destination = '${clause.airport.replace(/'/g, "''")}'`);
+        } else {
+          const aps = (clause.airports && Array.isArray(clause.airports) && clause.airports.length > 0)
+            ? clause.airports
+            : clause.airport ? [clause.airport] : [];
+          if (aps.length > 0) {
+            const escaped = aps.map((a) => `'${a.replace(/'/g, "''")}'`).join(', ');
+            clauseConditions.push(`(${prefix}origin IN (${escaped}) OR ${prefix}destination IN (${escaped}))`);
+          }
+        }
+      }
+      if (clauseConditions.length > 0) {
+        conditions.push(`(${clauseConditions.join(' OR ')})`);
+      }
+    }
   }
 
   return conditions.length > 0 ? conditions.join(' AND ') : '1=1';

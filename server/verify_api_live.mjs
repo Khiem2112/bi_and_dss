@@ -84,6 +84,39 @@ const runVerification = async () => {
     const causesData = await causesRes.json();
     console.log('So nhom nguyen nhan tre:', causesData.causes?.length);
 
+    // Kiem tra endpoint /predictions/future-flights (tich hop fact_prediction)
+    const futureRes = await fetch(`${baseUrl}/predictions/future-flights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filters: { window: 'Tất cả đợt dự báo' } }),
+    });
+    const futureData = await futureRes.json();
+    console.log('So chuyen bay du bao tu fact_prediction:', futureData.flights?.length);
+    if (!futureData.flights || futureData.flights.length === 0) {
+      throw new Error('Endpoint /predictions/future-flights khong tra ve chuyen bay nao tu fact_prediction');
+    }
+
+    // Kiem tra endpoint /predictions/risk-aggregates
+    const riskRes = await fetch(`${baseUrl}/predictions/risk-aggregates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filters: {} }),
+    });
+    const riskData = await riskRes.json();
+    console.log('So tong hop rui ro du bao:', riskData.aggregates?.length);
+    if (!riskData.aggregates || riskData.aggregates.length === 0) {
+      throw new Error('Endpoint /predictions/risk-aggregates khong tra ve du lieu tong hop');
+    }
+
+    // Kiem tra endpoint /predictions/explanation/:id
+    const sampleId = futureData.flights[0].id;
+    const explRes = await fetch(`${baseUrl}/predictions/explanation/${encodeURIComponent(sampleId)}`);
+    const explData = await explRes.json();
+    console.log('Giai thich dac trung TreeSHAP:', explData.entity, '- So dac trung:', explData.contributors?.length);
+    if (!explData.contributors || explData.contributors.length === 0) {
+      throw new Error('Endpoint /predictions/explanation khong tra ve dac trung TreeSHAP');
+    }
+
     console.log('Tat ca cac endpoint API deu hoat dong chinh xac va doi soat 100% voi MotherDuck!');
     process.exit(0);
   } catch (err) {
