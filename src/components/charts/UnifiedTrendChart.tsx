@@ -679,40 +679,73 @@ export function UnifiedTrendChart({
             strokeWidth="1.25"
           />
 
-          {currentSeries.map((pt, idx) => {
-            const x = geometry.x(idx)
-            const shouldShowLabel =
-              granularity === 'month'
-                ? true
-                : granularity === 'week'
-                  ? idx % 3 === 0 || idx === currentSeries.length - 1
-                  : idx % 4 === 0 || idx === currentSeries.length - 1
+          {(() => {
+            const totalPoints = currentSeries.length
+            if (totalPoints === 0) return null
 
-            if (!shouldShowLabel) return null
+            const maxLabels = Math.max(3, Math.floor(geometry.innerWidth / 56))
+            const step = Math.max(1, Math.ceil(totalPoints / maxLabels))
 
-            const displayLabel =
-              granularity === 'month'
-                ? pt.period === '2019-01'
-                  ? 'T01/19 (DB)'
-                  : `T${pt.period.slice(5)}`
-                : granularity === 'week'
-                  ? pt.period.includes('2019')
-                    ? `${pt.period.slice(5)} (DB)`
-                    : pt.period.slice(5)
-                  : pt.label
+            return currentSeries.map((pt, idx) => {
+              const x = geometry.x(idx)
 
-            return (
-              <text
-                key={`baxis-${pt.period}`}
-                x={x}
-                y={chartHeight - chartPadding.bottom + 18}
-                textAnchor="middle"
-                className={`chart-axis-label ${pt.isFuture ? 'axis-future' : ''}`}
-              >
-                {displayLabel}
-              </text>
-            )
-          })}
+              if (geometry.colWidth < 8 && idx !== 0 && idx !== totalPoints - 1) {
+                return null
+              }
+
+              const isFirst = idx === 0
+              const isLast = idx === totalPoints - 1
+              const isPeriodic = idx % step === 0
+              const isNearEnd = isLast && (totalPoints - 1) % step !== 0 && ((totalPoints - 1) % step) < (step * 0.4)
+
+              if (!isFirst && !isPeriodic && !isLast) return null
+              if (isNearEnd && !isPeriodic) return null
+
+              let displayLabel = pt.label || pt.period
+
+              if (granularity === 'month') {
+                if (pt.isFuture) {
+                  displayLabel = pt.period.includes('-')
+                    ? `T${pt.period.slice(5)}/${pt.period.slice(2, 4)} (DB)`
+                    : 'Dự báo'
+                } else if (pt.period.includes('-')) {
+                  const [yr, mo] = pt.period.split('-')
+                  displayLabel = totalPoints > 14 ? `T${mo}/${yr.slice(2)}` : `T${mo}`
+                }
+              } else if (granularity === 'week') {
+                if (pt.isFuture) {
+                  const wNum = pt.period.includes('W') ? pt.period.split('W')[1] : ''
+                  displayLabel = wNum ? `W${wNum} (DB)` : 'Dự báo'
+                } else if (pt.period.includes('W')) {
+                  const [yr, wk] = pt.period.split('-W')
+                  displayLabel = `W${wk}/${yr.slice(2)}`
+                } else if (pt.label) {
+                  displayLabel = pt.label
+                }
+              } else if (granularity === 'day') {
+                if (pt.isFuture) {
+                  displayLabel = pt.label?.includes('(DB)') ? pt.label : `${pt.label} (DB)`
+                } else if (pt.label) {
+                  displayLabel = pt.label
+                } else if (pt.period.includes('-')) {
+                  const parts = pt.period.split('-')
+                  displayLabel = `${parts[2]}/${parts[1]}`
+                }
+              }
+
+              return (
+                <text
+                  key={`baxis-${pt.period}`}
+                  x={x}
+                  y={chartHeight - chartPadding.bottom + 18}
+                  textAnchor="middle"
+                  className={`chart-axis-label ${pt.isFuture ? 'axis-future' : ''}`}
+                >
+                  {displayLabel}
+                </text>
+              )
+            })
+          })()}
 
           {currentSeries.map((pt, idx) => {
             const colX = chartPadding.left + idx * geometry.colWidth

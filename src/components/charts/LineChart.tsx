@@ -120,11 +120,16 @@ export function LineChart({
                 stroke={isSelected ? '#0f172a' : secondary ? '#2563eb' : '#e11d48'}
                 strokeWidth={isSelected ? 3 : 2.5}
               />
-              {(index % 2 === 0 || index === data.length - 1) && (
-                <text x={cx} y={height - 12} textAnchor="middle" className="chart-axis-label" style={{ fontSize: '10px', fill: 'var(--ink)' }}>
-                  {point.period}
-                </text>
-              )}
+              {(() => {
+                const interval = Math.max(1, Math.ceil(data.length / 10))
+                const shouldShow = index === 0 || index === data.length - 1 || index % interval === 0
+                if (!shouldShow) return null
+                return (
+                  <text x={cx} y={height - 12} textAnchor="middle" className="chart-axis-label" style={{ fontSize: '10px', fill: 'var(--ink)' }}>
+                    {point.period}
+                  </text>
+                )
+              })()}
             </g>
           )
         })}
