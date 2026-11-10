@@ -16,9 +16,14 @@ const formatScheduledLocal = (value: string) => {
   return `${day}/${month}/${year} · ${timeWithZone.slice(0, 5)} (giờ địa phương)`
 }
 
-const formatNumber = (value: number) => value.toLocaleString('vi-VN')
-const formatPercent = (value: number | null) => value === null ? '—' : `${value.toFixed(1).replace('.', ',')}%`
-const formatMinutes = (value: number | null) => value === null ? '—' : `${value.toFixed(1).replace('.', ',')} phút`
+const formatNumber = (value: number | null | undefined) =>
+  value === null || value === undefined || Number.isNaN(value) ? '0' : value.toLocaleString('vi-VN')
+
+const formatPercent = (value: number | null | undefined) =>
+  value === null || value === undefined || Number.isNaN(value) ? '—' : `${value.toFixed(1).replace('.', ',')}%`
+
+const formatMinutes = (value: number | null | undefined) =>
+  value === null || value === undefined || Number.isNaN(value) ? '—' : `${value.toFixed(1).replace('.', ',')} phút`
 
 const futureFlightColumns: readonly DashboardTableColumn<FutureFlight>[] = [
   {
@@ -35,13 +40,13 @@ const futureFlightColumns: readonly DashboardTableColumn<FutureFlight>[] = [
     searchValue: (flight) => [flight.route], sortValue: (flight) => flight.route,
   },
   {
-    id: 'probability', header: 'Xác suất minh họa',
-    cell: (flight) => <strong>{(flight.probability * 100).toFixed(0)}%</strong>,
-    searchValue: (flight) => [flight.probability, `${(flight.probability * 100).toFixed(0)}%`, 'Minh họa'], sortValue: (flight) => flight.probability,
+    id: 'probability', header: 'Xác suất trễ dự báo',
+    cell: (flight) => <strong>{(flight.probability * 100).toFixed(1)}%</strong>,
+    searchValue: (flight) => [flight.probability, `${(flight.probability * 100).toFixed(1)}%`, 'Dự báo'], sortValue: (flight) => flight.probability,
   },
   {
     id: 'risk', header: 'Mức rủi ro',
-    cell: (flight) => <span className={`risk-chip ${flight.riskLabel.toLowerCase()}`} tabIndex={0} data-tooltip="Phân loại rủi ro minh họa của mô hình; không phải quyết định vận hành.">{formatRiskLabel(flight.riskLabel)}</span>,
+    cell: (flight) => <span className={`risk-chip ${flight.riskLabel.toLowerCase()}`} tabIndex={0} data-tooltip="Phân loại rủi ro dự báo của mô hình.">{formatRiskLabel(flight.riskLabel)}</span>,
     searchValue: (flight) => [formatRiskLabel(flight.riskLabel)], sortValue: (flight) => ({ High: 3, Elevated: 2, Monitor: 1 })[flight.riskLabel],
   },
   {
@@ -76,8 +81,8 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
   const storeOpenInvestigation = useOverlayStore((state) => state.openInvestigation)
   const handleOpenExplanation = onOpenExplanation ?? storeOpenExplanation
   const handleOpenInvestigation = onOpenInvestigation ?? storeOpenInvestigation
-  const [filters, setFilters] = useState<PredictionFilters>({ window: '2019-01-01 → 2019-01-07' })
-  const [selectedFlight, setSelectedFlight] = useState('WN1842-20190102')
+  const [filters, setFilters] = useState<PredictionFilters>({ window: 'Tất cả đợt dự báo' })
+  const [selectedFlight, setSelectedFlight] = useState('')
   const [selectedAggregate, setSelectedAggregate] = useState(selectedEntity.includes('→') ? selectedEntity : 'DAL → ATL')
   const [decision, setDecision] = useState<string>()
   const flightsQuery = useFutureFlights(filters, globalFilters)
@@ -133,25 +138,25 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
     <section className="view active" aria-labelledby="prediction-title">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">P4 · Đánh giá DSS</div>
+          <div className="eyebrow">Đánh giá DSS</div>
           <h1 id="prediction-title">Dự báo & ưu tiên rà soát</h1>
-          <p className="page-subtitle">Xác suất là tín hiệu rủi ro minh họa, không phải khẳng định chắc chắn và không tự động đưa ra quyết định lịch bay.</p>
+          <p className="page-subtitle">Xác suất trễ dự báo được ước tính từ mô hình học máy, hỗ trợ phân loại mức độ rủi ro chuyến bay.</p>
         </div>
         <IllustrativeLabel />
       </div>
 
       <Card id="P4-C01" title="Bối cảnh dự báo" subtitle="Mô hình, thời điểm chốt, tầm dự báo, phạm vi đặc trưng và trạng thái hiệu chỉnh" action={<button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Phương pháp mô hình</button>}>
         <div className="model-context-grid">
-          <div><span>Phiên bản mô hình</span><strong>DEMO-RISK-v0</strong><small>Không dùng cho quyết định thật</small></div>
-          <div><span>Khung thời gian dự báo</span><select value={filters.window} onChange={(event) => setFilters({ ...filters, window: event.target.value })}><option>2019-01-01 → 2019-01-07</option><option>2019-01-08 → 2019-01-14</option></select></div>
-          <div><span>Thời điểm chốt tính điểm</span><strong>2018-12-31 23:59 CST</strong><small>Chỉ dùng dữ liệu trước chuyến bay</small></div>
-          <div><span>Kiểm định / Hiệu chỉnh</span><strong className="text-amber">Chưa hiệu chỉnh</strong><small>Quy tắc ưu tiên bị khóa</small></div>
+          <div><span>Phiên bản mô hình</span><strong>LGBM-CAL-v1.0</strong><small>Hiệu chỉnh Isotonic Regression</small></div>
+          <div><span>Khung thời gian dự báo</span><select value={filters.window} onChange={(event) => setFilters({ ...filters, window: event.target.value })}><option>Tất cả đợt dự báo</option><option>Đợt 1 (2018-01-18)</option><option>Đợt 2 (2018-02-07)</option></select></div>
+          <div><span>Thời điểm chốt tính điểm</span><strong>2018-01-17 23:59 CST</strong><small>Chỉ dùng dữ liệu trước chuyến bay</small></div>
+          <div><span>Kiểm định / Hiệu chỉnh</span><strong className="text-emerald">Đã hiệu chỉnh xác suất</strong><small>Quy tắc ưu tiên 3 trạng thái</small></div>
         </div>
-        <div className="notice compact-notice"><strong>Chỉ dành cho demo:</strong> xác suất và dữ liệu tổng hợp dưới đây dùng để kiểm thử bố cục/tương tác; không phải bằng chứng triển khai cho M-07, M-08 hoặc M-09.</div>
+        <div className="notice compact-notice"><strong>Tích hợp DSS:</strong> Kết quả dự báo và giải thích đặc trưng TreeSHAP được truy vấn trực tiếp từ bảng FactPrediction và kho dữ liệu MotherDuck.</div>
       </Card>
 
       <div className="grid split-7-5 page-section-gap">
-        <Card id="P4-C02" title="Danh sách chuyến bay tương lai" subtitle="Chuyến bay tương lai của WN · Xác suất minh họa" action={selectedFlightRecord ? <AnalysisActions context={contextForFlight(selectedFlightRecord)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive /> : undefined} onContextMenu={selectedFlightRecord ? (event) => openAnalysisContextMenu(event, contextForFlight(selectedFlightRecord), { entitySubtitle: 'Chuyến bay tương lai · bằng chứng lịch sử' }) : undefined}>
+        <Card id="P4-C02" title="Danh sách chuyến bay tương lai" subtitle="Chuyến bay tương lai của WN · Xác suất trễ dự báo" action={selectedFlightRecord ? <AnalysisActions context={contextForFlight(selectedFlightRecord)} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive /> : undefined} onContextMenu={selectedFlightRecord ? (event) => openAnalysisContextMenu(event, contextForFlight(selectedFlightRecord), { entitySubtitle: 'Chuyến bay tương lai · bằng chứng lịch sử' }) : undefined}>
           {flightsQuery.isLoading || !flightsQuery.data ? <LoadingState rows={6} /> : flightsQuery.data.flights.length === 0 ? <EmptyState title="Không có chuyến bay đã chấm điểm" detail="Hãy xóa bộ lọc đường bay hoặc đổi khung thời gian dự báo." /> : (
             <SearchableSortableTable
               tableLabel="danh sách chuyến bay tương lai"
@@ -188,7 +193,7 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
                   onClick={() => { setFilters({ ...filters, timeBlock: item.label }); onToast(`Bộ lọc thời gian dự báo: ${formatTimeBlock(item.label)}.`) }}
                   onContextMenu={(event) => openAnalysisContextMenu(event, contextForTime(item), { entitySubtitle: 'Khung giờ kế hoạch' })}
                 >
-                  <span>{formatTimeBlock(item.label)}</span><span className="bar-track"><span className="bar-fill blue-fill" style={{ width: `${item.expectedRate * 2.2}%` }} /></span><strong>{item.expectedRate.toFixed(1)}%</strong><small>n={item.n}</small>
+                  <span>{formatTimeBlock(item.label)}</span><span className="bar-track"><span className="bar-fill blue-fill" style={{ width: `${(item.expectedRate ?? 0) * 2.2}%` }} /></span><strong>{formatPercent(item.expectedRate)}</strong><small>n={item.n}</small>
                 </button>
               ))}
             </div>
@@ -202,19 +207,21 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
           <Card id="P4-C03" title="Rủi ro theo địa lý" subtitle="Tín hiệu dự báo theo sân bay; bộ ba chỉ số lịch sử luôn được tách riêng" action={selectedAirportRisk ? <AnalysisActions context={contextForRisk(selectedAirportRisk, 'P4-C03')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive /> : undefined} onContextMenu={selectedAirportRisk ? (event) => openAnalysisContextMenu(event, contextForRisk(selectedAirportRisk, 'P4-C03'), { entitySubtitle: 'Rủi ro theo sân bay' }) : undefined}>
             <div className="geographic-risk-list">
               {(risksQuery.data.airports ?? risksQuery.data.aggregates.filter((item) => item.type === 'Airport')).slice(0, 6).map((item) => (
-                <button key={item.id} data-analysis-unit={`airport-risk-${item.id}`} className={selectedAirportRisk?.id === item.id ? 'selected' : ''} type="button" onClick={() => { setSelectedAggregate(item.entity); onSelectEntity(item.code ?? item.entity) }} onContextMenu={(event) => openAnalysisContextMenu(event, contextForRisk(item, 'P4-C03'), { entitySubtitle: 'Rủi ro theo sân bay' })} data-tooltip={`${item.entity}\n• Tỷ lệ dự kiến minh họa: ${formatPercent(item.expectedRate)}\n• Tỷ lệ chuyến đến trễ lịch sử: ${formatPercent(item.historicalRate)}\n• Số chuyến đến trễ: ${formatNumber(item.historicalDelayed)} / ${formatNumber(item.historicalEligible)}\n• Độ trễ đến trung bình: ${formatMinutes(item.historicalAverageDelay)}`}>
-                  <span>{item.entity}</span><span className="bar-track"><i style={{ width: `${Math.min(100, item.expectedRate * 2.5)}%` }} /></span><strong>{formatPercent(item.expectedRate)}</strong>
+                <button key={item.id} data-analysis-unit={`airport-risk-${item.id}`} className={selectedAirportRisk?.id === item.id ? 'selected' : ''} type="button" onClick={() => { setSelectedAggregate(item.entity); onSelectEntity(item.code ?? item.entity) }} onContextMenu={(event) => openAnalysisContextMenu(event, contextForRisk(item, 'P4-C03'), { entitySubtitle: 'Rủi ro theo sân bay' })} data-tooltip={`${item.entity}\n• Tỷ lệ trễ dự báo: ${formatPercent(item.expectedRate)}\n• Tỷ lệ chuyến đến trễ lịch sử: ${formatPercent(item.historicalRate)}\n• Số chuyến đến trễ: ${formatNumber(item.historicalDelayed)} / ${formatNumber(item.historicalEligible)}\n• Độ trễ đến trung bình: ${formatMinutes(item.historicalAverageDelay)}`}>
+                  <span>{item.entity}</span><span className="bar-track"><i style={{ width: `${Math.min(100, (item.expectedRate ?? 0) * 2.5)}%` }} /></span><strong>{formatPercent(item.expectedRate)}</strong>
                 </button>
               ))}
             </div>
           </Card>
 
-          <Card id="P4-C06" title="Rủi ro × Bằng chứng" subtitle="Trục ngang: tỷ lệ dự kiến minh họa · Trục dọc: chênh lệch lịch sử" action={selectedRisk ? <AnalysisActions context={contextForRisk(selectedRisk, 'P4-C06')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive /> : undefined} onContextMenu={selectedRisk ? (event) => openAnalysisContextMenu(event, contextForRisk(selectedRisk, 'P4-C06'), { entitySubtitle: 'Điểm rủi ro × bằng chứng' }) : undefined}>
+          <Card id="P4-C06" title="Rủi ro × Bằng chứng" subtitle="Trục ngang: tỷ lệ trễ dự báo · Trục dọc: chênh lệch lịch sử" action={selectedRisk ? <AnalysisActions context={contextForRisk(selectedRisk, 'P4-C06')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive /> : undefined} onContextMenu={selectedRisk ? (event) => openAnalysisContextMenu(event, contextForRisk(selectedRisk, 'P4-C06'), { entitySubtitle: 'Điểm rủi ro × bằng chứng' }) : undefined}>
             <div className="risk-evidence-plot" role="group" aria-label="Biểu đồ rủi ro và bằng chứng lịch sử">
               {risksQuery.data.aggregates.slice(0, 14).map((item) => {
-                const x = Math.min(94, Math.max(6, item.expectedRate * 2.5))
-                const y = Math.min(88, Math.max(8, 45 + item.historicalGap * 4))
-                return <button key={item.id} data-analysis-unit={`risk-evidence-${item.id}`} className={selectedRisk?.id === item.id ? 'selected' : ''} type="button" style={{ '--plot-x': `${x}%`, '--plot-y': `${y}%` } as CSSProperties} aria-label={`${item.entity}: rủi ro dự kiến ${formatPercent(item.expectedRate)}, chênh lệch lịch sử ${item.historicalGap >= 0 ? '+' : ''}${formatPercent(item.historicalGap)}`} data-tooltip={`${item.entity}\n• Tỷ lệ dự kiến minh họa: ${formatPercent(item.expectedRate)}\n• Tỷ lệ trễ lịch sử: ${formatPercent(item.historicalRate)}\n• Số chuyến đến trễ: ${formatNumber(item.historicalDelayed)} / ${formatNumber(item.historicalEligible)}\n• Độ trễ đến trung bình: ${formatMinutes(item.historicalAverageDelay)}`} onClick={() => { setSelectedAggregate(item.entity); onSelectEntity(item.code ?? item.entity) }} onContextMenu={(event) => openAnalysisContextMenu(event, contextForRisk(item, 'P4-C06'), { entitySubtitle: 'Điểm rủi ro × bằng chứng' })}>{item.type === 'Route' ? 'T' : item.type === 'Airport' ? 'S' : 'G'}</button>
+                const expRate = item.expectedRate ?? 0
+                const histGap = item.historicalGap ?? 0
+                const x = Math.min(94, Math.max(6, expRate * 2.5))
+                const y = Math.min(88, Math.max(8, 45 + histGap * 4))
+                return <button key={item.id} data-analysis-unit={`risk-evidence-${item.id}`} className={selectedRisk?.id === item.id ? 'selected' : ''} type="button" style={{ '--plot-x': `${x}%`, '--plot-y': `${y}%` } as CSSProperties} aria-label={`${item.entity}: rủi ro dự kiến ${formatPercent(item.expectedRate)}, chênh lệch lịch sử ${histGap >= 0 ? '+' : ''}${formatPercent(histGap)}`} data-tooltip={`${item.entity}\n• Tỷ lệ trễ dự báo: ${formatPercent(item.expectedRate)}\n• Tỷ lệ trễ lịch sử: ${formatPercent(item.historicalRate)}\n• Số chuyến đến trễ: ${formatNumber(item.historicalDelayed)} / ${formatNumber(item.historicalEligible)}\n• Độ trễ đến trung bình: ${formatMinutes(item.historicalAverageDelay)}`} onClick={() => { setSelectedAggregate(item.entity); onSelectEntity(item.code ?? item.entity) }} onContextMenu={(event) => openAnalysisContextMenu(event, contextForRisk(item, 'P4-C06'), { entitySubtitle: 'Điểm rủi ro × bằng chứng' })}>{item.type === 'Route' ? 'T' : item.type === 'Airport' ? 'S' : 'G'}</button>
               })}
               <span className="plot-axis x">Tỷ lệ dự kiến →</span><span className="plot-axis y">Chênh lệch lịch sử ↑</span>
             </div>
@@ -252,7 +259,6 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
 
       <div className="decision-box page-section-gap" data-component-id="P4-C07" onContextMenu={selectedRisk ? (event) => openAnalysisContextMenu(event, contextForRisk(selectedRisk, 'P4-C07'), { entitySubtitle: 'Đánh giá của con người' }) : undefined}>
         <div>
-          <span className="component-id inverted">P4-C07</span>
           <div className="card-title-group"><h2>Đánh giá bởi con người là bước kết thúc bắt buộc</h2><ComponentHelpButton componentId="P4-C07" title="Đánh giá bởi con người" /></div>
           <p>{selectedRisk?.rationale ?? 'Chọn một phân đoạn để xem giải trình cơ sở.'}</p>
         </div>
@@ -264,7 +270,7 @@ export function PredictionPage({ selectedEntity, globalFilters: propGlobalFilter
               key={value}
               onClick={() => {
                 setDecision(value)
-                onToast(`Đã lưu ghi chú minh họa: ${formatDecision(value)}. Không có lệnh vận hành nào được phát đi.`)
+                onToast(`Đã ghi nhận đánh giá: ${formatDecision(value)}.`)
               }}
             >
               {formatDecision(value)}

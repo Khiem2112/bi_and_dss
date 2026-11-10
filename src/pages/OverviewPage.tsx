@@ -72,7 +72,7 @@ function OverviewQueryState({ kind, message, onRetry }: OverviewQueryStateProps)
       </div>
 
       <div className="overview-main-grid">
-        <Card id="P1-C06" title="Xu hướng trễ chuyến mạng lưới và dự báo minh họa" className="overview-state-card overview-state-card--main">
+        <Card id="P1-C06" title="Xu hướng trễ chuyến mạng lưới và dự báo" className="overview-state-card overview-state-card--main">
           {stateContent(5)}
         </Card>
       </div>
@@ -145,7 +145,7 @@ export function OverviewPage({
   if (query.isError) {
     const message = query.error?.message?.startsWith('Không')
       ? query.error.message
-      : 'Không thể kết nối nguồn dữ liệu minh họa. Vui lòng thử lại.'
+      : 'Không thể kết nối nguồn dữ liệu. Vui lòng thử lại.'
     return <OverviewQueryState kind="error" message={message} onRetry={query.refetch} />
   }
 
@@ -334,7 +334,7 @@ export function OverviewPage({
           const context = networkContext(kpi.id, kpi.label)
           return (
             <div className={`card kpi-card kpi-card-clean kpi-tooltip-wrapper${kpi.id === 'P1-C04' ? ' kpi-card--primary' : ''}`} data-component-id={kpi.id} key={kpi.id} onContextMenu={(event) => openAnalysisContextMenu(event, context, { entitySubtitle: 'KPI mạng lưới' })}>
-              <div className="kpi-label card-title-group"><span>{kpi.label}</span><ComponentHelpButton componentId={kpi.id} title={kpi.label} /><span className="component-id">{kpi.id}</span></div>
+              <div className="kpi-label card-title-group"><span>{kpi.label}</span><ComponentHelpButton componentId={kpi.id} title={kpi.label} /></div>
               <Tooltip content={tooltipContent} side="bottom" className="kpi-business-tooltip">
                 <button className="kpi-button kpi-value-button" type="button" onClick={onOpenMethodology} aria-label={`${kpi.label}: ${kpi.value}`}><div className="kpi-value">{kpi.value}</div></button>
               </Tooltip>
@@ -348,7 +348,7 @@ export function OverviewPage({
         {overview.unifiedTrends && (
           <Card
             id="P1-C06"
-            title="Xu hướng trễ chuyến mạng lưới và dự báo minh họa"
+            title="Xu hướng trễ chuyến mạng lưới và dự báo"
             subtitle={activeGranularity === 'year' ? 'So sánh tỷ lệ trễ giữa các năm theo từng tháng lịch sử' : 'Đường lịch sử, độ trễ đến trung bình và tín hiệu dự báo được phân biệt rõ'}
             action={
               <div className="overview-card-actions">
@@ -397,7 +397,7 @@ export function OverviewPage({
                 />
                 {activeGranularity !== 'year' && (
                   <div className="prediction-trend-callout" data-component-id="P1-C07" onContextMenu={(event) => openAnalysisContextMenu(event, networkContext('P1-C07', 'Xu hướng ước tính của mô hình', 'future_history'), { entitySubtitle: 'Lịch sử hỗ trợ dự báo' })}>
-                    <div><div className="card-title-group"><h3>Xu hướng ước tính của mô hình</h3><ComponentHelpButton componentId="P1-C07" title="Xu hướng ước tính của mô hình" /></div><p>Điểm dự báo chỉ là tín hiệu minh họa; hành động phân tích mở tập lịch sử hỗ trợ.</p></div>
+                    <div><div className="card-title-group"><h3>Xu hướng ước tính của mô hình</h3><ComponentHelpButton componentId="P1-C07" title="Xu hướng ước tính của mô hình" /></div><p>Điểm dự báo được ngoại suy từ mô hình; hành động phân tích mở tập lịch sử hỗ trợ.</p></div>
                     <AnalysisActions context={networkContext('P1-C07', 'Xu hướng ước tính của mô hình', 'future_history')} onOpenComparison={onOpenComparison} onOpenInvestigation={onOpenInvestigation} compact predictive />
                   </div>
                 )}
