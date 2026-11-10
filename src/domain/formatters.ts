@@ -4,7 +4,14 @@ export function formatAirportClause(clause: AirportClause): string {
   if (clause.mode === 'route') return `${clause.origin} → ${clause.destination}`
   if (clause.mode === 'origin') return `Sân bay đi = ${clause.airport}`
   if (clause.mode === 'destination') return `Sân bay đến = ${clause.airport}`
-  return `Sân bay = ${clause.airport} · mọi vai trò`
+  if (clause.mode === 'airport') {
+    const list = clause.airports && clause.airports.length > 0 ? clause.airports : clause.airport ? [clause.airport] : []
+    if (list.length > 1) {
+      return `Sân bay = ${list.join(', ')} · mọi vai trò`
+    }
+    return `Sân bay = ${list[0] ?? clause.airport} · mọi vai trò`
+  }
+  return ''
 }
 
 export function formatAirportClauseGroup(clauses: readonly AirportClause[]): string {

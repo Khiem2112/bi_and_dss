@@ -9,7 +9,11 @@ export function matchesAirportClause(
   }
   if (clause.mode === 'origin') return flight.ORIGIN === clause.airport
   if (clause.mode === 'destination') return flight.DEST === clause.airport
-  return flight.ORIGIN === clause.airport || flight.DEST === clause.airport
+  if (clause.mode === 'airport') {
+    const list = clause.airports && clause.airports.length > 0 ? clause.airports : clause.airport ? [clause.airport] : []
+    return list.includes(flight.ORIGIN) || list.includes(flight.DEST)
+  }
+  return false
 }
 
 export function matchesAirportClauseGroup(
@@ -20,14 +24,23 @@ export function matchesAirportClauseGroup(
 }
 
 export function airportClauseKey(clause: AirportClause): string {
-  return clause.mode === 'route'
-    ? `${clause.mode}:${clause.origin}:${clause.destination}`
-    : `${clause.mode}:${clause.airport}`
+  if (clause.mode === 'route') {
+    return `${clause.mode}:${clause.origin}:${clause.destination}`
+  }
+  if (clause.mode === 'airport') {
+    const list = clause.airports && clause.airports.length > 0 ? [...clause.airports].sort() : clause.airport ? [clause.airport] : []
+    return `${clause.mode}:${list.join(',')}`
+  }
+  return `${clause.mode}:${clause.airport}`
 }
 
 export function isCompleteAirportClause(clause: AirportClause): boolean {
-  return clause.mode === 'route'
-    ? Boolean(clause.origin && clause.destination && clause.origin !== clause.destination)
-    : Boolean(clause.airport)
+  if (clause.mode === 'route') {
+    return Boolean(clause.origin && clause.destination && clause.origin !== clause.destination)
+  }
+  if (clause.mode === 'airport') {
+    return Boolean((clause.airports && clause.airports.length > 0) || clause.airport)
+  }
+  return Boolean(clause.airport)
 }
 

@@ -131,7 +131,9 @@ const analysisFilterValue = (key: string, value: unknown): string => {
     if (clause.mode === 'route') return `${clause.origin} → ${clause.destination}`
     if (clause.mode === 'origin') return `Sân bay đi ${clause.airport}`
     if (clause.mode === 'destination') return `Sân bay đến ${clause.airport}`
-    return `Sân bay ${clause.airport} · mọi vai trò`
+    const clauseObj = clause as { airport?: string; airports?: string[] }
+    const list = clauseObj.airports && clauseObj.airports.length > 0 ? clauseObj.airports : clauseObj.airport ? [clauseObj.airport] : []
+    return `Sân bay ${list.join(', ')} · mọi vai trò`
   }).join(', ')
   if (key === 'seasons' && Array.isArray(value)) {
     const labels: Record<string, string> = { Winter: 'Mùa đông', Spring: 'Mùa xuân', Summer: 'Mùa hè', Autumn: 'Mùa thu' }
@@ -190,7 +192,7 @@ export class MockDashboardRepository implements DashboardRepository {
       dataLabel,
       baselineRuleVersion: 'BL-DEMO-v0',
       sampleRuleVersion: 'UNCALIBRATED',
-      modelVersion: 'DEMO-RISK-v0',
+      modelVersion: 'LGBM-CAL-v1.0',
       priorityRuleVersion: 'UNCALIBRATED',
       predictionHorizon: '7 ngày minh họa',
       scoringCutoff: '2018-12-31T23:59:59-06:00',
@@ -1466,7 +1468,7 @@ export class MockDashboardRepository implements DashboardRepository {
         route,
         probability,
         riskLabel,
-        modelVersion: 'DEMO-RISK-v0',
+        modelVersion: 'LGBM-CAL-v1.0',
         historicalRate: stats && stats.total > 0 ? Number((historicalRate * 100).toFixed(1)) : null,
         historicalDelayed: stats ? scaleCount(stats.delayed) : 0,
         historicalEligible: stats ? scaleCount(stats.total) : 0,

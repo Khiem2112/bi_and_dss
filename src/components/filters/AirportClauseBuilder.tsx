@@ -22,12 +22,17 @@ const MODE_OPTIONS = [
 
 const cloneClauses = (clauses: readonly AirportClause[]): AirportClause[] => clauses.map((clause) => ({ ...clause }))
 const newClauseId = () => `airport-clause-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-const emptyClause = (): AirportClause => ({ id: newClauseId(), mode: 'airport', airport: '' })
+const emptyClause = (): AirportClause => ({ id: newClauseId(), mode: 'airport', airport: '', airports: [] })
 
 function changeMode(clause: AirportClause, mode: AirportClause['mode']): AirportClause {
-  const fallbackAirport = clause.mode === 'route' ? clause.origin : clause.airport
+  const fallbackAirport = clause.mode === 'route'
+    ? clause.origin
+    : (clause.mode === 'airport' ? (clause.airports?.[0] ?? clause.airport) : clause.airport)
   if (mode === 'route') {
     return { id: clause.id, mode, origin: fallbackAirport, destination: '' }
+  }
+  if (mode === 'airport') {
+    return { id: clause.id, mode, airport: fallbackAirport, airports: fallbackAirport ? [fallbackAirport] : [] }
   }
   return { id: clause.id, mode, airport: fallbackAirport }
 }
@@ -37,6 +42,9 @@ function updateAirport(clause: AirportClause, field: 'airport' | 'origin' | 'des
     return field === 'destination'
       ? { ...clause, destination: airport }
       : { ...clause, origin: airport }
+  }
+  if (clause.mode === 'airport') {
+    return { ...clause, airport, airports: airport ? [airport] : [] }
   }
   return { ...clause, airport }
 }
@@ -63,6 +71,40 @@ function AirportPicker({
       ariaLabel={ariaLabel}
       clearable
       countLabel={() => value}
+      menuClassName="airport-clause-airport-menu"
+    />
+  )
+}
+
+function MultiAirportPicker({
+  values,
+  onChange,
+  airports,
+  ariaLabel,
+}: {
+  values: readonly string[]
+  onChange: (values: string[]) => void
+  airports: readonly MultiSelectItem[]
+  ariaLabel: string
+}) {
+  return (
+    <MultiSelectCombobox
+      items={airports}
+      values={values}
+      onChange={onChange}
+      selectionMode="multiple"
+      placeholder="Chọn một hoặc nhiều sân bay..."
+      searchPlaceholder="Tìm mã hoặc tên sân bay..."
+      emptyMessage="Không tìm thấy sân bay"
+      ariaLabel={ariaLabel}
+      clearable
+      countLabel={(count) =>
+        count === 0
+          ? 'Chọn sân bay'
+          : count === 1
+            ? (values[0] ?? '')
+            : `${values.join(', ')} (${count} sân bay)`
+      }
       menuClassName="airport-clause-airport-menu"
     />
   )
@@ -144,8 +186,10 @@ export function AirportClauseBuilder({
     return draft.some((other, otherIndex) => {
       if (index === otherIndex || !isCompleteAirportClause(other)) return false
       if (other.mode === 'airport') {
-        if (clause.mode === 'route') return clause.origin === other.airport || clause.destination === other.airport
-        return clause.airport === other.airport
+        const otherList = other.airports && other.airports.length > 0 ? other.airports : other.airport ? [other.airport] : []
+        if (clause.mode === 'route') return otherList.includes(clause.origin) || otherList.includes(clause.destination)
+        const clauseList = clause.mode === 'airport' && clause.airports && clause.airports.length > 0 ? clause.airports : [clause.airport]
+        return clauseList.every((ap) => otherList.includes(ap))
       }
       if (clause.mode === 'route' && other.mode === 'origin') return clause.origin === other.airport
       if (clause.mode === 'route' && other.mode === 'destination') return clause.destination === other.airport
@@ -228,6 +272,20 @@ export function AirportClauseBuilder({
                     <span className="airport-clause-arrow" aria-hidden="true">→</span>
                     <AirportPicker value={clause.destination} onChange={(airport) => setClause(clause.id, (current) => updateAirport(current, 'destination', airport))} airports={airports} ariaLabel={`Sân bay đến của điều kiện ${index + 1}`} />
                   </>
+                ) : clause.mode === 'airport' ? (
+                  <MultiAirportPicker
+                    values={clause.airports && clause.airports.length > 0 ? clause.airports : clause.airport ? [clause.airport] : []}
+                    onChange={(newAirports) =>
+                      setClause(clause.id, (current) => ({
+                        ...current,
+                        mode: 'airport',
+                        airports: newAirports,
+                        airport: newAirports[0] ?? '',
+                      }))
+                    }
+                    airports={airports}
+                    ariaLabel={`Sân bay mọi vai trò của điều kiện ${index + 1}`}
+                  />
                 ) : (
                   <AirportPicker value={clause.airport} onChange={(airport) => setClause(clause.id, (current) => updateAirport(current, 'airport', airport))} airports={airports} ariaLabel={`${MODE_OPTIONS.find((option) => option.value === clause.mode)?.label} của điều kiện ${index + 1}`} />
                 )}

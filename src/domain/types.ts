@@ -107,6 +107,9 @@ export interface AirportHotspot extends EvidenceRecord {
   lng?: number
   name?: string
   city?: string
+  state?: string
+  region?: string
+  isMajor?: boolean
   originMetrics?: RoleMetrics
   destMetrics?: RoleMetrics
 }
@@ -417,7 +420,7 @@ export type AirportClause =
   | { id: string; mode: 'route'; origin: string; destination: string }
   | { id: string; mode: 'origin'; airport: string }
   | { id: string; mode: 'destination'; airport: string }
-  | { id: string; mode: 'airport'; airport: string }
+  | { id: string; mode: 'airport'; airport: string; airports?: string[] }
 
 export interface DistanceRange {
   minMiles: number
