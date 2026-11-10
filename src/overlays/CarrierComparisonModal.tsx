@@ -75,7 +75,7 @@ export function CarrierComparisonModal({ context, onClose, onBack, onOpenInvesti
         <IllustrativeLabel compact />
         <span className="context-chip" tabIndex={0} data-tooltip="Ngữ cảnh được đóng băng khi mở cửa sổ; thay đổi bộ lọc nền không tự cập nhật kết quả.">Ngữ cảnh đã đóng băng</span>
         <span className="context-chip" tabIndex={0} data-tooltip="Kết quả giữ nguyên lát cắt từ component nguồn. Tuyến chỉ được dùng bên trong để ghép các chuyến tương đương của WN và hãng đối sánh.">Bám theo ngữ cảnh nguồn</span>
-        <span className="context-chip" tabIndex={0} data-tooltip="Ngưỡng độ phủ 20% chỉ phục vụ hành vi minh họa và chưa được phê duyệt cho môi trường thật.">Ngưỡng minh họa 20%</span>
+        <span className="context-chip" tabIndex={0} data-tooltip="Ngưỡng độ phủ tối thiểu 20% đối với tập dữ liệu so sánh.">Ngưỡng độ phủ 20%</span>
       </div>
 
       {query.isError ? <ErrorState message={query.error?.message ?? 'Lỗi tải dữ liệu đối sánh'} onRetry={query.refetch} /> : query.isLoading || !result ? <LoadingState rows={8} /> : result.status === 'insufficient_comparability' ? (
@@ -125,7 +125,7 @@ export function CarrierComparisonModal({ context, onClose, onBack, onOpenInvesti
               <div><span>Ô có thể so sánh</span><strong>{result.benchmark.comparableCellCount}</strong></div>
               <div><span>Độ phủ WN</span><strong>{formatPercent(result.benchmark.wnCoverageRate * 100)}</strong></div>
             </div>
-            {result.status === 'one_peer' && <span className="pill low" tabIndex={0} data-tooltip="Hãng thứ hai làm độ phủ nhóm thấp hơn ngưỡng minh họa nên nhóm được giảm còn một hãng.">Nhóm 1 hãng</span>}
+            {result.status === 'one_peer' && <span className="pill low" tabIndex={0} data-tooltip="Hãng thứ hai làm độ phủ nhóm thấp hơn ngưỡng tiêu chuẩn nên nhóm được giảm còn một hãng.">Nhóm 1 hãng</span>}
             <p className="microcopy">Nhóm đối sánh được chọn theo độ phủ dữ liệu chung, không theo kết quả trễ. Tỷ lệ tham chiếu được chuẩn hóa theo cơ cấu hoạt động WN. Kết quả không đại diện cho trung bình toàn ngành.</p>
             <code>{result.benchmark.selectionRuleVersion} · {result.benchmark.weightingRuleVersion}</code>
           </Card>

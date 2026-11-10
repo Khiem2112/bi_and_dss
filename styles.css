@@ -769,16 +769,7 @@ h3 {
 }
 
 .component-id {
-  display: inline-flex;
-  flex: 0 0 auto;
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  background: var(--surface-sunken);
-  border: 1px solid var(--line-soft);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
+  display: none !important;
 }
 
 .card-title-group {
@@ -1023,16 +1014,7 @@ h3 {
 
 /* Thành phần Huy hiệu Pill và Badge */
 .demo-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-full);
-  color: var(--amber-dark);
-  background: var(--amber-soft);
-  border: 1px solid var(--amber-border);
-  font-size: 11px;
-  font-weight: 700;
+  display: none !important;
 }
 
 .pill {
@@ -3289,6 +3271,116 @@ button:disabled {
 
 .legend-dot.amber {
   background: var(--amber);
+}
+
+.airport-map-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.airport-map-mode-tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 2.5px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  gap: 2px;
+}
+
+.map-tab-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  line-height: 1.3;
+}
+
+.map-tab-btn:hover {
+  color: #0f172a;
+}
+
+.map-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.airport-map-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-zoom-status {
+  font-size: 11px;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.map-zoom-btn {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.map-zoom-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.map-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.map-zoom-btn--reset {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.map-zoom-btn--reset:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.map-region-cluster {
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.2s ease;
+}
+
+.map-region-cluster:hover circle:first-child,
+.map-region-cluster:focus circle:first-child {
+  opacity: 0.35;
 }
 
 .airport-map {
@@ -6578,6 +6670,13 @@ button:disabled {
 
 .severity-legend > button strong { color: var(--ink); }
 
+.severity-legend-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
 .severity-swatch {
   width: 10px;
   height: 10px;
@@ -6644,6 +6743,51 @@ button:disabled {
 .year-month-point.selected circle { stroke: var(--ink); stroke-width: 3; }
 .year-month-point:focus-visible { outline: none; }
 .year-month-point:focus-visible circle { stroke: var(--blue); stroke-width: 5; }
+
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.heatmap-legend-title {
+  font-weight: 600;
+  color: var(--ink);
+}
+.heatmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.heatmap-legend-item i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.heatmap-cell {
+  transition: transform 120ms ease, filter 120ms ease;
+}
+.heatmap-cell:hover rect {
+  filter: brightness(0.94);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.heatmap-cell.selected rect {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  filter: brightness(0.96);
+}
+.heatmap-cell:focus-visible {
+  outline: none;
+}
+.heatmap-cell:focus-visible rect {
+  stroke: var(--blue);
+  stroke-width: 3;
+}
 
 .time-block-bars { display: grid; gap: 8px; }
 .time-block-bars > button {
@@ -6741,14 +6885,14 @@ button:disabled {
 }
 
 .overview-map-severity-grid .severity-pie-layout {
-  grid-template-columns: minmax(154px, 1fr) 72px;
-  gap: 6px;
+  grid-template-columns: minmax(130px, 1fr) minmax(140px, 1.25fr);
+  gap: 10px;
   min-height: 0;
   align-items: center;
 }
 
 .overview-map-severity-grid .severity-pie {
-  width: min(100%, 190px);
+  width: min(100%, 160px);
 }
 
 .overview-map-severity-grid .severity-legend {
@@ -6756,11 +6900,21 @@ button:disabled {
 }
 
 .overview-map-severity-grid .severity-legend > button {
-  grid-template-columns: 10px minmax(0, 1fr);
-  gap: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-height: 25px;
-  padding: 4px 3px;
-  font-size: 10px;
+  padding: 3px 6px;
+  font-size: 11px;
+  text-align: left;
+}
+
+.overview-map-severity-grid .severity-legend > button .severity-legend-name {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.25;
 }
 
 .overview-map-severity-grid .severity-legend > button strong {

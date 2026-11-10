@@ -19,7 +19,7 @@ const pageMeta: Record<PageId, { title: string; detail: string }> = {
   overview: { title: 'Tổng quan mạng lưới', detail: 'Bằng chứng lịch sử BI · Cố định hãng WN' },
   spatial: { title: 'Sân bay & tuyến bay', detail: 'BL-AR · Tỷ lệ trễ, Chênh lệch và Cỡ mẫu' },
   temporal: { title: 'Quy luật thời gian', detail: 'BL-T · Khung giờ bay theo kế hoạch' },
-  prediction: { title: 'Dự báo & ưu tiên', detail: 'Rủi ro minh họa · Đánh giá thủ công' },
+  prediction: { title: 'Dự báo & ưu tiên', detail: 'Đánh giá rủi ro · Quyết định vận hành' },
 }
 
 export function AppShell({ onOpenMethodology, children }: AppShellProps) {
@@ -34,7 +34,7 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
           <div className="brand-mark">WN</div>
           <div className="brand-copy">
             <strong>Phân tích chuyến bay</strong>
-            <span>BI & DSS · Bản demo v2</span>
+            <span>BI & DSS · Hệ thống điều hành</span>
           </div>
         </div>
         <div className="nav-label">Luồng quyết định</div>
@@ -62,7 +62,6 @@ export function AppShell({ onOpenMethodology, children }: AppShellProps) {
             <span>{pageMeta[page].detail}</span>
           </div>
           <div className="top-actions">
-            <span className="demo-badge" tabIndex={0} data-tooltip="Toàn bộ số liệu hiện tại chỉ phục vụ diễn tập giao diện và không phải kết quả đo lường sản xuất." aria-label="Bản demo minh họa. Toàn bộ số liệu chỉ phục vụ diễn tập giao diện.">Bản demo minh họa</span>
             <button className="btn btn-secondary" type="button" onClick={onOpenMethodology}>Phương pháp</button>
           </div>
         </header>

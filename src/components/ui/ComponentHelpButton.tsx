@@ -109,7 +109,6 @@ export function ComponentHelpButton({ componentId, title }: ComponentHelpButtonP
           >
             <div className="help-popover-header">
               <div className="help-popover-title-row">
-                <span className="help-popover-badge">{help.componentId}</span>
                 <strong id={`help-title-${componentId}`}>{help.title}</strong>
               </div>
               <button

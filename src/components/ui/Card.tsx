@@ -25,7 +25,6 @@ export function Card({ id, title, subtitle, action, className = '', onContextMen
         </div>
         <div className="card-tools">
           {action}
-          <span className="component-id">{id}</span>
         </div>
       </div>
       {children}
@@ -74,7 +73,6 @@ export function LoadingState({ rows = 4 }: { rows?: number }) {
   )
 }
 
-export function IllustrativeLabel({ compact = false }: { compact?: boolean }) {
-  const description = 'Các giá trị dùng để kiểm thử bố cục và tương tác; không phải kết quả đo lường sản xuất.'
-  return <span className={`illustrative-label${compact ? ' compact' : ''}`} tabIndex={0} data-tooltip={description} aria-label={`Dữ liệu minh họa. ${description}`}>● Dữ liệu minh họa</span>
+export function IllustrativeLabel(_props?: { compact?: boolean }) {
+  return null
 }

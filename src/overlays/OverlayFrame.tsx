@@ -60,7 +60,6 @@ export function OverlayFrame({ mode, componentId, title, subtitle, onClose, chil
         <header className="overlay-header">
           {onBack && <button className="overlay-back-button" type="button" onClick={onBack} aria-label={backLabel}>← {backLabel}</button>}
           <div>
-            <span className="component-id">{componentId}</span>
             <div className="card-title-group">
               <h2 id={`${componentId}-title`} tabIndex={-1} ref={titleRef}>{title}</h2>
               <ComponentHelpButton componentId={componentId} title={title} />

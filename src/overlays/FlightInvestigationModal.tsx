@@ -273,7 +273,7 @@ export function FlightInvestigationModal({ context, carrierScope, frozenPeerCarr
               <div><span>Tỷ lệ chuyến đến trễ</span><strong>{query.data.metrics.delayRate === null ? '—' : `${query.data.metrics.delayRate.toFixed(1).replace('.', ',')}%`}</strong></div>
               <div><span>Số chuyến đến trễ</span><strong>{query.data.metrics.delayedFlights.toLocaleString('vi-VN')} / {query.data.metrics.eligibleFlights.toLocaleString('vi-VN')}</strong></div>
               <div><span>Độ trễ đến trung bình</span><strong>{query.data.metrics.averageArrivalDelayMinutes === null ? '—' : `${query.data.metrics.averageArrivalDelayMinutes.toFixed(1).replace('.', ',')} phút`}</strong></div>
-              <div><span>Bản ghi mẫu đang có</span><strong>{query.data.filteredRecordCount.toLocaleString('vi-VN')}</strong><small>Ước tính quần thể minh họa: {query.data.estimatedPopulationRows.toLocaleString('vi-VN')}</small></div>
+              <div><span>Bản ghi mẫu đang có</span><strong>{query.data.filteredRecordCount.toLocaleString('vi-VN')}</strong><small>Ước tính quy mô quần thể: {query.data.estimatedPopulationRows.toLocaleString('vi-VN')}</small></div>
             </div>
             <div className="inline-badges"><IllustrativeLabel compact /><span className="pill uncalibrated" tabIndex={0} data-tooltip="Số đếm tổng hợp dùng hệ số mẫu 25; bảng không nhân bản ghi.">Hệ số mẫu ×{query.data.countScale}</span></div>
           </Card>

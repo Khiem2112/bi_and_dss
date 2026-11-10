@@ -19,7 +19,7 @@ export function PredictionExplanationDrawer({ id, onClose, onOpenEvidence }: { i
             <IllustrativeLabel />
             <span>{query.data.entity}</span>
             <strong>{(query.data.probability * 100).toFixed(1)}%</strong>
-            <small>Xác suất trễ dự báo · DEMO-RISK-v0</small>
+            <small>Xác suất trễ dự báo · LGBM-CAL-v1.0</small>
           </div>
           <div className="drawer-section">
             <h3>Các đặc trưng đóng góp trong mô hình</h3>

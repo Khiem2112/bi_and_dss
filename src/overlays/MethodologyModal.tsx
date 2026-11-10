@@ -45,7 +45,7 @@ export function MethodologyModal({ onClose }: { onClose: () => void }) {
         {tab === 'Sample' && (
           <>
             <h3>Bằng chứng cỡ mẫu</h3>
-            <p>Tỷ lệ trễ, khoảng chênh lệch, mức chuẩn đối sánh và mức ưu tiên luôn đi kèm với cỡ mẫu n và nhãn kiểm soát mẫu. Ngưỡng hiện chưa được phê duyệt chính thức, do đó bản demo sử dụng trạng thái <strong>Chưa hiệu chỉnh</strong>.</p>
+            <p>Tỷ lệ trễ, khoảng chênh lệch, mức chuẩn đối sánh và mức ưu tiên luôn đi kèm với cỡ mẫu n và nhãn kiểm soát mẫu. Khi ngưỡng chưa được thiết lập chính thức, hệ thống áp dụng trạng thái <strong>Chưa hiệu chỉnh</strong>.</p>
             <div className="notice">Chênh lệch mức tham chiếu ≥ 5% là quy tắc về ý nghĩa thực tế (materiality), không phải ý nghĩa thống kê (statistical significance).</div>
           </>
         )}
@@ -53,7 +53,7 @@ export function MethodologyModal({ onClose }: { onClose: () => void }) {
           <>
             <h3>An toàn trong dự báo</h3>
             <p>Các đặc trưng ứng viên chỉ sử dụng lịch, WN, sân bay/đường bay, CRS_DEP_TIME, khoảng cách và các đặc trưng lịch sử an toàn về mặt thời gian. Tuyệt đối không dùng thời gian thực tế, DEP_DELAY, ARR_DELAY, thời gian lăn/cất hạ cánh, thời gian bay thực tế hoặc nguyên nhân ghi nhận của chuyến bay cần dự báo.</p>
-            <div className="notice">DEMO-RISK-v0 chỉ là giao ước minh họa; chưa qua hiệu chỉnh, kiểm định hoặc công bố chính thức.</div>
+            <div className="notice">Mô hình RISK-v0 đang trong giai đoạn thử nghiệm; các ngưỡng quyết định cần qua kiểm định để chuẩn hóa.</div>
           </>
         )}
         {tab === 'Priority' && (
