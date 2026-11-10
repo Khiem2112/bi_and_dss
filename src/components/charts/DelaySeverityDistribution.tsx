@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { DelaySeverityBand } from '../../domain/types'
 
 interface DelaySeverityDistributionProps {
@@ -12,12 +12,9 @@ const colors = ['#86b7a8', '#8bb9dc', '#e9c46a', '#f4a261', '#d85b4a']
 const formatPercent = (value: number | null) => value === null ? '—' : `${value.toFixed(1).replace('.', ',')}%`
 const formatMinutes = (value: number | null) => value === null ? '—' : `${value.toFixed(1).replace('.', ',')} phút`
 
-const CX = 125
-const CY = 125
-const RADIUS = 76
-const LABEL_RADIUS = 100
-const TICK_INNER = 79
-const TICK_OUTER = 90
+const CX = 120
+const CY = 120
+const RADIUS = 100
 
 function polarPoint(cx: number, cy: number, radius: number, angle: number) {
   const radians = (angle - 90) * Math.PI / 180
@@ -31,8 +28,45 @@ function piePath(startAngle: number, endAngle: number) {
   return `M ${CX} ${CY} L ${start.x} ${start.y} A ${RADIUS} ${RADIUS} 0 ${largeArc} 0 ${end.x} ${end.y} Z`
 }
 
+function getTooltipPlacementStyle(x: number, y: number, container: HTMLDivElement | null): React.CSSProperties {
+  if (!container) {
+    return {
+      left: `${x}px`,
+      top: `${y}px`,
+      transform: 'translate(14px, -50%)',
+    }
+  }
+
+  const rect = container.getBoundingClientRect()
+  const isRightHalf = x > rect.width * 0.52
+  const isTopClose = y < 55
+  const isBottomClose = y > rect.height - 65
+
+  const translateX = isRightHalf ? '-105%' : '14px'
+  let translateY = '-50%'
+  if (isTopClose) {
+    translateY = '8px'
+  } else if (isBottomClose) {
+    translateY = '-95%'
+  }
+
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+    transform: `translate(${translateX}, ${translateY})`,
+  }
+}
+
 export function DelaySeverityDistribution({ bands, selectedId, onSelect, onBandContextMenu }: DelaySeverityDistributionProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const [activeId, setActiveId] = useState<string | undefined>(selectedId ?? bands[0]?.id)
+  const [hoveredSlice, setHoveredSlice] = useState<{
+    band: DelaySeverityBand
+    color: string
+    x: number
+    y: number
+  } | null>(null)
+
   const active = bands.find((band) => band.id === activeId) ?? bands[0]
   if (!active) return <p className="chart-empty">Không có chuyến bay đủ điều kiện để phân nhóm mức độ trễ.</p>
 
@@ -52,23 +86,71 @@ export function DelaySeverityDistribution({ bands, selectedId, onSelect, onBandC
     onSelect(band)
   }
 
+  const handleSliceMouseMove = (event: React.MouseEvent<SVGPathElement>, band: DelaySeverityBand, index: number) => {
+    const container = containerRef.current
+    if (!container) return
+    const rect = container.getBoundingClientRect()
+    setHoveredSlice({
+      band,
+      color: colors[index % colors.length],
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    })
+  }
+
+  const handleSliceMouseEnter = (event: React.MouseEvent<SVGPathElement>, band: DelaySeverityBand, index: number) => {
+    setActiveId(band.id)
+    const container = containerRef.current
+    if (!container) return
+    const rect = container.getBoundingClientRect()
+    setHoveredSlice({
+      band,
+      color: colors[index % colors.length],
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    })
+  }
+
+  const handleSliceFocus = (event: React.FocusEvent<SVGPathElement>, band: DelaySeverityBand, index: number) => {
+    activate(band)
+    const container = containerRef.current
+    if (!container) return
+    const containerRect = container.getBoundingClientRect()
+    const sliceRect = event.currentTarget.getBoundingClientRect()
+    setHoveredSlice({
+      band,
+      color: colors[index % colors.length],
+      x: sliceRect.left - containerRect.left + sliceRect.width / 2,
+      y: sliceRect.top - containerRect.top + sliceRect.height / 2,
+    })
+  }
+
   return (
-    <div className="severity-chart severity-chart--pie">
+    <div ref={containerRef} className="severity-chart severity-chart--pie">
       <div className="severity-pie-layout">
-        <svg viewBox="0 0 250 250" className="severity-pie" role="img" aria-label="Biểu đồ tròn phân phối chuyến bay theo mức độ trễ đến">
+        <svg
+          viewBox="0 0 240 240"
+          className="severity-pie"
+          role="img"
+          aria-label="Biểu đồ tròn phân phối chuyến bay theo mức độ trễ đến"
+          onMouseLeave={() => setHoveredSlice(null)}
+        >
           {/* Cac lat cat pie chart */}
           {slices.map(({ band, index, startAngle, endAngle }) => (
             <path
               key={band.id}
               d={piePath(startAngle, endAngle)}
               data-analysis-unit={`overview-severity-${band.id}`}
-              className={`severity-pie-slice${band.id === active.id ? ' selected' : ''}`}
+              className={`severity-pie-slice${band.id === (hoveredSlice?.band.id ?? active.id) ? ' selected' : ''}`}
               style={{ fill: colors[index % colors.length] }}
               role="button"
               tabIndex={0}
               aria-label={`${band.label}, ${band.share.toFixed(1).replace('.', ',')}% số chuyến; tỷ lệ trễ ${formatPercent(band.metrics.delayRate)}; ${band.metrics.delayedFlights.toLocaleString('vi-VN')} chuyến trễ; độ trễ đến trung bình ${formatMinutes(band.metrics.averageArrivalDelayMinutes)}.`}
-              onMouseEnter={() => setActiveId(band.id)}
-              onFocus={() => activate(band)}
+              onMouseEnter={(event) => handleSliceMouseEnter(event, band, index)}
+              onMouseMove={(event) => handleSliceMouseMove(event, band, index)}
+              onMouseLeave={() => setHoveredSlice(null)}
+              onFocus={(event) => handleSliceFocus(event, band, index)}
+              onBlur={() => setHoveredSlice(null)}
               onClick={() => activate(band)}
               onContextMenu={(event) => onBandContextMenu?.(event, band)}
               onKeyDown={(event) => {
@@ -80,69 +162,82 @@ export function DelaySeverityDistribution({ bands, selectedId, onSelect, onBandC
             />
           ))}
 
-          {/* Cac nhan so phan tram o canh pie chart */}
-          {slices.map(({ band, index, midAngle }) => {
-            if (band.share < 2.5) return null
-            const labelPos = polarPoint(CX, CY, LABEL_RADIUS, midAngle)
-            const tickStart = polarPoint(CX, CY, TICK_INNER, midAngle)
-            const tickEnd = polarPoint(CX, CY, TICK_OUTER, midAngle)
-            const sliceColor = colors[index % colors.length]
-
+          {/* Nhan ty le phan tram truc tiep tren cac lat cat co ty trong lon */}
+          {slices.map(({ band, midAngle }) => {
+            if (band.share < 7) return null
+            const labelPos = polarPoint(CX, CY, RADIUS * 0.65, midAngle)
+            const isDark = band.id === 'delay-15-29'
             return (
-              <g key={`label-${band.id}`} className="pie-label-group" pointerEvents="none">
-                <line
-                  x1={tickStart.x}
-                  y1={tickStart.y}
-                  x2={tickEnd.x}
-                  y2={tickEnd.y}
-                  stroke={sliceColor}
-                  strokeWidth="1.2"
-                  opacity="0.8"
-                />
-                <text
-                  x={labelPos.x}
-                  y={labelPos.y + 4}
-                  textAnchor="middle"
-                  fill={sliceColor}
-                  style={{
-                    fontWeight: 800,
-                    fontSize: '11px',
-                    userSelect: 'none',
-                  }}
-                >
-                  {band.share.toFixed(1).replace('.', ',')}%
-                </text>
-              </g>
+              <text
+                key={`label-${band.id}`}
+                x={labelPos.x}
+                y={labelPos.y + 4}
+                textAnchor="middle"
+                fill={isDark ? '#1e293b' : '#ffffff'}
+                pointerEvents="none"
+                style={{
+                  fontWeight: 800,
+                  fontSize: band.share > 20 ? '13px' : '11px',
+                  userSelect: 'none',
+                  textShadow: isDark ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                {band.share.toFixed(1).replace('.', ',')}%
+              </text>
             )
           })}
         </svg>
 
-        {/* Legend the hien label cua muc do den tre */}
+        {/* Legend the hien label va ty trong cua tung muc do */}
         <div className="severity-legend" aria-label="Chú giải các mức độ trễ đến">
           {bands.map((band, index) => (
             <button
               key={band.id}
               type="button"
-              className={band.id === active.id ? 'active' : ''}
+              className={band.id === (hoveredSlice?.band.id ?? active.id) ? 'active' : ''}
               onClick={() => activate(band)}
+              onMouseEnter={() => setActiveId(band.id)}
               aria-label={`${band.label}: ${band.share.toFixed(1).replace('.', ',')}% số chuyến.`}
               data-tooltip-multiline
-              data-tooltip={`${band.label}\n• Tỷ trọng: ${band.share.toFixed(1).replace('.', ',')}%\n• Tỷ lệ chuyến đến trễ: ${formatPercent(band.metrics.delayRate)}\n• Chuyến đến trễ: ${band.metrics.delayedFlights.toLocaleString('vi-VN')} / ${band.metrics.eligibleFlights.toLocaleString('vi-VN')}\n• Độ trễ đến trung bình: ${formatMinutes(band.metrics.averageArrivalDelayMinutes)}`}
+              data-tooltip={`${band.label}\n- Tỷ trọng: ${band.share.toFixed(1).replace('.', ',')}%\n- Số chuyến bay: ${band.metrics.eligibleFlights.toLocaleString('vi-VN')} chuyến\n- Độ trễ đến trung bình: ${formatMinutes(band.metrics.averageArrivalDelayMinutes)}`}
             >
               <i className="severity-swatch" style={{ background: colors[index % colors.length] }} />
               <span className="severity-legend-name">{band.label}</span>
+              <strong className="severity-legend-value">{band.share.toFixed(1).replace('.', ',')}%</strong>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="chart-evidence-popover" role="status" aria-live="polite">
-        <strong>{active.label}</strong>
-        <span>Tỷ trọng trong phạm vi: <b>{active.share.toFixed(1).replace('.', ',')}%</b></span>
-        <span>Tỷ lệ trễ trong nhóm: <b>{formatPercent(active.metrics.delayRate)}</b></span>
-        <span>Chuyến đến trễ: <b>{active.metrics.delayedFlights.toLocaleString('vi-VN')} / {active.metrics.eligibleFlights.toLocaleString('vi-VN')}</b></span>
-        <span>Độ trễ đến TB: <b>{formatMinutes(active.metrics.averageArrivalDelayMinutes)}</b></span>
-      </div>
+      {/* Tooltip hien thi thong so khi hover lat cat pie chart */}
+      {hoveredSlice && (
+        <div
+          className="severity-pie-tooltip"
+          role="tooltip"
+          style={getTooltipPlacementStyle(hoveredSlice.x, hoveredSlice.y, containerRef.current)}
+        >
+          <div className="severity-pie-tooltip-header">
+            <span className="severity-pie-tooltip-swatch" style={{ background: hoveredSlice.color }} />
+            <strong className="severity-pie-tooltip-title">{hoveredSlice.band.label}</strong>
+          </div>
+          <div className="severity-pie-tooltip-body">
+            <div className="severity-pie-tooltip-row">
+              <span className="severity-pie-tooltip-label">Tỷ trọng trong phạm vi:</span>
+              <span className="severity-pie-tooltip-val">{hoveredSlice.band.share.toFixed(1).replace('.', ',')}%</span>
+            </div>
+            <div className="severity-pie-tooltip-row">
+              <span className="severity-pie-tooltip-label">Số chuyến bay:</span>
+              <span className="severity-pie-tooltip-val">
+                {hoveredSlice.band.metrics.eligibleFlights.toLocaleString('vi-VN')} chuyến
+              </span>
+            </div>
+            <div className="severity-pie-tooltip-row">
+              <span className="severity-pie-tooltip-label">Độ trễ đến trung bình:</span>
+              <span className="severity-pie-tooltip-val">{formatMinutes(hoveredSlice.band.metrics.averageArrivalDelayMinutes)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

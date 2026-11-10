@@ -123,7 +123,7 @@ export function YearMonthComparisonChart({ points, selectedPeriod, onSelect, onP
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((month, monthIndex) => {
                   const x = padding.left + monthIndex * (cellWidth + cellGap)
                   const point = matrix.get(`${year}-${month}`)
-                  const rate = point?.metrics.delayRate ?? null
+                  const rate = point ? point.metrics.delayRate : null
                   const colorScheme = getHeatmapColor(rate)
                   const isSelected = point?.period === selectedPeriod || point?.period === activePeriod
 
